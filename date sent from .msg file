@@ -45,9 +45,12 @@ $row = 2
 Get-ChildItem -Path $folderPath -Filter *.msg | ForEach-Object {
     $message = $outlook.Session.OpenSharedItem($_.FullName)
 
+    # Convert the SentOn date to a string
+    $sentDate = $message.SentOn.ToString("yyyy-MM-dd HH:mm:ss")
+
     # Write data to Excel
     $worksheet.Cells($row, 1).Value2 = $_.Name
-    $worksheet.Cells($row, 2).Value2 = $message.SentOn
+    $worksheet.Cells($row, 2).Value2 = $sentDate
 
     # Close the message and increment row number
     $message.Close([Microsoft.Office.Interop.Outlook.OlInspectorClose]::olDiscard)
@@ -55,10 +58,15 @@ Get-ChildItem -Path $folderPath -Filter *.msg | ForEach-Object {
     $row++
 }
 
+
 # Save the Excel file
 $workbook.SaveAs($outputExcel)
 $workbook.Close()
 $excel.Quit()
+
+
+
+
 
 # Clean up Outlook and Excel COM objects
 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) > $null
