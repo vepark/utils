@@ -1,26 +1,4 @@
-$filePath = "C:\path\to\your\file.msg"  # Replace with your .msg file path
-
-# Create an instance of Shell.Application
-$shell = New-Object -ComObject Shell.Application
-
-# Retrieve folder object and file object
-$folder = $shell.Namespace((Get-Item $filePath).DirectoryName)
-$fileObject = $folder.ParseName((Get-Item $filePath).Name)
-
-# Define a function to retrieve file properties. Index 21 corresponds to Date Sent in MSG files
-function GetFileProperty ($file, $propertyIndex) {
-    return $folder.GetDetailsOf($file, $propertyIndex)
-}
-
-# Extracting the Date Sent property
-$dateSent = GetFileProperty -file $fileObject -propertyIndex 21
-
-Write-Output "Date Email Sent: $dateSent"
-
-
-
-
-
+#Extract date email sent from .msg file 
 
 $filePath = "C:\path\to\your\file.msg"  # Replace with your .msg file path
 
@@ -38,3 +16,54 @@ $message.Close([Microsoft.Office.Interop.Outlook.OlInspectorClose]::olDiscard)
 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($message) > $null
 [System.GC]::Collect()
 [System.GC]::WaitForPendingFinalizers()
+
+
+#Date email sent from all .msg files in a folder
+
+
+$folderPath = "C:\path\to\your\msg\files"  # Replace with your path
+$outputExcel = "C:\path\to\output.xlsx"    # Replace with desired output path
+
+# Create a new Outlook Application
+$outlook = New-Object -ComObject Outlook.Application
+
+# Create a new Excel Application
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false
+
+# Create a new Workbook and Worksheet
+$workbook = $excel.Workbooks.Add()
+$worksheet = $workbook.Worksheets.Item(1)
+
+# Define columns headers
+$worksheet.Cells(1, 1).Value2 = "Filename"
+$worksheet.Cells(1, 2).Value2 = "Date Email Sent"
+
+$row = 2
+
+# Loop through each .msg file in the folder
+Get-ChildItem -Path $folderPath -Filter *.msg | ForEach-Object {
+    $message = $outlook.Session.OpenSharedItem($_.FullName)
+
+    # Write data to Excel
+    $worksheet.Cells($row, 1).Value2 = $_.Name
+    $worksheet.Cells($row, 2).Value2 = $message.SentOn
+
+    # Close the message and increment row number
+    $message.Close([Microsoft.Office.Interop.Outlook.OlInspectorClose]::olDiscard)
+    [System.Runtime.Interopservices.Marshal]::ReleaseComObject($message) > $null
+    $row++
+}
+
+# Save the Excel file
+$workbook.SaveAs($outputExcel)
+$workbook.Close()
+$excel.Quit()
+
+# Clean up Outlook and Excel COM objects
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) > $null
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) > $null
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
+
+Write-Output "Extraction completed!"
