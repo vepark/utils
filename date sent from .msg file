@@ -16,3 +16,25 @@ function GetFileProperty ($file, $propertyIndex) {
 $dateSent = GetFileProperty -file $fileObject -propertyIndex 21
 
 Write-Output "Date Email Sent: $dateSent"
+
+
+
+
+
+
+$filePath = "C:\path\to\your\file.msg"  # Replace with your .msg file path
+
+# Create a new Outlook Application
+$outlook = New-Object -ComObject Outlook.Application
+
+# Open the MSG file
+$message = $outlook.Session.OpenSharedItem($filePath)
+
+# Print the SentOn date
+Write-Output "Date Email Sent: $($message.SentOn)"
+
+# Clean up
+$message.Close([Microsoft.Office.Interop.Outlook.OlInspectorClose]::olDiscard)
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($message) > $null
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
