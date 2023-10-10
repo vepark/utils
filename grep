@@ -1,0 +1,5 @@
+pdftotext your-pdf-file.pdf - | grep -oE "(from|into|update|join)\s+\w+\.\w+" | sed 's/from\|into\|update\|join//g' | tr -d ' '
+
+
+echo "PDF File Name,Database.Table Name" > output.csv
+pdftotext your-pdf-file.pdf - | grep -oE "(from|into|update|join)\s+\w+\.\w+" | sed 's/from\|into\|update\|join//g' | tr -d ' ' | awk -v pdfname="your-pdf-file.pdf" '{print pdfname "," $0}' >> output.csv
