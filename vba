@@ -194,21 +194,21 @@ End Sub
 
 
 ' by sheet range - lock only them
-Sub LockColumnsAndProtectSheetsByIndex()
+Sub LockColumnsAndProtectSheetsByName()
 
     Dim ws As Worksheet
-    Dim i As Integer
+    Dim sheetNameNumber As Integer
     
-    ' Loop through sheets 201 to 231
-    For i = 201 To 231
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Sheets
     
-        ' Error handling in case of invalid sheet index
+        ' Error handling in case of non-convertible name to number
         On Error Resume Next
-        Set ws = ThisWorkbook.Sheets(i)
+        sheetNameNumber = CInt(ws.Name)
         On Error GoTo 0
         
-        ' Check if sheet exists
-        If Not ws Is Nothing Then
+        ' Check if sheet name is a number between 201 and 231
+        If sheetNameNumber >= 201 And sheetNameNumber <= 231 Then
         
             ' Unprotect the sheet in case it's protected
             ws.Unprotect Password:="YourPasswordHere" ' Optional: Change the password if needed
@@ -221,13 +221,10 @@ Sub LockColumnsAndProtectSheetsByIndex()
             
             ' Protect the entire sheet
             ws.Protect Password:="YourPasswordHere" ' Optional: Change the password if needed
-            
-            ' Clear the sheet object
-            Set ws = Nothing
-        Else
-            MsgBox "Sheet index " & i & " does not exist.", vbExclamation
+        
         End If
         
-    Next i
+    Next ws
 
 End Sub
+
