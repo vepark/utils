@@ -190,3 +190,44 @@ Sub LockColumnsAndProtectAllSheets()
 
 End Sub
 
+
+
+
+' by sheet range - lock only them
+Sub LockColumnsAndProtectSheetsByIndex()
+
+    Dim ws As Worksheet
+    Dim i As Integer
+    
+    ' Loop through sheets 201 to 231
+    For i = 201 To 231
+    
+        ' Error handling in case of invalid sheet index
+        On Error Resume Next
+        Set ws = ThisWorkbook.Sheets(i)
+        On Error GoTo 0
+        
+        ' Check if sheet exists
+        If Not ws Is Nothing Then
+        
+            ' Unprotect the sheet in case it's protected
+            ws.Unprotect Password:="YourPasswordHere" ' Optional: Change the password if needed
+            
+            ' Unlock all cells in the worksheet
+            ws.Cells.Locked = False
+            
+            ' Lock cells in columns A, B, and C
+            ws.Range("A:C").Locked = True
+            
+            ' Protect the entire sheet
+            ws.Protect Password:="YourPasswordHere" ' Optional: Change the password if needed
+            
+            ' Clear the sheet object
+            Set ws = Nothing
+        Else
+            MsgBox "Sheet index " & i & " does not exist.", vbExclamation
+        End If
+        
+    Next i
+
+End Sub
