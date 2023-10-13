@@ -117,3 +117,31 @@ Sub UnlockAndUnprotectAllSheets()
     
 End Sub
 
+
+
+' Lock A to C columns in all sheets
+Sub LockColumnsAndProtectAllSheets()
+
+    Dim ws As Worksheet
+    
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Sheets
+        
+        ' Unprotect the sheet in case it's protected
+        ' Note: If a password has been set, it needs to be specified here
+        ws.Unprotect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+        ' Unlock all cells in the worksheet
+        ws.Cells.Locked = False
+        
+        ' Lock cells in columns A, B, and C
+        ws.Range("A:C").Locked = True
+        
+        ' Protect the entire sheet
+        ' Note: If you want to set a password for protection, specify it here
+        ws.Protect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+    Next ws
+
+End Sub
+
