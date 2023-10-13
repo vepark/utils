@@ -145,3 +145,48 @@ Sub LockColumnsAndProtectAllSheets()
 
 End Sub
 
+
+
+
+
+' Unmerge and merge if that is causing issue to lock
+Sub LockColumnsAndProtectAllSheets()
+
+    Dim ws As Worksheet
+    Dim mergedCells As Collection
+    Dim cell As Range
+    
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Sheets
+        
+        Set mergedCells = New Collection
+        
+        ' Unprotect the sheet in case it's protected
+        ws.Unprotect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+        ' Unlock all cells in the worksheet
+        ws.Cells.Locked = False
+        
+        ' Check for merged cells in columns A:C and unmerge them, saving their references to remerge later
+        For Each cell In ws.Range("A:C").Cells
+            If cell.MergeCells Then
+                mergedCells.Add cell.MergeArea.Address
+                cell.MergeArea.UnMerge
+            End If
+        Next cell
+        
+        ' Lock cells in columns A, B, and C
+        ws.Range("A:C").Locked = True
+        
+        ' Remerge previously merged cells
+        For Each cell In mergedCells
+            ws.Range(cell).Merge
+        Next cell
+        
+        ' Protect the entire sheet
+        ws.Protect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+    Next ws
+
+End Sub
+
