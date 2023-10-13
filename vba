@@ -93,3 +93,27 @@ Sub LockABCAndProtect()
 
 End Sub
 
+
+
+
+
+' Unlock all sheets and unprotect
+
+Sub UnlockAndUnprotectAllSheets()
+
+    Dim ws As Worksheet
+
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Sheets
+    
+        ' Unprotect the sheet in case it's protected
+        ' Note: If a password has been set, it needs to be specified here
+        ws.Unprotect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+        ' Unlock all cells in the worksheet
+        ws.Cells.Locked = False
+        
+    Next ws
+    
+End Sub
+
