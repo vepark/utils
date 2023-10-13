@@ -61,3 +61,35 @@ Sub LockAllExceptDWithValue()
 
 End Sub
 
+
+
+
+
+
+
+
+
+
+Sub LockABCAndProtect()
+
+    Dim ws As Worksheet
+
+    ' Loop through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Worksheets
+    
+        ' Unprotect the sheet in case it's protected
+        ws.Unprotect Password:="YourPasswordHere"  ' Optional: Change the password if needed
+        
+        ' Unlock all cells in the worksheet
+        ws.Cells.Locked = False
+        
+        ' Lock only cells in columns A, B, and C
+        ws.Range("A:C").Locked = True
+        
+        ' Protect the entire sheet
+        ws.Protect Password:="YourPasswordHere" ' Optional: Change the password if needed
+        
+    Next ws
+
+End Sub
+
