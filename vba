@@ -234,49 +234,27 @@ End Sub
 
 
 ' check formula errrors
-
-Sub CheckForFormulaErrors()
+Sub CheckForCircularReferences()
 
     Dim ws As Worksheet
-    Dim rng As Range
-    Dim cell As Range
     Dim errorSheets As String
-    Dim hasError As Boolean
 
     ' Iterate through each worksheet in the workbook
     For Each ws In ThisWorkbook.Worksheets
-        hasError = False
         
-        ' Check only the cells with formulas
-        On Error Resume Next
-        Set rng = ws.UsedRange.SpecialCells(xlCellTypeFormulas)
-        On Error GoTo 0
-
-        ' If the worksheet has formulas, then check for errors
-        If Not rng Is Nothing Then
-            For Each cell In rng
-                If IsError(cell.Value) Then
-                    hasError = True
-                    Exit For
-                End If
-            Next cell
-        End If
-
-        ' If the worksheet has an error, append its name to the errorSheets string
-        If hasError Then
+        ' Check for circular references in the worksheet
+        If Not ws.CircularReference Is Nothing Then
             errorSheets = errorSheets & ws.Name & ", "
         End If
 
     Next ws
 
-    ' Display the sheets with errors
+    ' Display the sheets with circular references
     If errorSheets <> "" Then
         errorSheets = Left(errorSheets, Len(errorSheets) - 2)  ' Removing the trailing comma and space
-        MsgBox "Sheets with errors: " & errorSheets
+        MsgBox "Sheets with circular references: " & errorSheets
     Else
-        MsgBox "No sheets with formula errors found."
+        MsgBox "No sheets with circular references found."
     End If
 
 End Sub
-
-
