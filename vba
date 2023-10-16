@@ -198,7 +198,9 @@ Sub LockColumnsAndProtectSheetsByName()
 
     Dim ws As Worksheet
     Dim sheetNameNumber As Integer
-    
+
+    ThisWorkbook.Protect Structure:=True, Windows:=False, Password:="YourPasswordHere"
+
     ' Loop through each worksheet in the workbook
     For Each ws In ThisWorkbook.Sheets
     
@@ -227,4 +229,54 @@ Sub LockColumnsAndProtectSheetsByName()
     Next ws
 
 End Sub
+
+
+
+
+' check formula errrors
+
+Sub CheckForFormulaErrors()
+
+    Dim ws As Worksheet
+    Dim rng As Range
+    Dim cell As Range
+    Dim errorSheets As String
+    Dim hasError As Boolean
+
+    ' Iterate through each worksheet in the workbook
+    For Each ws In ThisWorkbook.Worksheets
+        hasError = False
+        
+        ' Check only the cells with formulas
+        On Error Resume Next
+        Set rng = ws.UsedRange.SpecialCells(xlCellTypeFormulas)
+        On Error GoTo 0
+
+        ' If the worksheet has formulas, then check for errors
+        If Not rng Is Nothing Then
+            For Each cell In rng
+                If IsError(cell.Value) Then
+                    hasError = True
+                    Exit For
+                End If
+            Next cell
+        End If
+
+        ' If the worksheet has an error, append its name to the errorSheets string
+        If hasError Then
+            errorSheets = errorSheets & ws.Name & ", "
+        End If
+
+    Next ws
+
+    ' Display the sheets with errors
+    If errorSheets <> "" Then
+        errorSheets = Left(errorSheets, Len(errorSheets) - 2)  ' Removing the trailing comma and space
+        MsgBox "Sheets with errors: " & errorSheets
+    Else
+        MsgBox "No sheets with formula errors found."
+    End If
+
+End Sub
+
 
