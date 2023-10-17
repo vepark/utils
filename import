@@ -1,0 +1,27 @@
+%macro importSheets;
+
+/* Import the Summary sheet */
+proc import 
+    datafile="path_to_your_excel_file.xlsx"
+    out=SummaryData
+    dbms=xlsx 
+    replace;
+    sheet="Summary";
+    range="C:D";
+run;
+
+%do i = 301 %to 320;
+    /* Import sheets 301 to 320 in sequence */
+    proc import 
+        datafile="path_to_your_excel_file.xlsx"
+        out=Sheet&i
+        dbms=xlsx 
+        replace;
+        sheet="&i";
+        range="C:D";
+    run;
+%end;
+
+%mend importSheets;
+
+%importSheets;
