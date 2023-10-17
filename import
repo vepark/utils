@@ -44,7 +44,6 @@ run;
 
 
 
-
 %macro importSheets;
 
 /* Import the Summary sheet */
@@ -61,8 +60,8 @@ run;
     %let currentRange = C:D; /* Default range */
 
     /* Adjust the range based on sheet number */
-    %if &i in (303, 309, 319) %then %let currentRange = C:I;
-    %else %if &i in (308, 320) %then %let currentRange = C:G;
+    %if (&i = 303) or (&i = 309) or (&i = 319) %then %let currentRange = C:I;
+    %else %if (&i = 308) or (&i = 320) %then %let currentRange = C:G;
     %else %if &i = 314 %then %let currentRange = C:E;
 
     proc import 
@@ -78,4 +77,5 @@ run;
 %mend importSheets;
 
 %importSheets;
+
 
