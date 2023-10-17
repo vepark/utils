@@ -38,3 +38,44 @@ run;
 %mend importSheets;
 
 %importSheets;
+
+
+
+
+
+
+
+%macro importSheets;
+
+/* Import the Summary sheet */
+proc import 
+    datafile="path_to_your_excel_file.xlsx"
+    out=SummaryData
+    dbms=xlsx 
+    replace;
+    sheet="Summary";
+    range="C:D";
+run;
+
+%do i = 301 %to 320;
+    %let currentRange = C:D; /* Default range */
+
+    /* Adjust the range based on sheet number */
+    %if &i in (303, 309, 319) %then %let currentRange = C:I;
+    %else %if &i in (308, 320) %then %let currentRange = C:G;
+    %else %if &i = 314 %then %let currentRange = C:E;
+
+    proc import 
+        datafile="path_to_your_excel_file.xlsx"
+        out=Sheet&i
+        dbms=xlsx 
+        replace;
+        sheet="&i";
+        range="&currentRange";
+    run;
+%end;
+
+%mend importSheets;
+
+%importSheets;
+
