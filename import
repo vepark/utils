@@ -11,15 +11,28 @@ proc import
 run;
 
 %do i = 301 %to 320;
-    /* Import sheets 301 to 320 in sequence */
-    proc import 
-        datafile="path_to_your_excel_file.xlsx"
-        out=Sheet&i
-        dbms=xlsx 
-        replace;
-        sheet="&i";
-        range="C:D";
-    run;
+    %if &i = 301 %then %do;
+        /* Import sheet 301 with range C:G */
+        proc import 
+            datafile="path_to_your_excel_file.xlsx"
+            out=Sheet&i
+            dbms=xlsx 
+            replace;
+            sheet="&i";
+            range="C:G";
+        run;
+    %end;
+    %else %do;
+        /* Import other sheets with range C:D */
+        proc import 
+            datafile="path_to_your_excel_file.xlsx"
+            out=Sheet&i
+            dbms=xlsx 
+            replace;
+            sheet="&i";
+            range="C:D";
+        run;
+    %end;
 %end;
 
 %mend importSheets;
