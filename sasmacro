@@ -1,0 +1,23 @@
+ods excel file="path_to_file.xlsx";
+/* Your SAS code here */
+ods excel close;
+
+
+%macro exportIfNotEmpty(data);
+    /* Check if the dataset is empty */
+    proc sql noprint;
+        select count(*) into :rowCount from &data;
+    quit;
+
+    /* Export only if row count is greater than 0 */
+    %if &rowCount > 0 %then %do;
+        ods excel file="path_to_file.xlsx";
+        /* Your SAS code to export data */
+        ods excel close;
+    %end;
+%mend;
+
+%exportIfNotEmpty(your_dataset_name);
+
+
+options sheet_interval='none';
