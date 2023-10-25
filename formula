@@ -1,2 +1,25 @@
 =IFERROR(INDEX($D$2:$D$51, MAX(IF(ISNUMBER(SEARCH($B$2:$B$51, A2)) * ROW($B$2:$B$51), ROW($B$2:$B$51) - ROW($B$2) + 1, 0))), 0)
 =IFERROR(INDEX($N$2:$N$117, SMALL(IF(ISNUMBER(SEARCH($L$2:$L$117, T2)) * ROW($L$2:$L$117), ROW($L$2:$L$117) - ROW($L$2) + 1), 1)), "")
+
+/* Step 1: Splitting fullname into firstname and lastname */
+data splitnames;
+    set FirstTable;
+    lastname = scan(fullname, 1, ",");
+    firstname = scan(fullname, 2, ",");
+    /* If you need to trim spaces */
+    lastname = strip(lastname);
+    firstname = strip(firstname);
+run;
+
+/* Step 2: Join the tables */
+proc sql;
+    create table joined as 
+    select 
+        a.firstname,
+        a.lastname,
+        a.other_columns, /* other columns from the FirstTable */
+        b.other_columns  /* other columns from the SecondTable */
+    from splitnames a
+    left join SecondTable b
+    on a.firstname = b.firstname and a.lastname = b.lastname;
+quit;
