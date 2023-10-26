@@ -23,3 +23,26 @@ proc sql;
     left join SecondTable b
     on a.firstname = b.firstname and a.lastname = b.lastname;
 quit;
+
+
+
+
+
+proc format;
+   picture mydtfmt
+      low-high = '%0m/%0d/%0y %0H:%0M %p'
+      (datatype=datetime)
+      other   = 'MISSING';
+run;
+
+data formatted;
+   input mydatetime : datetime.;
+   format mydatetime mydtfmt.;
+   datalines;
+2023-10-25T10:15:00
+;
+run;
+
+proc print data=formatted; run;
+
+
