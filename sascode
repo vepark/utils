@@ -1,19 +1,14 @@
 proc sql;
-   /* Count unique IDs with PASS or FAIL */
-   select count(distinct ID) into :total_count
+   /* Create a table with the count of unique IDs with PASS or FAIL, and unique IDs with PASS for each week */
+   create table WeekStats as
+   select Week, 
+          count(distinct case when Status in ('PASS', 'FAIL') then ID else NULL end) as TotalCount,
+          count(distinct case when Status = 'PASS' then ID else NULL end) as PassCount
    from your_dataset
-   where not missing(Status) and Status in ('PASS', 'FAIL');
+   group by Week;
 
-   /* Count unique IDs with PASS */
-   select count(distinct ID) into :pass_count
-   from your_dataset
-   where Status = 'PASS';
-
-   /* Calculate the percentage */
-   select (&pass_count / &total_count) * 100 into :pass_percentage
-   from dual; /* Dual is a dummy table used in many SQL dialects */
-
-   /* Print the result */
-   select "Percentage of PASS" as Label, &pass_percentage as Value
-   from dual;
+   /* Calculate the percentage for each week */
+   select Week, 
+          (PassCount / TotalCount) * 100 as PassPercentage
+   from WeekStats;
 quit;
