@@ -1,3 +1,6 @@
+The smoke test aims to swiftly confirm that the software's entire workflow executes without errors or interruptions, ensuring readiness for more extensive testing.
+
+
 Executive Summary: Comprehensive Code Flow Integrity Test
 
 Objective:
