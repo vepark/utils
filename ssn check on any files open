@@ -1,3 +1,49 @@
+Sub CheckSheetsForSSN()
+    Dim ws As Worksheet
+    Dim cell As Range
+    Dim regEx As Object
+    Dim resultsWs As Worksheet
+    Dim nextRow As Long
+    Dim ssnResultsSheetName As String
+    
+    ssnResultsSheetName = "SSN Search Results"
+
+    ' Check if the results sheet already exists, and if so, delete it
+    On Error Resume Next ' Ignore errors if the sheet doesn't exist
+    Application.DisplayAlerts = False ' Turn off alerts to suppress the confirmation dialog
+    ThisWorkbook.Sheets(ssnResultsSheetName).Delete
+    Application.DisplayAlerts = True ' Turn alerts back on
+    On Error GoTo 0 ' Resume normal error handling
+    
+    ' Create a new Regular Expression object
+    Set regEx = CreateObject("VBScript.RegExp")
+    regEx.Global = True
+    regEx.IgnoreCase = True
+    regEx.Pattern = SSNPattern()
+    
+    ' Add a new worksheet for the results
+    Set resultsWs = ThisWorkbook.Worksheets.Add
+    resultsWs.Name = ssnResultsSheetName
+    resultsWs.Cells(1, 1).Value = "Workbook"
+    resultsWs.Cells(1, 2).Value = "Sheet"
+    resultsWs.Cells(1, 3).Value = "Cell"
+    resultsWs.Cells(1, 4).Value = "SSN"
+    nextRow = 2
+    
+    ' Your code to loop through sheets and find SSNs goes here...
+    ' ...
+    
+    ' Autofit the columns for better readability
+    resultsWs.Columns("A:D").AutoFit
+    
+    ' Clean up
+    Set regEx = Nothing
+End Sub
+
+
+
+
+
 Function SSNPattern() As String
     ' Regular expression pattern for SSN
     ' Matches patterns like 123-45-6789, 123.45.6789, 123 45 6789, and 123456789
