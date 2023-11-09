@@ -1,0 +1,12 @@
+SELECT 
+    t1.groupid,
+    t1.ticket AS ticket_completed_early,
+    t2.ticket AS previous_ticket,
+    t1.completion_date AS early_completion_date,
+    t2.completion_date AS previous_completion_date
+FROM 
+    your_table_name t1
+JOIN 
+    your_table_name t2 ON t1.groupid = t2.groupid AND t1.ticket > t2.ticket
+WHERE 
+    t1.completion_date < t2.completion_date;
