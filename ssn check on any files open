@@ -1,19 +1,19 @@
-Sub CheckSheetsForSSN()
-    Dim ws As Worksheet
+Function SSNPattern() As String
+    ' Regular expression pattern for SSN
+    ' Matches patterns like 123-45-6789, 123 45 6789, 123.45.6789, and 123456789
+    SSNPattern = "(\b\d{3}[-. ]?\d{2}[-. ]?\d{4}\b)"
+End Function
+
+Sub CheckAllOpenWorkbooksForSSN()
     Dim cell As Range
     Dim regEx As Object
     Dim resultsWs As Worksheet
     Dim nextRow As Long
+    Dim wb As Workbook
+    Dim ws As Worksheet
     Dim ssnResultsSheetName As String
     
     ssnResultsSheetName = "SSN Search Results"
-
-    ' Check if the results sheet already exists, and if so, delete it
-    On Error Resume Next ' Ignore errors if the sheet doesn't exist
-    Application.DisplayAlerts = False ' Turn off alerts to suppress the confirmation dialog
-    ThisWorkbook.Sheets(ssnResultsSheetName).Delete
-    Application.DisplayAlerts = True ' Turn alerts back on
-    On Error GoTo 0 ' Resume normal error handling
     
     ' Create a new Regular Expression object
     Set regEx = CreateObject("VBScript.RegExp")
@@ -21,7 +21,13 @@ Sub CheckSheetsForSSN()
     regEx.IgnoreCase = True
     regEx.Pattern = SSNPattern()
     
-    ' Add a new worksheet for the results
+    ' Create a new worksheet for the results in this workbook, delete if it exists
+    Application.DisplayAlerts = False ' Turn off alerts to suppress the confirmation dialog
+    On Error Resume Next ' Ignore errors if the sheet doesn't exist
+    ThisWorkbook.Sheets(ssnResultsSheetName).Delete
+    On Error GoTo 0 ' Resume normal error handling
+    Application.DisplayAlerts = True ' Turn alerts back on
+    
     Set resultsWs = ThisWorkbook.Worksheets.Add
     resultsWs.Name = ssnResultsSheetName
     resultsWs.Cells(1, 1).Value = "Workbook"
@@ -30,72 +36,29 @@ Sub CheckSheetsForSSN()
     resultsWs.Cells(1, 4).Value = "SSN"
     nextRow = 2
     
-    ' Your code to loop through sheets and find SSNs goes here...
-    ' ...
+    ' Loop through each open workbook
+    For Each wb In Application.Workbooks
+        ' Loop through each worksheet in the workbook
+        For Each ws In wb.Worksheets
+            ' Loop through each used cell in the worksheet
+            For Each cell In ws.UsedRange
+                ' If the cell contains text and the Regular Expression matches
+                If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
+                    ' Write the results to the new worksheet
+                    resultsWs.Cells(nextRow, 1).Value = wb.Name
+                    resultsWs.Cells(nextRow, 2).Value = ws.Name
+                    resultsWs.Cells(nextRow, 3).Value = cell.Address
+                    resultsWs.Cells(nextRow, 4).Value = cell.Value
+                    nextRow = nextRow + 1
+                End If
+            Next cell
+        Next ws
+    Next wb
     
     ' Autofit the columns for better readability
     resultsWs.Columns("A:D").AutoFit
     
     ' Clean up
     Set regEx = Nothing
-End Sub
-
-
-
-
-
-Function SSNPattern() As String
-    ' Regular expression pattern for SSN
-    ' Matches patterns like 123-45-6789, 123.45.6789, 123 45 6789, and 123456789
-    SSNPattern = "(\b\d{3}[-. ]?\d{2}[-. ]?\d{4}\b)"
-End Function
-Function SSNPattern() As String
-    ' Regular expression pattern for SSN
-    ' Matches patterns like 123-45-6789, 123 45 6789, and 123456789
-    SSNPattern = "(\b\d{3}-\d{2}-\d{4}\b)|(\b\d{3} \d{2} \d{4}\b)|(\b\d{9}\b)"
-End Function
-
-Sub CheckSheetsForSSN()
-    Dim ws As Worksheet
-    Dim cell As Range
-    Dim regEx As Object
-    Dim resultsWs As Worksheet
-    Dim nextRow As Long
-
-    ' Create a new Regular Expression object
-    Set regEx = CreateObject("VBScript.RegExp")
-    regEx.Global = True
-    regEx.IgnoreCase = True
-    regEx.Pattern = SSNPattern()
-    
-    ' Add a new worksheet for the results
-    Set resultsWs = ThisWorkbook.Worksheets.Add
-    resultsWs.Name = "SSN Search Results"
-    resultsWs.Cells(1, 1).Value = "Workbook"
-    resultsWs.Cells(1, 2).Value = "Sheet"
-    resultsWs.Cells(1, 3).Value = "Cell"
-    resultsWs.Cells(1, 4).Value = "SSN"
-    nextRow = 2
-    
-    ' Loop through each worksheet in the active workbook
-    For Each ws In ActiveWorkbook.Worksheets
-        ' Loop through each used cell in the worksheet
-        For Each cell In ws.UsedRange
-            ' If the cell contains text and the Regular Expression matches
-            If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
-                ' Write the results to the new worksheet
-                resultsWs.Cells(nextRow, 1).Value = ActiveWorkbook.Name
-                resultsWs.Cells(nextRow, 2).Value = ws.Name
-                resultsWs.Cells(nextRow, 3).Value = cell.Address
-                resultsWs.Cells(nextRow, 4).Value = cell.Value
-                nextRow = nextRow + 1
-            End If
-        Next cell
-    Next ws
-    
-    ' Autofit the columns for better readability
-    resultsWs.Columns("A:D").AutoFit
-    
-    ' Clean up
-    Set regEx = Nothing
+    Set resultsWs = Nothing
 End Sub
