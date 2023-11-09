@@ -1,0 +1,41 @@
+Function SSNPattern() As String
+    ' Regular expression pattern for SSN
+    ' Matches patterns like 123-45-6789 and 123 45 6789 and 123456789
+    SSNPattern = "(\b\d{3}-\d{2}-\d{4}\b)|(\b\d{3} \d{2} \d{4}\b)|(\b\d{9}\b)"
+End Function
+
+Sub CheckSheetsForSSN()
+    Dim ws As Worksheet
+    Dim cell As Range
+    Dim ssnFound As Boolean
+    Dim regEx As Object
+
+    ' Create a new Regular Expression object
+    Set regEx = CreateObject("VBScript.RegExp")
+    regEx.Global = True
+    regEx.IgnoreCase = True
+    regEx.Pattern = SSNPattern()
+    
+    ' Loop through each worksheet
+    For Each ws In ThisWorkbook.Worksheets
+        ssnFound = False
+        ' Loop through each used cell in the worksheet
+        For Each cell In ws.UsedRange
+            ' If the cell contains text and the Regular Expression matches
+            If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
+                ssnFound = True
+                Exit For ' Exit the loop if a SSN is found
+            End If
+        Next cell
+        
+        ' Output the result for the worksheet
+        If ssnFound Then
+            Debug.Print "SSN found in sheet: " & ws.Name
+        Else
+            Debug.Print "No SSN found in sheet: " & ws.Name
+        End If
+    Next ws
+    
+    ' Clean up
+    Set regEx = Nothing
+End Sub
