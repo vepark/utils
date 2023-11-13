@@ -1,0 +1,25 @@
+proc sql;
+   create table exceptions as
+   select a.ID,
+          a.Type_of_Work as Work_Preceding,
+          b.Type_of_Work as Work_Following,
+          a.Actual_Completion_Date as Preceding_Date,
+          b.Actual_Completion_Date as Following_Date
+   from your_table as a, your_table as b
+   where a.ID = b.ID
+     and a.Actual_Completion_Date > b.Actual_Completion_Date
+     and ((a.Type_of_Work = 'DA1' and b.Type_of_Work = 'DA2')
+       or (a.Type_of_Work = 'DA2' and b.Type_of_Work = 'DA3'))
+   union
+   select a.ID,
+          a.Type_of_Work as Work_Preceding,
+          b.Type_of_Work as Work_Following,
+          a.Actual_Completion_Date as Preceding_Date,
+          b.Actual_Completion_Date as Following_Date
+   from your_table as a, your_table as b
+   where a.ID = b.ID
+     and a.Actual_Completion_Date < b.Actual_Completion_Date
+     and ((a.Type_of_Work = 'DA2' and b.Type_of_Work = 'DA1')
+       or (a.Type_of_Work = 'DA3' and b.Type_of_Work = 'DA1')
+       or (a.Type_of_Work = 'DA3' and b.Type_of_Work = 'DA2'));
+quit;
