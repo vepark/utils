@@ -29,3 +29,40 @@ for file in files:
 # Creating a DataFrame and saving to an Excel file
 df = pd.DataFrame(data, columns=['ID', 'ABCD', 'Sent Time'])
 df.to_excel('EmailClearance.xlsx', index=False)
+
+
+
+
+
+
+
+
+import os
+import re
+import pandas as pd
+from email import policy
+from email.parser import BytesParser
+
+folder_path = 'path_to_your_folder'
+files = [f for f in os.listdir(folder_path) if f.endswith('.msg')]
+
+data = []
+
+for file in files:
+    # Extracting ID and ABCD number from the filename
+    match = re.search(r'(\d{7,8}).*(ABCD\s?\d)', file)
+    if match:
+        id_number = match.group(1)
+        abcd_number = match.group(2).replace(" ", "")
+
+        # Reading the .msg file
+        with open(os.path.join(folder_path, file), 'rb') as f:
+            msg = BytesParser(policy=policy.default).parse(f)
+        sent_time = msg['date']
+
+        # Adding to the data list
+        data.append([id_number, abcd_number, sent_time])
+
+# Creating a DataFrame and saving to an Excel file
+df = pd.DataFrame(data, columns=['ID', 'ABCD', 'Sent Time'])
+df.to_excel('EmailClearance.xlsx', index=False)
