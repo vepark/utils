@@ -1,0 +1,10 @@
+Sub ListSheetNames()
+    Dim ws As Worksheet
+    Dim i As Integer
+    i = 1
+    Sheets.Add After:=Sheets(Sheets.Count)
+    For Each ws In Worksheets
+        Sheets(Sheets.Count).Cells(i, 1) = ws.Name
+        i = i + 1
+    Next ws
+End Sub
