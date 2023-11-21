@@ -102,21 +102,24 @@ Sub CheckAllOpenWorkbooksForSSN()
                                 nextRow = nextRow + 1
                             End If
 
-' Check for SSN Word Search
-Dim term As String
-For Each term In Split(WordSearchPattern(), ",")
-    If IsStandaloneWord(cellValue, term) Then
-        sheetProcessed = True
-        resultsWs.Cells(nextRow, 1).Value = wb.Name
-        resultsWs.Cells(nextRow, 2).Value = ws.Name
-        resultsWs.Cells(nextRow, 3).Value = cell.Address
-        resultsWs.Cells(nextRow, 5).Value = Trim(cell.Value)
-        resultsWs.Cells(nextRow, 6).Value = Now()
-        nextRow = nextRow + 1
-        Exit For ' Exit the loop once a match is found
-    End If
-Next term
-
+                            ' Check for SSN Word Search
+                            Dim terms() As String
+                            terms = Split(WordSearchPattern(), ",")
+                            Dim i As Integer
+                            For i = LBound(terms) To UBound(terms)
+                                Dim term As String
+                                term = terms(i)
+                                If IsStandaloneWord(cellValue, term) Then
+                                    sheetProcessed = True
+                                    resultsWs.Cells(nextRow, 1).Value = wb.Name
+                                    resultsWs.Cells(nextRow, 2).Value = ws.Name
+                                    resultsWs.Cells(nextRow, 3).Value = cell.Address
+                                    resultsWs.Cells(nextRow, 5).Value = Trim(cell.Value)
+                                    resultsWs.Cells(nextRow, 6).Value = Now()
+                                    nextRow = nextRow + 1
+                                    Exit For ' Exit the loop once a match is found
+                                End If
+                            Next i
                         End If
                     Next cell
                     If Not sheetProcessed Then
