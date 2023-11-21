@@ -3,25 +3,36 @@ Function SSNPattern() As String
     SSNPattern = "\b(\d{3}[-. ]?\d{2}[-. ]?\d{4}|Social Security Number|Social Security|Soc Sec Number|Soc Sec|Social Sec|Social Sec Number|Social Sec #|SS Number|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
 End Function
 
+Function ZIPPattern() As String
+    ' Regular expression pattern for ZIP code
+    ZIPPattern = "\b\d{5}-\d{4}\b"
+End Function
+
 Sub CheckAllOpenWorkbooksForSSN()
     Dim cell As Range
-    Dim regEx As Object
+    Dim regExSSN As Object, regExZIP As Object
     Dim resultsWs As Worksheet
     Dim nextRow As Long
     Dim wb As Workbook
     Dim ws As Worksheet
     Dim scriptWorkbook As String
     Dim ssnResultsSheetName As String
-    Dim ssnFound As Boolean
+    Dim ssnFound As Boolean, zipFound As Boolean
     
     ssnResultsSheetName = "SSN Search Results"
     scriptWorkbook = ThisWorkbook.Name ' Store the name of the workbook containing the script
     
-    Set regEx = CreateObject("VBScript.RegExp")
-    regEx.Global = True
-    regEx.IgnoreCase = True
-    regEx.Pattern = SSNPattern()
+    ' Set up Regular Expressions
+    Set regExSSN = CreateObject("VBScript.RegExp")
+    regExSSN.Global = True
+    regExSSN.IgnoreCase = True
+    regExSSN.Pattern = SSNPattern()
     
+    Set regExZIP = CreateObject("VBScript.RegExp")
+    regExZIP.Global = True
+    regExZIP.IgnoreCase = True
+    regExZIP.Pattern = ZIPPattern()
+
     ' Create/Delete the results sheet
     Application.DisplayAlerts = False
     On Error Resume Next
@@ -37,6 +48,8 @@ Sub CheckAllOpenWorkbooksForSSN()
     resultsWs.Cells(1, 4).Value = "SSN"
     resultsWs.Cells(1, 5).Value = "SSN Word Search"
     resultsWs.Cells(1, 6).Value = "Date and Time"
+    resultsWs.Cells(1, 7).Value = "ECN"
+    resultsWs.Cells(1, 8).Value = "ZIP"
     nextRow = 2
 
     For Each wb In Application.Workbooks
@@ -44,27 +57,46 @@ Sub CheckAllOpenWorkbooksForSSN()
             For Each ws In wb.Worksheets
                 If ws.Name <> ssnResultsSheetName Then ' Skip the "SSN Search Results" sheet
                     ssnFound = False
+                    zipFound = False
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) Then
-                            If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
-                                ssnFound = True
-                                resultsWs.Cells(nextRow, 1).Value = wb.Name
-                                resultsWs.Cells(nextRow, 2).Value = ws.Name
-                                resultsWs.Cells(nextRow, 3).Value = cell.Address
-                                resultsWs.Cells(nextRow, 4).Value = cell.Value
-                                resultsWs.Cells(nextRow, 5).Value = cell.Value
-                                resultsWs.Cells(nextRow, 6).Value = Now()
-                                nextRow = nextRow + 1
+                            If VarType(cell.Value) = vbString Then
+                                If regExSSN.Test(cell.Value) Then
+                                    ssnFound = True
+                                    resultsWs.Cells(nextRow, 1).Value = wb.Name
+                                    resultsWs.Cells(nextRow, 2).Value = ws.Name
+                                    resultsWs.Cells(nextRow, 3).Value = cell.Address
+                                    resultsWs.Cells(nextRow, 4).Value = cell.Value
+                                    resultsWs.Cells(nextRow, 5).Value = cell.Value
+                                    resultsWs.Cells(nextRow, 6).Value = Now()
+                                    If InStr(cell.Value, "ECN") > 0 Then
+                                        resultsWs.Cells(nextRow, 7).Value = "ECN?"
+                                    End If
+                                    nextRow = nextRow + 1
+                                End If
+                                If regExZIP.Test(cell.Value) Then
+                                    zipFound = True
+                                    resultsWs.Cells(nextRow, 1).Value = wb.Name
+                                    resultsWs.Cells(nextRow, 2).Value = ws.Name
+                                    resultsWs.Cells(nextRow, 3).Value = cell.Address
+                                    resultsWs.Cells(nextRow, 4).Value = cell.Value
+                                    resultsWs.Cells(nextRow, 5).Value = "ZIP found"
+                                    resultsWs.Cells(nextRow, 6).Value = Now()
+                                    resultsWs.Cells(nextRow, 8).Value = "ZIP?"
+                                    nextRow = nextRow + 1
+                                End If
                             End If
                         End If
                     Next cell
-                    If Not ssnFound Then
+                    If Not ssnFound And Not zipFound Then
                         resultsWs.Cells(nextRow, 1).Value = wb.Name
                         resultsWs.Cells(nextRow, 2).Value = ws.Name
                         resultsWs.Cells(nextRow, 3).Value = "N/A"
-                        resultsWs.Cells(nextRow, 4).Value = "No SSN or related term found"
+                        resultsWs.Cells(nextRow, 4).Value = "No SSN/ZIP or related term found"
                         resultsWs.Cells(nextRow, 5).Value = "N/A"
                         resultsWs.Cells(nextRow, 6).Value = Now()
+                        resultsWs.Cells(nextRow, 7).Value = "N/A"
+                        resultsWs.Cells(nextRow, 8).Value = "N/A"
                         nextRow = nextRow + 1
                     End If
                 End If
@@ -72,8 +104,9 @@ Sub CheckAllOpenWorkbooksForSSN()
         End If
     Next wb
     
-    resultsWs.Columns("A:F").AutoFit
+    resultsWs.Columns("A:H").AutoFit
     
-    Set regEx = Nothing
+    Set regExSSN = Nothing
+    Set regExZIP = Nothing
     Set resultsWs = Nothing
 End Sub
