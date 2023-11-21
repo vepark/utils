@@ -1,6 +1,11 @@
 Function SSNPattern() As String
-    ' Regular expression pattern for SSN and its variations
-    SSNPattern = "\b(\d{3}[-. ]?\d{2}[-. ]?\d{4}|Social Security Number|Social Security|Soc Sec Number|Soc Sec|Social Sec|Social Sec Number|Social Sec #|SS Number|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
+    ' Regular expression pattern for SSN
+    SSNPattern = "\b\d{3}[-. ]?\d{2}[-. ]?\d{4}\b"
+End Function
+
+Function WordSearchPattern() As String
+    ' Regular expression pattern for other SSN-related words and phrases
+    WordSearchPattern = "\b(Social Security Number|Social Security|Soc Sec Number|Soc Sec|Social Sec|Social Sec Number|Social Sec #|SS Number|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
 End Function
 
 Function ZIPPattern() As String
@@ -10,14 +15,13 @@ End Function
 
 Sub CheckAllOpenWorkbooksForSSN()
     Dim cell As Range
-    Dim regExSSN As Object, regExZIP As Object
+    Dim regExSSN As Object, regExWordSearch As Object, regExZIP As Object
     Dim resultsWs As Worksheet
     Dim nextRow As Long
     Dim wb As Workbook
     Dim ws As Worksheet
     Dim scriptWorkbook As String
     Dim ssnResultsSheetName As String
-    Dim ssnFound As Boolean, zipFound As Boolean
     
     ssnResultsSheetName = "SSN Search Results"
     scriptWorkbook = ThisWorkbook.Name ' Store the name of the workbook containing the script
@@ -27,7 +31,12 @@ Sub CheckAllOpenWorkbooksForSSN()
     regExSSN.Global = True
     regExSSN.IgnoreCase = True
     regExSSN.Pattern = SSNPattern()
-    
+
+    Set regExWordSearch = CreateObject("VBScript.RegExp")
+    regExWordSearch.Global = True
+    regExWordSearch.IgnoreCase = True
+    regExWordSearch.Pattern = WordSearchPattern()
+
     Set regExZIP = CreateObject("VBScript.RegExp")
     regExZIP.Global = True
     regExZIP.IgnoreCase = True
@@ -56,49 +65,35 @@ Sub CheckAllOpenWorkbooksForSSN()
         If wb.Name <> scriptWorkbook Then ' Skip the workbook containing this script
             For Each ws In wb.Worksheets
                 If ws.Name <> ssnResultsSheetName Then ' Skip the "SSN Search Results" sheet
-                    ssnFound = False
-                    zipFound = False
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) Then
                             If VarType(cell.Value) = vbString Then
+                                ' Check for SSN pattern
                                 If regExSSN.Test(cell.Value) Then
-                                    ssnFound = True
                                     resultsWs.Cells(nextRow, 1).Value = wb.Name
                                     resultsWs.Cells(nextRow, 2).Value = ws.Name
                                     resultsWs.Cells(nextRow, 3).Value = cell.Address
                                     resultsWs.Cells(nextRow, 4).Value = cell.Value
-                                    resultsWs.Cells(nextRow, 5).Value = cell.Value
                                     resultsWs.Cells(nextRow, 6).Value = Now()
                                     If InStr(cell.Value, "ECN") > 0 Then
                                         resultsWs.Cells(nextRow, 7).Value = "ECN?"
                                     End If
+                                    If regExZIP.Test(cell.Value) Then
+                                        resultsWs.Cells(nextRow, 8).Value = "ZIP?"
+                                    End If
                                     nextRow = nextRow + 1
-                                End If
-                                If regExZIP.Test(cell.Value) Then
-                                    zipFound = True
+                                ' Check for word search pattern
+                                ElseIf regExWordSearch.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 1).Value = wb.Name
                                     resultsWs.Cells(nextRow, 2).Value = ws.Name
                                     resultsWs.Cells(nextRow, 3).Value = cell.Address
-                                    resultsWs.Cells(nextRow, 4).Value = cell.Value
-                                    resultsWs.Cells(nextRow, 5).Value = "ZIP found"
+                                    resultsWs.Cells(nextRow, 5).Value = cell.Value
                                     resultsWs.Cells(nextRow, 6).Value = Now()
-                                    resultsWs.Cells(nextRow, 8).Value = "ZIP?"
                                     nextRow = nextRow + 1
                                 End If
                             End If
                         End If
                     Next cell
-                    If Not ssnFound And Not zipFound Then
-                        resultsWs.Cells(nextRow, 1).Value = wb.Name
-                        resultsWs.Cells(nextRow, 2).Value = ws.Name
-                        resultsWs.Cells(nextRow, 3).Value = "N/A"
-                        resultsWs.Cells(nextRow, 4).Value = "No SSN/ZIP or related term found"
-                        resultsWs.Cells(nextRow, 5).Value = "N/A"
-                        resultsWs.Cells(nextRow, 6).Value = Now()
-                        resultsWs.Cells(nextRow, 7).Value = "N/A"
-                        resultsWs.Cells(nextRow, 8).Value = "N/A"
-                        nextRow = nextRow + 1
-                    End If
                 End If
             Next ws
         End If
@@ -107,6 +102,7 @@ Sub CheckAllOpenWorkbooksForSSN()
     resultsWs.Columns("A:H").AutoFit
     
     Set regExSSN = Nothing
+    Set regExWordSearch = Nothing
     Set regExZIP = Nothing
     Set resultsWs = Nothing
 End Sub
