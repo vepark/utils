@@ -4,9 +4,8 @@ Function SSNPattern() As String
 End Function
 
 Function WordSearchPattern() As String
-    ' Exact word/phrase match for SSN-related terms, surrounded by spaces
-    ' The pattern uses (?<=\s|^) to assert a space or start of a line before the keyword, and (?=\s|$) for a space or end of line after
-    WordSearchPattern = "(?<=\s|^)(SSN|TIN|ITIN|Social Security Number|Soc Sec Number|Social Sec Number|Social Sec #|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)(?=\s|$)"
+    ' Exact word/phrase match for SSN-related terms
+    WordSearchPattern = "\b(SSN|TIN|ITIN|Social Security Number|Soc Sec Number|Social Sec Number|Social Sec #|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
 End Function
 
 Function ZIPPattern() As String
@@ -68,7 +67,10 @@ Sub CheckAllOpenWorkbooksForSSN()
                     sheetProcessed = False
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) And VarType(cell.Value) = vbString Then
-                            If regExSSN.Test(cell.Value) Or regExWordSearch.Test(cell.Value) Or regExZIP.Test(cell.Value) Then
+                            Dim cellValue As String
+                            cellValue = " " & cell.Value & " " ' Add spaces to ensure standalone words
+
+                            If regExSSN.Test(cell.Value) Or regExZIP.Test(cell.Value) Or regExWordSearch.Test(cellValue) Then
                                 sheetProcessed = True
                                 resultsWs.Cells(nextRow, 1).Value = wb.Name
                                 resultsWs.Cells(nextRow, 2).Value = ws.Name
@@ -76,8 +78,8 @@ Sub CheckAllOpenWorkbooksForSSN()
                                 If regExSSN.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 4).Value = cell.Value
                                 End If
-                                If regExWordSearch.Test(cell.Value) Then
-                                    resultsWs.Cells(nextRow, 5).Value = cell.Value
+                                If regExWordSearch.Test(cellValue) Then
+                                    resultsWs.Cells(nextRow, 5).Value = Trim(cell.Value)
                                 End If
                                 If regExZIP.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 8).Value = "ZIP?"
