@@ -1,0 +1,7 @@
+Sub RunPowerShellScript()
+    Dim psScriptPath As String
+    psScriptPath = "C:\Path\To\MyScript.ps1"
+
+    ' Running the PowerShell script
+    Shell "powershell -ExecutionPolicy Bypass -File " & psScriptPath, vbNormalFocus
+End Sub
