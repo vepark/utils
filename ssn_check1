@@ -12,6 +12,7 @@ Sub CheckAllOpenWorkbooksForSSN()
     Dim ws As Worksheet
     Dim scriptWorkbook As String
     Dim ssnResultsSheetName As String
+    Dim ssnFound As Boolean
     
     ssnResultsSheetName = "SSN Search Results"
     scriptWorkbook = ThisWorkbook.Name ' Store the name of the workbook containing the script
@@ -42,6 +43,7 @@ Sub CheckAllOpenWorkbooksForSSN()
         If wb.Name <> scriptWorkbook Then ' Skip the workbook containing this script
             For Each ws In wb.Worksheets
                 If ws.Name <> ssnResultsSheetName Then ' Skip the "SSN Search Results" sheet
+                    ssnFound = False
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) Then
                             If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
@@ -52,9 +54,20 @@ Sub CheckAllOpenWorkbooksForSSN()
                                 resultsWs.Cells(nextRow, 5).Value = cell.Value
                                 resultsWs.Cells(nextRow, 6).Value = Now()
                                 nextRow = nextRow + 1
+                                ssnFound = True
                             End If
                         End If
                     Next cell
+                    ' Record the workbook and worksheet names even if no SSN is found
+                    If Not ssnFound Then
+                        resultsWs.Cells(nextRow, 1).Value = wb.Name
+                        resultsWs.Cells(nextRow, 2).Value = ws.Name
+                        resultsWs.Cells(nextRow, 3).Value = "N/A"
+                        resultsWs.Cells(nextRow, 4).Value = "No SSN or related term found"
+                        resultsWs.Cells(nextRow, 5).Value = "N/A"
+                        resultsWs.Cells(nextRow, 6).Value = Now()
+                        nextRow = nextRow + 1
+                    End If
                 End If
             Next ws
         End If
