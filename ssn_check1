@@ -4,8 +4,9 @@ Function SSNPattern() As String
 End Function
 
 Function WordSearchPattern() As String
-    ' Exact word/phrase match for SSN-related terms and separate words SSN, TIN, ITIN
-    WordSearchPattern = "\b(SSN|TIN|ITIN|Social Security Number|Soc Sec Number|Social Sec Number|Social Sec #|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
+    ' Exact word/phrase match for SSN-related terms, surrounded by spaces
+    ' The pattern uses (?<=\s|^) to assert a space or start of a line before the keyword, and (?=\s|$) for a space or end of line after
+    WordSearchPattern = "(?<=\s|^)(SSN|TIN|ITIN|Social Security Number|Soc Sec Number|Social Sec Number|Social Sec #|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)(?=\s|$)"
 End Function
 
 Function ZIPPattern() As String
@@ -22,6 +23,7 @@ Sub CheckAllOpenWorkbooksForSSN()
     Dim ws As Worksheet
     Dim scriptWorkbook As String
     Dim ssnResultsSheetName As String
+    Dim sheetProcessed As Boolean
     
     ssnResultsSheetName = "SSN Search Results"
     scriptWorkbook = ThisWorkbook.Name
@@ -63,31 +65,40 @@ Sub CheckAllOpenWorkbooksForSSN()
         If wb.Name <> scriptWorkbook Then
             For Each ws In wb.Worksheets
                 If ws.Name <> ssnResultsSheetName Then
+                    sheetProcessed = False
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) And VarType(cell.Value) = vbString Then
-                            If regExSSN.Test(cell.Value) Then
+                            If regExSSN.Test(cell.Value) Or regExWordSearch.Test(cell.Value) Or regExZIP.Test(cell.Value) Then
+                                sheetProcessed = True
                                 resultsWs.Cells(nextRow, 1).Value = wb.Name
                                 resultsWs.Cells(nextRow, 2).Value = ws.Name
                                 resultsWs.Cells(nextRow, 3).Value = cell.Address
-                                resultsWs.Cells(nextRow, 4).Value = cell.Value
-                                resultsWs.Cells(nextRow, 6).Value = Now()
-                                If InStr(cell.Value, "ECN") > 0 Then
-                                    resultsWs.Cells(nextRow, 7).Value = "ECN?"
+                                If regExSSN.Test(cell.Value) Then
+                                    resultsWs.Cells(nextRow, 4).Value = cell.Value
+                                End If
+                                If regExWordSearch.Test(cell.Value) Then
+                                    resultsWs.Cells(nextRow, 5).Value = cell.Value
                                 End If
                                 If regExZIP.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 8).Value = "ZIP?"
                                 End If
-                                nextRow = nextRow + 1
-                            ElseIf regExWordSearch.Test(cell.Value) Then
-                                resultsWs.Cells(nextRow, 1).Value = wb.Name
-                                resultsWs.Cells(nextRow, 2).Value = ws.Name
-                                resultsWs.Cells(nextRow, 3).Value = cell.Address
-                                resultsWs.Cells(nextRow, 5).Value = cell.Value
                                 resultsWs.Cells(nextRow, 6).Value = Now()
                                 nextRow = nextRow + 1
                             End If
                         End If
                     Next cell
+                    If Not sheetProcessed Then
+                        ' Log the sheet with no findings
+                        resultsWs.Cells(nextRow, 1).Value = wb.Name
+                        resultsWs.Cells(nextRow, 2).Value = ws.Name
+                        resultsWs.Cells(nextRow, 3).Value = "N/A"
+                        resultsWs.Cells(nextRow, 4).Value = "No SSN/ZIP or related term found"
+                        resultsWs.Cells(nextRow, 5).Value = "N/A"
+                        resultsWs.Cells(nextRow, 6).Value = Now()
+                        resultsWs.Cells(nextRow, 7).Value = "N/A"
+                        resultsWs.Cells(nextRow, 8).Value = "N/A"
+                        nextRow = nextRow + 1
+                    End If
                 End If
             Next ws
         End If
