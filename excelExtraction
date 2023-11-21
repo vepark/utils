@@ -20,7 +20,8 @@ for filename in os.listdir(folder_path):
                 # Iterate through the first few rows
                 for row in sheet.iter_rows(min_row=1, max_row=5, values_only=True):
                     for cell in row:
-                        if cell and "Rationale Response:" in cell:
+                        cell_value = str(cell) if cell is not None else ""
+                        if "Rationale Response:" in cell_value:
                             rationale_index = row.index(cell)
 
                             # Find the first non-empty cell to the right
