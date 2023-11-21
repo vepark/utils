@@ -1,34 +1,43 @@
 import os
-import pandas as pd
+import re
 import openpyxl
+import pandas as pd
 
-# Replace this with your folder path
-folder_path = '/path/to/your/folder'
-
-# Prepare a list to hold the data
+folder_path = '/path/to/your/folder'  # Replace with your folder path
 data = []
 
-# Loop through each file in the folder
 for filename in os.listdir(folder_path):
     if filename.endswith('.xlsx'):
         file_path = os.path.join(folder_path, filename)
-        
-        # Open the workbook
         workbook = openpyxl.load_workbook(file_path, data_only=True)
-        
-        # Iterate through each sheet
+
         for sheet_name in workbook.sheetnames:
-            sheet = workbook[sheet_name]
+            # Check if the sheet name contains a 3-digit number
+            if re.search(r'\d{3}', sheet_name):
+                sheet = workbook[sheet_name]
+                rationale_found = False
 
-# Iterate through the rows in column D
-for row in sheet['D']:
-    cell_value = str(row.value)  # Convert the cell value to a string
-    if "Rationale Response:" in cell_value:
-        rationale_response = cell_value.split("Rationale Response:")[1].strip()
-        data.append([filename, sheet_name, rationale_response])
-        break  # Assuming only one response per sheet
+                # Iterate through the first few rows
+                for row in sheet.iter_rows(min_row=1, max_row=5, values_only=True):
+                    for cell in row:
+                        if cell and "Rationale Response:" in cell:
+                            rationale_index = row.index(cell)
 
+                            # Find the first non-empty cell to the right
+                            for i in range(rationale_index + 1, len(row)):
+                                if row[i]:  # Check if the cell is not empty
+                                    rationale_text = row[i]
+                                    data.append([filename, sheet_name, rationale_text])
+                                    rationale_found = True
+                                    break
 
-# Create a DataFrame and write to a new Excel file
-df = pd.DataFrame(data, columns=['File Name', 'Criteria', 'Rationale Response'])
-df.to_excel('/path/to/output_summary.xlsx', index=False)
+                            if rationale_found:
+                                break
+                    if rationale_found:
+                        break
+
+df = pd.DataFrame(data, columns=['File Name', 'Sheet Name', 'Rationale Response'])
+output_path = '/path/to/output_summary.xlsx'  # Replace with your output file path
+df.to_excel(output_path, index=False)
+
+print(f"Data extracted and saved to {output_path}")
