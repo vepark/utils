@@ -47,6 +47,7 @@ Sub CheckAllOpenWorkbooksForSSN()
                     For Each cell In ws.UsedRange
                         If Not IsEmpty(cell.Value) Then
                             If VarType(cell.Value) = vbString And regEx.Test(cell.Value) Then
+                                ssnFound = True
                                 resultsWs.Cells(nextRow, 1).Value = wb.Name
                                 resultsWs.Cells(nextRow, 2).Value = ws.Name
                                 resultsWs.Cells(nextRow, 3).Value = cell.Address
@@ -54,11 +55,9 @@ Sub CheckAllOpenWorkbooksForSSN()
                                 resultsWs.Cells(nextRow, 5).Value = cell.Value
                                 resultsWs.Cells(nextRow, 6).Value = Now()
                                 nextRow = nextRow + 1
-                                ssnFound = True
                             End If
                         End If
                     Next cell
-                    ' Record the workbook and worksheet names even if no SSN is found
                     If Not ssnFound Then
                         resultsWs.Cells(nextRow, 1).Value = wb.Name
                         resultsWs.Cells(nextRow, 2).Value = ws.Name
