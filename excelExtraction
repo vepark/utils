@@ -27,7 +27,7 @@ for filename in os.listdir(folder_path):
                             # Find the first non-empty cell to the right
                             for i in range(rationale_index + 1, len(row)):
                                 if row[i]:  # Check if the cell is not empty
-                                    rationale_text = row[i]
+                                    rationale_text = str(row[i])
                                     data.append([filename, sheet_name, rationale_text])
                                     rationale_found = True
                                     break
