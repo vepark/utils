@@ -1,6 +1,6 @@
 Function SSNPattern() As String
     ' Regular expression pattern for SSN
-    SSNPattern = "\b\d{3}[-. ]?\d{2}[-. ]?\d{4}\b"
+    SSNPattern = "\b(\d{3}[-. ]?\d{2}[-. ]?\d{4}|SSN|TIN|ITIN)\b"
 End Function
 
 Function WordSearchPattern() As String
