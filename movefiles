@@ -1,3 +1,30 @@
+$sourceFolder = "C:\Path\To\Your\Shared\Drive"  # Change to your source folder path
+$destinationFolder = "C:\Path\To\Destination"  # Change to your destination folder path
+$keyword = "YourKeyword"  # Your specific keyword
+$specificDate = [datetime]"2023-10-16"  # Specific date
+
+# Creating the destination folder if it doesn't exist
+if (-not (Test-Path -Path $destinationFolder)) {
+    New-Item -ItemType Directory -Path $destinationFolder
+}
+
+# Get all files with the specific keyword and date constraint
+Get-ChildItem -Path $sourceFolder -Recurse -File | Where-Object {
+    $_.Name -like "*$keyword*" -and $_.LastWriteTime -gt $specificDate
+} | ForEach-Object {
+    $destinationPath = Join-Path -Path $destinationFolder -ChildPath $_.Name
+    # Move file if it doesn't already exist in the destination folder
+    if (-not (Test-Path -Path $destinationPath)) {
+        Move-Item -Path $_.FullName -Destination $destinationPath
+    }
+}
+
+
+
+
+
+
+
 Sub MoveSpecificFiles()
     Dim sourceFolderPath As String
     Dim destinationFolderPath As String
@@ -43,3 +70,8 @@ Sub MoveFilesWithKeyword(ByVal sourcePath As String, ByVal destPath As String, B
         MoveFilesWithKeyword subFolder.Path, destPath, keyword
     Next subFolder
 End Sub
+
+
+
+
+
