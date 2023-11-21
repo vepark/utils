@@ -1,0 +1,45 @@
+Sub MoveSpecificFiles()
+    Dim sourceFolderPath As String
+    Dim destinationFolderPath As String
+    Dim keyword As String
+
+    sourceFolderPath = "C:\YourSharedDrivePath\"  ' Change to your shared drive path
+    destinationFolderPath = "C:\YourDestinationFolderPath\"  ' Set your destination folder path
+    keyword = "YourKeyword"  ' Change to your keyword
+
+    MoveFilesWithKeyword sourceFolderPath, destinationFolderPath, keyword
+End Sub
+
+Sub MoveFilesWithKeyword(ByVal sourcePath As String, ByVal destPath As String, ByVal keyword As String)
+    Dim fileName As String
+    Dim fullSourceFilePath As String
+    Dim fullDestFilePath As String
+    Dim subFolder As String
+    Dim fso, folder, subfolders
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set folder = fso.GetFolder(sourcePath)
+    Set subfolders = folder.SubFolders
+
+    ' Search files in the current folder
+    fileName = Dir(sourcePath & "\*" & keyword & "*.xlsx")
+    While fileName <> ""
+        fullSourceFilePath = sourcePath & "\" & fileName
+        fullDestFilePath = destPath & "\" & fileName
+
+        ' Move the file
+        If Not fso.FileExists(fullDestFilePath) Then
+            fso.MoveFile Source:=fullSourceFilePath, Destination:=fullDestFilePath
+        Else
+            ' Handle the case where a file with the same name exists
+            Debug.Print "File already exists in destination: " & fullDestFilePath
+        End If
+
+        fileName = Dir  ' Next file
+    Wend
+
+    ' Recursively search in subfolders
+    For Each subFolder In subfolders
+        MoveFilesWithKeyword subFolder.Path, destPath, keyword
+    Next subFolder
+End Sub
