@@ -4,8 +4,8 @@ Function SSNPattern() As String
 End Function
 
 Function WordSearchPattern() As String
-    ' Exact word/phrase match for SSN-related terms
-    WordSearchPattern = "\b(SSN|TIN|ITIN|Social Security Number|Soc Sec Number|Social Sec Number|Social Sec #|S.S.N.|Federal SSN|Gov't SSN|U.S. SSN|US SSN|National ID Number|Taxpayer Identification Number|Individual Taxpayer Identification Number|Employee Identification Number)\b"
+    ' List of SSN-related terms (without regular expression syntax)
+    WordSearchPattern = "SSN,TIN,ITIN,Social Security Number,Soc Sec Number,Social Sec Number,Social Sec #,S.S.N.,Federal SSN,Gov't SSN,U.S. SSN,US SSN,National ID Number,Taxpayer Identification Number,Individual Taxpayer Identification Number,Employee Identification Number"
 End Function
 
 Function ZIPPattern() As String
@@ -13,9 +13,31 @@ Function ZIPPattern() As String
     ZIPPattern = "\b\d{5}-\d{4}\b"
 End Function
 
+Function IsStandaloneWord(text As String, term As String) As Boolean
+    ' Check if the term is a standalone word within the text
+    Dim pos As Integer
+    pos = InStr(1, text, term, vbTextCompare)
+    
+    If pos > 0 Then
+        Dim beforeChar As String, afterChar As String
+        If pos > 1 Then beforeChar = Mid(text, pos - 1, 1)
+        If pos + Len(term) <= Len(text) Then afterChar = Mid(text, pos + Len(term), 1)
+
+        ' Check if characters before and after are not letters
+        If (beforeChar = "" Or Not (beforeChar Like "[A-Za-z]")) And _
+           (afterChar = "" Or Not (afterChar Like "[A-Za-z]")) Then
+            IsStandaloneWord = True
+        Else
+            IsStandaloneWord = False
+        End If
+    Else
+        IsStandaloneWord = False
+    End If
+End Function
+
 Sub CheckAllOpenWorkbooksForSSN()
     Dim cell As Range
-    Dim regExSSN As Object, regExWordSearch As Object, regExZIP As Object
+    Dim regExSSN As Object, regExZIP As Object
     Dim resultsWs As Worksheet
     Dim nextRow As Long
     Dim wb As Workbook
@@ -31,11 +53,6 @@ Sub CheckAllOpenWorkbooksForSSN()
     regExSSN.Global = True
     regExSSN.IgnoreCase = True
     regExSSN.Pattern = SSNPattern()
-
-    Set regExWordSearch = CreateObject("VBScript.RegExp")
-    regExWordSearch.Global = True
-    regExWordSearch.IgnoreCase = True
-    regExWordSearch.Pattern = WordSearchPattern()
 
     Set regExZIP = CreateObject("VBScript.RegExp")
     regExZIP.Global = True
@@ -70,7 +87,7 @@ Sub CheckAllOpenWorkbooksForSSN()
                             Dim cellValue As String
                             cellValue = " " & cell.Value & " " ' Add spaces to ensure standalone words
 
-                            If regExSSN.Test(cell.Value) Or regExZIP.Test(cell.Value) Or regExWordSearch.Test(cellValue) Then
+                            If regExSSN.Test(cell.Value) Or regExZIP.Test(cell.Value) Then
                                 sheetProcessed = True
                                 resultsWs.Cells(nextRow, 1).Value = wb.Name
                                 resultsWs.Cells(nextRow, 2).Value = ws.Name
@@ -78,15 +95,27 @@ Sub CheckAllOpenWorkbooksForSSN()
                                 If regExSSN.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 4).Value = cell.Value
                                 End If
-                                If regExWordSearch.Test(cellValue) Then
-                                    resultsWs.Cells(nextRow, 5).Value = Trim(cell.Value)
-                                End If
                                 If regExZIP.Test(cell.Value) Then
                                     resultsWs.Cells(nextRow, 8).Value = "ZIP?"
                                 End If
                                 resultsWs.Cells(nextRow, 6).Value = Now()
                                 nextRow = nextRow + 1
                             End If
+
+                            ' Check for SSN Word Search
+                            Dim term As Variant
+                            For Each term In Split(WordSearchPattern, ",")
+                                If IsStandaloneWord(cellValue, term) Then
+                                    sheetProcessed = True
+                                    resultsWs.Cells(nextRow, 1).Value = wb.Name
+                                    resultsWs.Cells(nextRow, 2).Value = ws.Name
+                                    resultsWs.Cells(nextRow, 3).Value = cell.Address
+                                    resultsWs.Cells(nextRow, 5).Value = Trim(cell.Value)
+                                    resultsWs.Cells(nextRow, 6).Value = Now()
+                                    nextRow = nextRow + 1
+                                    Exit For ' Exit the loop once a match is found
+                                End If
+                            Next term
                         End If
                     Next cell
                     If Not sheetProcessed Then
@@ -109,7 +138,6 @@ Sub CheckAllOpenWorkbooksForSSN()
     resultsWs.Columns("A:H").AutoFit
     
     Set regExSSN = Nothing
-    Set regExWordSearch = Nothing
     Set regExZIP = Nothing
     Set resultsWs = Nothing
 End Sub
