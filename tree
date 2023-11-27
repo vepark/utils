@@ -1,5 +1,8 @@
 import os
 import pandas as pd
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 def list_files(dir_path):
     data = []
@@ -10,9 +13,36 @@ def list_files(dir_path):
             data.append({"Directory": root, "File": file, "Size (Bytes)": size})
     return data
 
+def auto_adjust_column_width(worksheet):
+    for column in worksheet.columns:
+        max_length = 0
+        column = [cell for cell in column if cell.value]
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(cell.value)
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        worksheet.column_dimensions[cell.column_letter].width = adjusted_width
+
 def create_excel(data, output_file):
     df = pd.DataFrame(data)
-    df.to_excel(output_file, index=False)
+    wb = Workbook()
+    ws = wb.active
+
+    for r in dataframe_to_rows(df, index=False, header=True):
+        ws.append(r)
+
+    auto_adjust_column_width(ws)
+
+    tab = Table(displayName="FileTable", ref=ws.dimensions)
+    style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
+                           showLastColumn=False, showRowStripes=True, showColumnStripes=True)
+    tab.tableStyleInfo = style
+    ws.add_table(tab)
+
+    wb.save(output_file)
 
 if __name__ == "__main__":
     directory_to_scan = "C:/path/to/your/directory"  # Change this to your directory
