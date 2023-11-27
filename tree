@@ -1,0 +1,22 @@
+import os
+import pandas as pd
+
+def list_files(dir_path):
+    data = []
+    for root, dirs, files in os.walk(dir_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            size = os.path.getsize(file_path)
+            data.append({"Directory": root, "File": file, "Size (Bytes)": size})
+    return data
+
+def create_excel(data, output_file):
+    df = pd.DataFrame(data)
+    df.to_excel(output_file, index=False)
+
+if __name__ == "__main__":
+    directory_to_scan = "C:/path/to/your/directory"  # Change this to your directory
+    output_excel = "output.xlsx"  # Output Excel file name
+    file_data = list_files(directory_to_scan)
+    create_excel(file_data, output_excel)
+    print(f"Excel file '{output_excel}' has been created.")
