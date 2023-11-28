@@ -42,3 +42,50 @@ for file_name in os.listdir(pdf_directory):
 # Convert to DataFrame and export to Excel
 df = pd.DataFrame(data)
 df.to_excel('output.xlsx', index=False)
+
+
+
+
+
+
+
+
+
+import os
+import re
+from PyPDF2 import PdfReader
+import pandas as pd
+
+def extract_text_between_phrases(text, start_phrase, end_phrase, exclude_phrase=None):
+    # ... (same as before)
+
+def process_pdf(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            reader = PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+
+            return {
+                'file_name': os.path.basename(file_path),
+                'field1': extract_text_between_phrases(text, 'Start Phrase 1', 'End Phrase 1', 'Exclude Phrase 1'),
+                'field2': extract_text_between_phrases(text, 'Start Phrase 2', 'End Phrase 2'),
+                'field3': extract_text_between_phrases(text, 'Start Phrase 3', 'End Phrase 3', 'Exclude Phrase 3')
+            }
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return None
+
+pdf_directory = 'path/to/pdf/directory'
+data = []
+
+for file_name in os.listdir(pdf_directory):
+    if file_name.endswith('.pdf'):
+        file_path = os.path.join(pdf_directory, file_name)
+        result = process_pdf(file_path)
+        if result:
+            data.append(result)
+
+df = pd.DataFrame(data)
+df.to_excel('output.xlsx', index=False)
