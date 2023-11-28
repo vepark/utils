@@ -1,0 +1,37 @@
+import os
+from PyPDF2 import PdfFileReader
+import pandas as pd
+import re
+
+def extract_text_between_phrases(text, start_phrase, end_phrase):
+    pattern = re.escape(start_phrase) + "(.*?)" + re.escape(end_phrase)
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else None
+
+def process_pdf(file_path):
+    with open(file_path, 'rb') as file:
+        reader = PdfFileReader(file)
+        text = ""
+        for page_num in range(reader.numPages):
+            text += reader.getPage(page_num).extractText()
+
+        return {
+            'file_name': os.path.basename(file_path),
+            'field1': extract_text_between_phrases(text, 'Start Phrase 1', 'End Phrase 1'),
+            'field2': extract_text_between_phrases(text, 'Start Phrase 2', 'End Phrase 2'),
+            'field3': extract_text_between_phrases(text, 'Start Phrase 3', 'End Phrase 3')
+        }
+
+# Directory containing PDF files
+pdf_directory = 'path/to/pdf/directory'
+
+# Process each PDF file
+data = []
+for file_name in os.listdir(pdf_directory):
+    if file_name.endswith('.pdf'):
+        file_path = os.path.join(pdf_directory, file_name)
+        data.append(process_pdf(file_path))
+
+# Convert to DataFrame and export to Excel
+df = pd.DataFrame(data)
+df.to_excel('output.xlsx', index=False)
