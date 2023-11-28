@@ -1,7 +1,7 @@
 import os
-from PyPDF2 import PdfFileReader
-import pandas as pd
 import re
+from PyPDF2 import PdfReader
+import pandas as pd
 
 def extract_text_between_phrases(text, start_phrase, end_phrase):
     pattern = re.escape(start_phrase) + "(.*?)" + re.escape(end_phrase)
@@ -10,10 +10,10 @@ def extract_text_between_phrases(text, start_phrase, end_phrase):
 
 def process_pdf(file_path):
     with open(file_path, 'rb') as file:
-        reader = PdfFileReader(file)
+        reader = PdfReader(file)
         text = ""
-        for page_num in range(reader.numPages):
-            text += reader.getPage(page_num).extractText()
+        for page in reader.pages:
+            text += page.extract_text()
 
         return {
             'file_name': os.path.basename(file_path),
