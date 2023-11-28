@@ -1,0 +1,37 @@
+import os
+import re
+import pdfplumber
+import pandas as pd
+
+def extract_text_between_phrases(text, start_phrase, end_phrase):
+    pattern = re.escape(start_phrase) + "(.*?)" + re.escape(end_phrase)
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else None
+
+pdf_directory = 'path/to/pdf/directory'
+data = []
+
+for file_name in os.listdir(pdf_directory):
+    if file_name.endswith('.pdf'):
+        file_path = os.path.join(pdf_directory, file_name)
+        with pdfplumber.open(file_path) as pdf:
+            full_text = ""
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:  # Ensuring that text is extracted
+                    full_text += text + "\n"  # Add a newline between pages
+
+            extracted_text1 = extract_text_between_phrases(full_text, "Start Phrase 1", "End Phrase 1")
+            extracted_text2 = extract_text_between_phrases(full_text, "Start Phrase 2", "End Phrase 2")
+            extracted_text3 = extract_text_between_phrases(full_text, "Start Phrase 3", "End Phrase 3")
+
+            data.append({
+                'File Name': file_name,
+                'ExtractedText1': extracted_text1,
+                'ExtractedText2': extracted_text2,
+                'ExtractedText3': extracted_text3
+            })
+
+# Convert to DataFrame and export to Excel
+df = pd.DataFrame(data)
+df.to_excel('output.xlsx', index=False)
