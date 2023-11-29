@@ -1,0 +1,44 @@
+import os
+import re
+from pdfminer.high_level import extract_text
+import pandas as pd
+
+def extract_text_between_phrases(text, start_phrase, end_phrase):
+    pattern = re.escape(start_phrase) + "(.*?)" + re.escape(end_phrase)
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else None
+
+def exclude_specific_text(text, phrase_to_exclude):
+    return text.replace(phrase_to_exclude, "")
+
+def include_text_from_word(text, start_word):
+    start_index = text.find(start_word)
+    return text[start_index:] if start_index != -1 else text
+
+pdf_directory = 'path/to/pdf/directory'
+data = []
+
+for file_name in os.listdir(pdf_directory):
+    if file_name.endswith('.pdf'):
+        file_path = os.path.join(pdf_directory, file_name)
+        full_text = extract_text(file_path)
+
+        extracted_text1 = extract_text_between_phrases(full_text, "Start Phrase 1", "End Phrase 1")
+        extracted_text2 = extract_text_between_phrases(full_text, "Start Phrase 2", "End Phrase 2")
+        extracted_text3 = extract_text_between_phrases(full_text, "Start Phrase 3", "End Phrase 3")
+
+        # Apply additional text processing
+        processed_text1 = exclude_specific_text(extracted_text1, "Rating:automatically")
+        processed_text2 = include_text_from_word(extracted_text2, "Tier")
+        processed_text3 = extracted_text3  # Assuming no extra processing for this field
+
+        data.append({
+            'File Name': file_name,
+            'ProcessedText1': processed_text1,
+            'ProcessedText2': processed_text2,
+            'ProcessedText3': processed_text3
+        })
+
+# Convert to DataFrame and export to Excel
+df = pd.DataFrame(data)
+df.to_excel('output.xlsx', index=False)
