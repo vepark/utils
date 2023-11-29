@@ -45,6 +45,19 @@ df.to_excel('output.xlsx', index=False)
 
 
 
+#
+
+import re
+
+def extract_text_between_phrases(text, start_phrase, end_phrase):
+    # Replace spaces with \s* in start and end phrases to match any whitespace including line breaks
+    start_pattern = re.sub(r"\s+", r"\\s*", re.escape(start_phrase))
+    end_pattern = re.sub(r"\s+", r"\\s*", re.escape(end_phrase))
+
+    # Create the full pattern
+    pattern = start_pattern + "(.*?)" + end_pattern
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1).strip() if match else None
 
 
 
