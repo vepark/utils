@@ -1,0 +1,34 @@
+import pandas as pd
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+
+# Load pre-trained model and tokenizer
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
+
+def get_similarity(text1, text2):
+    inputs = tokenizer(text1, text2, return_tensors='pt', padding=True, truncation=True)
+    with torch.no_grad():
+        outputs = model(**inputs)
+        scores = torch.nn.functional.softmax(outputs.logits, dim=-1)
+        return scores[:, 1].item()  # The score for 'equivalent' class
+
+# Read Excel files
+df1 = pd.read_excel('path/to/first_excel_file.xlsx')
+df2 = pd.read_excel('path/to/second_excel_file.xlsx')
+
+# Assuming df1 and df2 have the same structure and number of rows
+results = []
+
+for i in range(len(df1)):
+    row_results = {}
+    for col in df1.columns:
+        text1 = str(df1[col][i])
+        text2 = str(df2[col][i])
+        similarity_score = get_similarity(text1, text2)
+        row_results[col] = similarity_score
+    results.append(row_results)
+
+# Convert results to DataFrame and export to Excel
+result_df = pd.DataFrame(results)
+result_df.to_excel('similarity_results.xlsx', index=False)
