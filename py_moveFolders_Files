@@ -15,16 +15,21 @@ def copy_directory(src, dst):
 # List your specific main folder names
 main_folders = ["MainFolder1", "MainFolder2", "MainFolder3", ...]  # Replace with actual names
 
-# List your specific subfolder names
-subfolders = ["SpecificSubfolder1", "SpecificSubfolder2", "SpecificSubfolder3"]  # Replace with actual names
+# List partial subfolder names
+partial_subfolder_names = ["PartSubfolder1", "PartSubfolder2", "PartSubfolder3"]  # Replace with partial names
 
 source_base_path = "C:/SourceDirectory"  # Base directory of your source folders
 destination_base_path = "D:/DestinationDirectory"  # Destination directory
 
 for folder in main_folders:
     source_folder = os.path.join(source_base_path, folder)
-    all_subfolders_exist = all(os.path.exists(os.path.join(source_folder, sub)) for sub in subfolders)
+    subfolders = [d for d in os.listdir(source_folder) if os.path.isdir(os.path.join(source_folder, d))]
+    
+    matches = 0
+    for part_name in partial_subfolder_names:
+        if any(part_name in sub for sub in subfolders):
+            matches += 1
 
-    if all_subfolders_exist:
+    if matches == len(partial_subfolder_names):
         destination_folder = os.path.join(destination_base_path, folder)
         copy_directory(source_folder, destination_folder)
