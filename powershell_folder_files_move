@@ -1,0 +1,50 @@
+function Copy-Subdirectories {
+    param (
+        [string]$SourceBasePath,
+        [string]$DestinationBasePath,
+        [string[]]$MainFolders,
+        [string[]]$PartialSubfolderNames
+    )
+
+    foreach ($folder in $MainFolders) {
+        $sourceFolder = Join-Path $SourceBasePath $folder
+        $destinationFolder = Join-Path $DestinationBasePath $folder
+
+        if (-Not (Test-Path $sourceFolder)) {
+            Write-Host "Source folder not found: $sourceFolder"
+            continue
+        }
+
+        if (-Not (Test-Path $destinationFolder)) {
+            New-Item -ItemType Directory -Path $destinationFolder
+        }
+
+        Write-Host "Checking $sourceFolder..."
+
+        Get-ChildItem -Path $sourceFolder -Recurse -Directory |
+            Where-Object { 
+                foreach ($partialName in $PartialSubfolderNames) {
+                    if ($_.Name -like "*$partialName*") {
+                        return $true
+                    }
+                }
+                return $false
+            } |
+            ForEach-Object {
+                $subDestination = Join-Path $destinationFolder $_.FullName.Substring($sourceFolder.Length)
+                Write-Host "Copying $($_.FullName) to $subDestination..."
+                Copy-Item -Path $_.FullName -Destination $subDestination -Recurse
+            }
+    }
+}
+
+# Define your main folders and partial subfolder names
+$mainFolders = @("MainFolder1", "MainFolder2", "MainFolder3")  # Replace with actual folder names
+$partialSubfolderNames = @("1234", "5678", "9012")  # Replace with partial names
+
+# Define your source and destination base paths
+$sourceBasePath = "C:\SourceDirectory"  # Replace with your source directory path
+$destinationBasePath = "D:\DestinationDirectory"  # Replace with your destination directory path
+
+# Run the function
+Copy-Subdirectories -SourceBasePath $sourceBasePath -DestinationBasePath $destinationBasePath -MainFolders $mainFolders -PartialSubfolderNames $partialSubfolderNames
