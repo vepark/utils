@@ -1,17 +1,19 @@
 import shutil
 import os
 
-def copy_subdirectory(src, dst, partial_subfolder_names):
-    """
-    Copies subdirectories that match the partial subfolder names from src to dst.
-    """
+def copy_directory(src, dst):
+    if not os.path.exists(dst):
+        os.makedirs(dst)
     for item in os.listdir(src):
         s = os.path.join(src, item)
-        if os.path.isdir(s) and any(partial_name in item for partial_name in partial_subfolder_names):
-            d = os.path.join(dst, item)
-            shutil.copytree(s, d)
-        elif os.path.isdir(s):
-            copy_subdirectory(s, dst, partial_subfolder_names)
+        d = os.path.join(dst, item)
+        try:
+            if os.path.isdir(s):
+                copy_directory(s, d)
+            else:
+                shutil.copy2(s, d)
+        except Exception as e:
+            print(f"Error while copying {s}: {e}")
 
 main_folders = ["MainFolder1", "MainFolder2", "MainFolder3", ...]  # Replace with actual names
 partial_subfolder_names = ["1234", "5678", "9012"]  # Replace with partial names
@@ -19,7 +21,8 @@ partial_subfolder_names = ["1234", "5678", "9012"]  # Replace with partial names
 source_base_path = "C:/SourceDirectory"  # Base directory of your source folders
 destination_base_path = "D:/DestinationDirectory"  # Destination directory
 
-for folder in main_folders:
+try:
+ for folder in main_folders:
     source_folder = os.path.join(source_base_path, folder)
     destination_folder = os.path.join(destination_base_path, folder)
 
@@ -32,3 +35,6 @@ for folder in main_folders:
 
     print(f"Checking {source_folder}...")
     copy_subdirectory(source_folder, destination_folder, partial_subfolder_names)
+
+except Exception as e:
+    print(f"An error occurred: {e}")
