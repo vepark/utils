@@ -1,0 +1,30 @@
+import shutil
+import os
+
+def copy_directory(src, dst):
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            copy_directory(s, d)
+        else:
+            shutil.copy2(s, d)
+
+# List your specific main folder names
+main_folders = ["MainFolder1", "MainFolder2", "MainFolder3", ...]  # Replace with actual names
+
+# List your specific subfolder names
+subfolders = ["SpecificSubfolder1", "SpecificSubfolder2", "SpecificSubfolder3"]  # Replace with actual names
+
+source_base_path = "C:/SourceDirectory"  # Base directory of your source folders
+destination_base_path = "D:/DestinationDirectory"  # Destination directory
+
+for folder in main_folders:
+    source_folder = os.path.join(source_base_path, folder)
+    all_subfolders_exist = all(os.path.exists(os.path.join(source_folder, sub)) for sub in subfolders)
+
+    if all_subfolders_exist:
+        destination_folder = os.path.join(destination_base_path, folder)
+        copy_directory(source_folder, destination_folder)
