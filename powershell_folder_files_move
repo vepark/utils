@@ -1,9 +1,11 @@
-function Copy-Subdirectories {
+function Copy-MatchingFiles {
     param (
         [string]$SourceBasePath,
         [string]$DestinationBasePath,
         [string[]]$MainFolders,
-        [string[]]$PartialSubfolderNames
+        [string[]]$PartialSubfolderNames,
+        [string[]]$Keywords,  # Array of keywords to match in filenames
+        [string[]]$FileTypes  # Array of file extensions to match
     )
 
     foreach ($folder in $MainFolders) {
@@ -21,12 +23,20 @@ function Copy-Subdirectories {
 
         Write-Host "Checking $sourceFolder..."
 
-        Get-ChildItem -Path $sourceFolder -Recurse -Directory |
+        Get-ChildItem -Path $sourceFolder -Recurse |
             Where-Object { 
-                foreach ($partialName in $PartialSubfolderNames) {
-                    if ($_.Name -like "*$partialName*") {
-                        return $true
+                # Check if it's a directory that matches partial names
+                if ($_.PSIsContainer) {
+                    foreach ($partialName in $PartialSubfolderNames) {
+                        if ($_.Name -like "*$partialName*") {
+                            return $true
+                        }
                     }
+                } 
+                # Check if it's a file that matches any of the keywords or file types
+                elseif ($_.Name -like "*.*") {
+                    $extension = $_.Extension -replace '^\.', ''  # Remove the dot from the extension
+                    return ($Keywords -contains $_.Name) -or ($FileTypes -contains $extension)
                 }
                 return $false
             } |
@@ -38,13 +48,15 @@ function Copy-Subdirectories {
     }
 }
 
-# Define your main folders and partial subfolder names
+# Define your main folders, partial subfolder names, keywords, and file types
 $mainFolders = @("MainFolder1", "MainFolder2", "MainFolder3")  # Replace with actual folder names
 $partialSubfolderNames = @("1234", "5678", "9012")  # Replace with partial names
+$keywords = @("keyword1", "keyword2", "keyword3")  # Replace with keywords to match in filenames
+$fileTypes = @("docx", "xlsx", "pdf")  # Replace with file types
 
 # Define your source and destination base paths
 $sourceBasePath = "C:\SourceDirectory"  # Replace with your source directory path
 $destinationBasePath = "D:\DestinationDirectory"  # Replace with your destination directory path
 
 # Run the function
-Copy-Subdirectories -SourceBasePath $sourceBasePath -DestinationBasePath $destinationBasePath -MainFolders $mainFolders -PartialSubfolderNames $partialSubfolderNames
+Copy-MatchingFiles -SourceBasePath $sourceBasePath -DestinationBasePath $destinationBasePath -MainFolders $mainFolders -PartialSubfolderNames $partialSubfolderNames -Keywords $keywords -FileTypes $fileTypes
