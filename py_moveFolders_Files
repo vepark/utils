@@ -13,7 +13,7 @@ def copy_directory(src, dst):
             shutil.copy2(s, d)
 
 main_folders = ["MainFolder1", "MainFolder2", "MainFolder3", ...]  # Replace with actual names
-partial_subfolder_names = ["PartSubfolder1", "PartSubfolder2", "PartSubfolder3"]  # Replace with partial names
+partial_subfolder_names = ["PartName1", "PartName2", "PartName3"]  # Replace with partial names
 
 source_base_path = "C:/SourceDirectory"  # Base directory of your source folders
 destination_base_path = "D:/DestinationDirectory"  # Destination directory
@@ -28,12 +28,9 @@ for folder in main_folders:
 
     subfolders = [d for d in os.listdir(source_folder) if os.path.isdir(os.path.join(source_folder, d))]
 
-    matches = 0
-    for part_name in partial_subfolder_names:
-        if any(part_name in sub for sub in subfolders):
-            matches += 1
+    match_found = all(any(partial_name in subfolder for subfolder in subfolders) for partial_name in partial_subfolder_names)
 
-    if matches == len(partial_subfolder_names):
+    if match_found:
         destination_folder = os.path.join(destination_base_path, folder)
         print(f"Copying {source_folder} to {destination_folder}...")
         copy_directory(source_folder, destination_folder)
