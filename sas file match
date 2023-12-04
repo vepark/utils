@@ -1,0 +1,20 @@
+proc sql;
+    create table comparison as
+    select 
+        coalesce(a.column1, b.column1) as column1, 
+        coalesce(a.column2, b.column2) as column2, 
+        coalesce(a.column3, b.column3) as column3,
+        case 
+            when a.column1 is not null and b.column1 is not null then 'Match'
+            when a.column1 is not null and b.column1 is null then 'Table1'
+            when a.column1 is null and b.column1 is not null then 'Table2'
+        end as Status
+    from 
+        table1 as a
+    full outer join 
+        table2 as b
+    on 
+        a.column1 = b.column1 and 
+        a.column2 = b.column2 and 
+        a.column3 = b.column3;
+quit;
