@@ -4,9 +4,10 @@ $outputFile = "C:\path\to\output\directory_structure.csv" # Output file path
 $fileList = @()
 
 Get-ChildItem -Path $rootPath -Recurse -File | ForEach-Object {
+    $relativeSubFolderPath = $_.DirectoryName.Substring($rootPath.Length).TrimStart('\')
     $fileInfo = New-Object PSObject
     $fileInfo | Add-Member -MemberType NoteProperty -Name "Main Folder" -Value $rootPath
-    $fileInfo | Add-Member -MemberType NoteProperty -Name "Sub Folder" -Value $_.DirectoryName.Substring($rootPath.Length)
+    $fileInfo | Add-Member -MemberType NoteProperty -Name "Sub Folder Path" -Value $relativeSubFolderPath
     $fileInfo | Add-Member -MemberType NoteProperty -Name "File Name" -Value $_.Name
     $fileInfo | Add-Member -MemberType NoteProperty -Name "File Size (Bytes)" -Value $_.Length
 
