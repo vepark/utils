@@ -1,0 +1,18 @@
+%macro plot_time_series(data, subset_var, subset_value, time_var1, time_var2);
+    proc sgpanel data=&data;
+        where &subset_var = &subset_value;
+        panelby &subset_var / columns=1 rows=10 onepanel;
+        series x=time_var y=&time_var1 / lineattrs=(color=red);
+        series x=time_var y=&time_var2 / lineattrs=(color=blue);
+        yaxis label="Your Y-Axis Label";
+        /* Additional axis and plot customization */
+    run;
+%mend;
+
+%macro create_pages(data, subset_var, n_pages, time_var1, time_var2);
+    %do i = 1 %to &n_pages;
+        %plot_time_series(&data, &subset_var, &i, &time_var1, &time_var2);
+    %end;
+%mend;
+
+%create_pages(your_data, your_page_variable, 9, your_time_series_var1, your_time_series_var2);
