@@ -7,6 +7,14 @@ file_path = '/path/to/your/Downloads/ABCChanges.xlsx'  # Update this path accord
 # Read the Excel file into a DataFrame
 df = pd.read_excel(file_path)
 
+# Print DataFrame columns to verify
+print("Columns in DataFrame:", df.columns)
+
+# Ensure the column names are correct
+# Replace 'Amount' and 'Accounts' with the exact names from your DataFrame
+amount_column = 'Amount'  # Update this if different
+account_column = 'Accounts'  # Update this if different
+
 # Function to flag changes within each group
 def flag_changes(group, column):
     if group[column].nunique() > 1:
@@ -16,8 +24,8 @@ def flag_changes(group, column):
 
 # Group by 'ID' and check for changes in 'Amount' and 'Accounts'
 grouped = df.groupby('ID')
-df['Amount Changed'] = grouped.transform(lambda x: flag_changes(x, 'Amount'))
-df['Account Changed'] = grouped.transform(lambda x: flag_changes(x, 'Accounts'))
+df['Amount Changed'] = grouped[amount_column].transform(lambda x: flag_changes(x, amount_column))
+df['Account Changed'] = grouped[account_column].transform(lambda x: flag_changes(x, account_column))
 
 # Save the modified DataFrame back to an Excel file
 df.to_excel('/path/to/your/Downloads/ABCChanges_Analyzed.xlsx', index=False)  # Update this path accordingly
