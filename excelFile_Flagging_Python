@@ -1,20 +1,23 @@
 import pandas as pd
 import os
 
-# Path to the Excel file
-file_path = os.path.join(os.path.expanduser('~'), 'Downloads', 'ABCChanges.xlsx')
+# Absolute path to the Excel file
+file_path = '/path/to/your/Downloads/ABCChanges.xlsx'  # Update this path according to your OS and file location
 
 # Read the Excel file into a DataFrame
 df = pd.read_excel(file_path)
 
-# Function to check if values in a column change within a group
+# Function to flag changes within each group
 def flag_changes(group, column):
-    return 1 if group[column].nunique() > 1 else 0
+    if group[column].nunique() > 1:
+        return 1
+    else:
+        return 0
 
-# Group by 'ID' and apply the function to 'Amount' and 'Accounts'
+# Group by 'ID' and check for changes in 'Amount' and 'Accounts'
 grouped = df.groupby('ID')
-df['Amount Changed'] = grouped.apply(lambda x: flag_changes(x, 'Amount')).reset_index(level=0, drop=True)
-df['Account Changed'] = grouped.apply(lambda x: flag_changes(x, 'Accounts')).reset_index(level=0, drop=True)
+df['Amount Changed'] = grouped.transform(lambda x: flag_changes(x, 'Amount'))
+df['Account Changed'] = grouped.transform(lambda x: flag_changes(x, 'Accounts'))
 
 # Save the modified DataFrame back to an Excel file
-df.to_excel(os.path.join(os.path.expanduser('~'), 'Downloads', 'ABCChanges_Analyzed.xlsx'), index=False)
+df.to_excel('/path/to/your/Downloads/ABCChanges_Analyzed.xlsx', index=False)  # Update this path accordingly
