@@ -1,11 +1,29 @@
-$folderPath = "C:\path\to\your\folder"
-$cutoffDate = Get-Date "01/06/2021" 
+$folderPath = "C:\path\to\your\folder" # Replace with your folder path
+$cutoffYear = 2021
 
-Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
-    if ($_.LastWriteTime -lt $cutoffDate) {
-        $_.LastWriteTime = Get-Date
+# Function to update the timestamp
+function Update-Timestamp {
+    param (
+        [System.IO.FileSystemInfo]$item
+    )
+
+    # Check if the last write time year is 2021 or before
+    if ($item.LastWriteTime.Year -le $cutoffYear) {
+        $item.LastWriteTime = Get-Date
+        Write-Host "Updated timestamp for: $($item.FullName)"
     }
 }
+
+# Update files
+Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
+    Update-Timestamp -item $_
+}
+
+# Update directories
+Get-ChildItem -Path $folderPath -Recurse -Directory | ForEach-Object {
+    Update-Timestamp -item $_
+}
+
 
 
 
