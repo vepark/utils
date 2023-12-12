@@ -6,3 +6,38 @@ Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
         $_.LastWriteTime = Get-Date
     }
 }
+
+
+
+
+
+
+import os
+import time
+from datetime import datetime
+
+# Define the folder path here
+folder_path = '/path/to/your/folder'
+
+# Define the cutoff date (June 2021)
+cutoff_date = datetime(2021, 6, 1)
+
+# Get the current time in seconds since the epoch
+current_time = time.time()
+
+# Function to update the modification date of a file
+def update_modification_date(file_path):
+    os.utime(file_path, (current_time, current_time))
+
+# Function to process all files in the directory
+def process_directory(directory):
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+            if file_mod_time < cutoff_date:
+                update_modification_date(file_path)
+                print(f"Updated: {file_path}")
+
+# Run the script
+process_directory(folder_path)
