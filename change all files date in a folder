@@ -1,0 +1,8 @@
+$folderPath = "C:\path\to\your\folder"
+$cutoffDate = Get-Date "01/06/2021" 
+
+Get-ChildItem -Path $folderPath -Recurse -File | ForEach-Object {
+    if ($_.LastWriteTime -lt $cutoffDate) {
+        $_.LastWriteTime = Get-Date
+    }
+}
