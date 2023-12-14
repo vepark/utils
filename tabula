@@ -28,3 +28,30 @@ for filename in os.listdir(source_directory):
             print(f"Converted {filename} to Excel")
         else:
             print(f"No tables found in {filename}")
+
+
+
+
+
+
+
+
+
+import PyPDF2
+import pandas as pd
+
+# Open the PDF file
+with open('path/to/your/document.pdf', 'rb') as file:
+    reader = PyPDF2.PdfFileReader(file)
+    
+    # Read each page and extract text
+    text = ''
+    for page_num in range(reader.numPages):
+        text += reader.getPage(page_num).extractText() + '\n'
+
+# Create a DataFrame
+df = pd.DataFrame({'Extracted Text': [text]})
+
+# Write the DataFrame to an Excel file
+df.to_excel('extracted_text.xlsx', index=False, engine='openpyxl')
+
