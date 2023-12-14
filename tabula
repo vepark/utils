@@ -1,18 +1,30 @@
+import os
 import tabula
+import pandas as pd
 
-# Path to your PDF file
-file_path = "path/to/your/pdf/file.pdf"
+# Define the source and target directories
+source_directory = 'path/to/source/folder'
+target_directory = 'path/to/target/folder'
 
-# Use read_pdf function of tabula to read tables in the PDF
-# This function returns a list of DataFrames, one for each table found in the PDF
-tables = tabula.read_pdf(file_path, pages='all', multiple_tables=True)
+# Create target directory if it doesn't exist
+if not os.path.exists(target_directory):
+    os.makedirs(target_directory)
 
-# You can now work with 'tables', which is a list of DataFrames
-# For example, to print each table:
-for i, table in enumerate(tables):
-    print(f"Table {i+1}")
-    print(table)
-    print("\n")
+# Iterate over all PDF files in the source directory
+for filename in os.listdir(source_directory):
+    if filename.endswith('.pdf'):
+        # Construct file paths
+        pdf_path = os.path.join(source_directory, filename)
+        excel_path = os.path.join(target_directory, filename.replace('.pdf', '.xlsx'))
 
-# To convert a table to CSV, Excel, etc., you can use Pandas functions, for example:
-# tables[0].to_csv('output.csv')  # Convert the first table to a CSV file
+        # Extract tables from the PDF
+        tables = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
+
+        # Check if tables are found and write to Excel
+        if tables:
+            with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+                for i, table in enumerate(tables):
+                    table.to_excel(writer, sheet_name=f'Table_{i+1}')
+            print(f"Converted {filename} to Excel")
+        else:
+            print(f"No tables found in {filename}")
