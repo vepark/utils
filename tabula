@@ -1,0 +1,18 @@
+import tabula
+
+# Path to your PDF file
+file_path = "path/to/your/pdf/file.pdf"
+
+# Use read_pdf function of tabula to read tables in the PDF
+# This function returns a list of DataFrames, one for each table found in the PDF
+tables = tabula.read_pdf(file_path, pages='all', multiple_tables=True)
+
+# You can now work with 'tables', which is a list of DataFrames
+# For example, to print each table:
+for i, table in enumerate(tables):
+    print(f"Table {i+1}")
+    print(table)
+    print("\n")
+
+# To convert a table to CSV, Excel, etc., you can use Pandas functions, for example:
+# tables[0].to_csv('output.csv')  # Convert the first table to a CSV file
