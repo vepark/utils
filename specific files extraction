@@ -16,22 +16,27 @@ if (-not (Test-Path -Path $destinationFolder)) {
     New-Item -ItemType Directory -Path $destinationFolder
 }
 
-# Function to search and move files based on criteria
-function SearchAndMoveFiles {
+# Function to search and copy files based on criteria
+function SearchAndCopyFiles {
     param (
         [string]$path,
         [string]$fileCriteria
     )
 
-    Get-ChildItem -Path $path -Filter $fileCriteria -Recurse | 
-    Move-Item -Destination $destinationFolder
+    Get-ChildItem -Path $path -Filter $fileCriteria -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            Copy-Item -Path $_.FullName -Destination $destinationFolder -ErrorAction Stop
+        } catch {
+            Write-Warning "Failed to copy file: $($_.FullName). Error: $($_.Exception.Message)"
+        }
+    }
 }
 
-# Search and move the files
+# Search and copy the files
 foreach ($mainFolder in $mainFolders) {
     foreach ($subFolderName in $subFolderNames) {
         # Search for subfolders matching the partial name within each main folder
-        $subFolders = Get-ChildItem -Path $mainFolder -Directory -Recurse | 
+        $subFolders = Get-ChildItem -Path $mainFolder -Directory -Recurse -ErrorAction SilentlyContinue | 
                       Where-Object { $_.Name -like "*$subFolderName*" }
 
         foreach ($subFolder in $subFolders) {
@@ -39,11 +44,11 @@ foreach ($mainFolder in $mainFolders) {
 
             # Check if the subfolder exists
             if (Test-Path -Path $path) {
-                SearchAndMoveFiles -path $path -fileCriteria $fileCriteria1
-                SearchAndMoveFiles -path $path -fileCriteria $fileCriteria2
+                SearchAndCopyFiles -path $path -fileCriteria $fileCriteria1
+                SearchAndCopyFiles -path $path -fileCriteria $fileCriteria2
             }
         }
     }
 }
 
-Write-Host "File transfer completed."
+Write-Host "File copy completed."
