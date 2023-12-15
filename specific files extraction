@@ -1,0 +1,43 @@
+# Define the main folders and subfolders to search
+$mainFolders = @("C:\Path\To\MainFolder1", "C:\Path\To\MainFolder2") # Add main folder paths
+$subFolders = @("SubFolder1", "SubFolder2") # Add subfolder names
+
+# Define the destination folder
+$destinationFolder = "C:\Path\To\DestinationFolder"
+
+# Define file criteria for two types of files
+$fileCriteria1 = "*abcd*.pdf" # First file type criteria (e.g., PDF files containing 'abcd')
+$fileCriteria2 = "*efgh*.docx" # Second file type criteria (e.g., DOCX files containing 'efgh')
+
+# Ensure the destination folder exists
+if (-not (Test-Path -Path $destinationFolder)) {
+    New-Item -ItemType Directory -Path $destinationFolder
+}
+
+# Function to search and move files based on criteria
+function SearchAndMoveFiles {
+    param (
+        [string]$path,
+        [string]$fileCriteria
+    )
+
+    Get-ChildItem -Path $path -Filter $fileCriteria -Recurse | 
+    Move-Item -Destination $destinationFolder
+}
+
+# Search and move the files
+foreach ($mainFolder in $mainFolders) {
+    foreach ($subFolder in $subFolders) {
+        $path = Join-Path $mainFolder $subFolder
+
+        # Check if the subfolder exists
+        if (Test-Path -Path $path) {
+            SearchAndMoveFiles -path $path -fileCriteria $fileCriteria1
+            SearchAndMoveFiles -path $path -fileCriteria $fileCriteria2
+        } else {
+            Write-Warning "Subfolder not found: $path"
+        }
+    }
+}
+
+Write-Host "File transfer completed."
