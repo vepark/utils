@@ -1,13 +1,15 @@
-# Define the main folders and subfolders to search
-$mainFolders = @("C:\Path\To\MainFolder1", "C:\Path\To\MainFolder2") # Add main folder paths
-$subFolders = @("SubFolder1", "SubFolder2") # Add subfolder names
+# Define the main folders to search
+$mainFolders = @("C:\Path\To\MainFolder1", "C:\Path\To\MainFolder2") # Main folder paths
+
+# Define partial names of subfolders
+$subFolderNames = @("SubFolderName1", "SubFolderName2") # Part of subfolder names
 
 # Define the destination folder
 $destinationFolder = "C:\Path\To\DestinationFolder"
 
 # Define file criteria for two types of files
-$fileCriteria1 = "*abcd*.pdf" # First file type criteria (e.g., PDF files containing 'abcd')
-$fileCriteria2 = "*efgh*.docx" # Second file type criteria (e.g., DOCX files containing 'efgh')
+$fileCriteria1 = "*abcd*.pdf" # First file type criteria
+$fileCriteria2 = "*efgh*.docx" # Second file type criteria
 
 # Ensure the destination folder exists
 if (-not (Test-Path -Path $destinationFolder)) {
@@ -27,15 +29,19 @@ function SearchAndMoveFiles {
 
 # Search and move the files
 foreach ($mainFolder in $mainFolders) {
-    foreach ($subFolder in $subFolders) {
-        $path = Join-Path $mainFolder $subFolder
+    foreach ($subFolderName in $subFolderNames) {
+        # Search for subfolders matching the partial name within each main folder
+        $subFolders = Get-ChildItem -Path $mainFolder -Directory -Recurse | 
+                      Where-Object { $_.Name -like "*$subFolderName*" }
 
-        # Check if the subfolder exists
-        if (Test-Path -Path $path) {
-            SearchAndMoveFiles -path $path -fileCriteria $fileCriteria1
-            SearchAndMoveFiles -path $path -fileCriteria $fileCriteria2
-        } else {
-            Write-Warning "Subfolder not found: $path"
+        foreach ($subFolder in $subFolders) {
+            $path = $subFolder.FullName
+
+            # Check if the subfolder exists
+            if (Test-Path -Path $path) {
+                SearchAndMoveFiles -path $path -fileCriteria $fileCriteria1
+                SearchAndMoveFiles -path $path -fileCriteria $fileCriteria2
+            }
         }
     }
 }
