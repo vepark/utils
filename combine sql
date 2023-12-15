@@ -1,0 +1,10 @@
+# Define the directory containing your .sql files
+$sqlFilesDirectory = "C:\path\to\your\sql\files"
+
+# Navigate to the directory
+Set-Location $sqlFilesDirectory
+
+# Combine all .sql files into one file named combined.sql
+Get-ChildItem -Path $sqlFilesDirectory -Filter *.sql | 
+Foreach-Object { Get-Content $_.FullName } | 
+Set-Content "combined.sql"
