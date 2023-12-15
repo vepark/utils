@@ -1,54 +1,54 @@
-# Define the main folders to search
-$mainFolders = @("C:\Path\To\MainFolder1", "C:\Path\To\MainFolder2") # Main folder paths
+# Define the base path where main folders are located
+$basePath = "C:\Path\To\YourBaseFolder" # Replace with your base folder path
 
-# Define partial names of subfolders
-$subFolderNames = @("SubFolderName1", "SubFolderName2") # Part of subfolder names
+# Define the main folders to search (only names, not full paths)
+$mainFolders = @("MainFolder1", "MainFolder2") # Replace with your main folder names
+
+# Define the sub-folders to search for (only names, not full paths)
+$subFolderNames = @("SubFolder1", "SubFolder2") # Replace with your sub-folder names
 
 # Define the destination folder
-$destinationFolder = "C:\Path\To\DestinationFolder"
-
-# Define file criteria for two types of files
-$fileCriteria1 = "*abcd*.pdf" # First file type criteria
-$fileCriteria2 = "*efgh*.docx" # Second file type criteria
+$destinationFolder = "C:\Path\To\DestinationFolder" # Replace with your destination folder path
 
 # Ensure the destination folder exists
 if (-not (Test-Path -Path $destinationFolder)) {
     New-Item -ItemType Directory -Path $destinationFolder
 }
 
-# Function to search and copy files based on criteria
-function SearchAndCopyFiles {
+# Function to copy PDF files from a given folder
+function CopyPdfFilesFromFolder {
     param (
-        [string]$path,
-        [string]$fileCriteria
+        [string]$folderPath
     )
 
-    Get-ChildItem -Path $path -Filter $fileCriteria -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-        try {
-            Copy-Item -Path $_.FullName -Destination $destinationFolder -ErrorAction Stop
-        } catch {
-            Write-Warning "Failed to copy file: $($_.FullName). Error: $($_.Exception.Message)"
+    Get-ChildItem -Path $folderPath -Recurse -File -Filter "*.pdf" | ForEach-Object {
+        $destinationPath = Join-Path -Path $destinationFolder -ChildPath $_.Name
+
+        if (-not (Test-Path -Path $destinationPath)) {
+            Copy-Item -Path $_.FullName -Destination $destinationFolder
+        } else {
+            Write-Warning "PDF file already exists in destination: $destinationPath"
+            # Optional: Handle existing files (skip/rename/overwrite)
         }
     }
 }
 
-# Search and copy the files
-foreach ($mainFolder in $mainFolders) {
-    foreach ($subFolderName in $subFolderNames) {
-        # Search for subfolders matching the partial name within each main folder
-        $subFolders = Get-ChildItem -Path $mainFolder -Directory -Recurse -ErrorAction SilentlyContinue | 
-                      Where-Object { $_.Name -like "*$subFolderName*" }
+# Search and copy the PDF files
+foreach ($mainFolderName in $mainFolders) {
+    $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolderName
 
-        foreach ($subFolder in $subFolders) {
-            $path = $subFolder.FullName
+    if (Test-Path -Path $mainFolderPath) {
+        foreach ($subFolderName in $subFolderNames) {
+            $subFolders = Get-ChildItem -Path $mainFolderPath -Directory -Recurse | 
+                          Where-Object { $_.Name -eq $subFolderName }
 
-            # Check if the subfolder exists
-            if (Test-Path -Path $path) {
-                SearchAndCopyFiles -path $path -fileCriteria $fileCriteria1
-                SearchAndCopyFiles -path $path -fileCriteria $fileCriteria2
+            foreach ($subFolder in $subFolders) {
+                CopyPdfFilesFromFolder -folderPath $subFolder.FullName
             }
         }
+    } else {
+        Write-Warning "Main folder not found: $mainFolderPath"
     }
 }
 
-Write-Host "File copy completed."
+Write-Host "PDF file copy completed."
