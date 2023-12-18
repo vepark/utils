@@ -1,18 +1,19 @@
 data z;
-    input name $50.;
+    input name $100.;
     datalines;
     John, Doe; Jane, Estes; John, Doe; Jane, Estes
     ;
 run;
 
-data z_unique;
+data z_unique(keep=name unique_name);
     set z;
-    length unique_name $50;
+    length unique_name $100;
     retain unique_name;
+    unique_name = ''; /* Reset for each row */
     do i = 1 to countw(name, ';');
         temp_name = scan(name, i, ';');
-        if index(unique_name, trim(temp_name)) = 0 then
-            unique_name = catx('; ', unique_name, temp_name);
+        temp_name = strip(temp_name); /* Remove leading/trailing spaces */
+        if index(unique_name, temp_name) = 0 then
+            unique_name = ifn(length(unique_name) = 0, temp_name, catx('; ', unique_name, temp_name));
     end;
-    drop i temp_name;
 run;
