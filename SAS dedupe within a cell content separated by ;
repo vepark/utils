@@ -17,3 +17,13 @@ data z_unique(keep=name unique_name);
             unique_name = ifn(length(unique_name) = 0, temp_name, catx('; ', unique_name, temp_name));
     end;
 run;
+
+
+
+data z;
+    input name $50.;
+    new_name = prxchange('s/(\b\d{3},\d{3}\b)(?=.*;\1)/', -1, name);
+    datalines;
+    123,345;323,345;123,345;323,345;343,345
+    ;
+run;
