@@ -1,0 +1,32 @@
+data original_dataset; /* This is your original dataset */
+    input id $ value $50.; /* Assuming 'value' is the variable with semicolon-separated values */
+datalines;
+1 abc;def;abc;ghi
+2 jkl;mno;jkl
+3 pqr;stu;vwx
+;
+run;
+
+data deduped_dataset;
+    set original_dataset;
+    length unique_values $200.; /* Adjust the length as needed */
+    retain unique_values;
+
+    /* Initialize the variable for each row */
+    unique_values = '';
+
+    /* Count the number of values */
+    num_values = countw(value, ';') + 1; /* +1 to account for the last value without a trailing semicolon */
+
+    /* Loop through each value */
+    do i = 1 to num_values;
+        val = scan(value, i, ';');
+        if index(unique_values, trim(val)) = 0 then unique_values = catx(';', unique_values, val);
+    end;
+
+    /* Store the unique values */
+    value = unique_values;
+    drop i val num_values unique_values;
+run;
+
+proc print data=deduped_dataset; run;
