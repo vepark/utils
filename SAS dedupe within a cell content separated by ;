@@ -21,9 +21,10 @@ run;
 
 
 data z;
-    input name $50.;
-    new_name = prxchange('s/(\b\d{3},\d{3}\b)(?=.*;\1)/', -1, name);
+    input name $100.;
+    new_name = prxchange('s/(\b\w+\b)(;.*)(?=.*;\1\b)/\2/', -1, name);
     datalines;
-    123,345;323,345;123,345;323,345;343,345
+    Your data here
     ;
 run;
+
