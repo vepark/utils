@@ -1,39 +1,18 @@
-data have;
-    input ID $ Names $100.;
+data z;
+    input name $50.;
     datalines;
-    1 John;Paul;George;Ringo;John;Paul
-    2 Lenny;Carl;Moe;Lenny;Barney
-    3 Alice;Bob;Charlie;Bob
-;
+    John, Doe; Jane, Estes; John, Doe; Jane, Estes
+    ;
 run;
 
-data want;
-    set have;
-    length unique_names $200.; /* Adjust the length as needed */
-    array temp_names[100] $ 20; /* Array to temporarily store unique names, adjust size as needed */
-    retain unique_names;
-    num_names = countw(Names, ';') + 1;
-    unique_names = '';
-
-    do i = 1 to num_names;
-        name = scan(Names, i, ';');
-        already_exists = 0;
-        do j = 1 to i - 1;
-            if temp_names[j] = name then do;
-                already_exists = 1;
-                leave;
-            end;
-        end;
-        if already_exists = 0 then do;
-            temp_names[i] = name;
-            if i = 1 then unique_names = name;
-            else unique_names = catx(';', unique_names, name);
-        end;
+data z_unique;
+    set z;
+    length unique_name $50;
+    retain unique_name;
+    do i = 1 to countw(name, ';');
+        temp_name = scan(name, i, ';');
+        if index(unique_name, trim(temp_name)) = 0 then
+            unique_name = catx('; ', unique_name, temp_name);
     end;
-
-    /* Store the unique names */
-    Names = unique_names;
-    drop i j name already_exists num_names unique_names temp_names1-temp_names100;
+    drop i temp_name;
 run;
-
-proc print data=want; run;
