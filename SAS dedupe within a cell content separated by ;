@@ -1,32 +1,39 @@
-data original_dataset; /* This is your original dataset */
-    input id $ value $50.; /* Assuming 'value' is the variable with semicolon-separated values */
-datalines;
-1 abc;def;abc;ghi
-2 jkl;mno;jkl
-3 pqr;stu;vwx
+data have;
+    input ID $ Names $100.;
+    datalines;
+    1 John;Paul;George;Ringo;John;Paul
+    2 Lenny;Carl;Moe;Lenny;Barney
+    3 Alice;Bob;Charlie;Bob
 ;
 run;
 
-data deduped_dataset;
-    set original_dataset;
-    length unique_values $200.; /* Adjust the length as needed */
-    retain unique_values;
+data want;
+    set have;
+    length unique_names $200.; /* Adjust the length as needed */
+    array temp_names[100] $ 20; /* Array to temporarily store unique names, adjust size as needed */
+    retain unique_names;
+    num_names = countw(Names, ';') + 1;
+    unique_names = '';
 
-    /* Initialize the variable for each row */
-    unique_values = '';
-
-    /* Count the number of values */
-    num_values = countw(value, ';') + 1; /* +1 to account for the last value without a trailing semicolon */
-
-    /* Loop through each value */
-    do i = 1 to num_values;
-        val = scan(value, i, ';');
-        if index(unique_values, trim(val)) = 0 then unique_values = catx(';', unique_values, val);
+    do i = 1 to num_names;
+        name = scan(Names, i, ';');
+        already_exists = 0;
+        do j = 1 to i - 1;
+            if temp_names[j] = name then do;
+                already_exists = 1;
+                leave;
+            end;
+        end;
+        if already_exists = 0 then do;
+            temp_names[i] = name;
+            if i = 1 then unique_names = name;
+            else unique_names = catx(';', unique_names, name);
+        end;
     end;
 
-    /* Store the unique values */
-    value = unique_values;
-    drop i val num_values unique_values;
+    /* Store the unique names */
+    Names = unique_names;
+    drop i j name already_exists num_names unique_names temp_names1-temp_names100;
 run;
 
-proc print data=deduped_dataset; run;
+proc print data=want; run;
