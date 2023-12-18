@@ -22,9 +22,31 @@ run;
 
 data z;
     input name $100.;
-    new_name = prxchange('s/(\b\w+\b)(;.*)(?=.*;\1\b)/\2/', -1, name);
     datalines;
-    Your data here
+    123,345;323,345;123,345;323,345;343,345
     ;
 run;
+
+data z_unique;
+    set z;
+    length unique_name $100 temp_name $50;
+    array segments[100] $50 _temporary_; /* Temporary array to store segments */
+    segment_count = 0;
+    do i = 1 to countw(name, ';');
+        temp_name = strip(scan(name, i, ';'));
+        duplicate = 0;
+        do j = 1 to segment_count;
+            if segments[j] = temp_name then do;
+                duplicate = 1;
+                leave;
+            end;
+        end;
+        if duplicate = 0 then do;
+            segment_count + 1;
+            segments[segment_count] = temp_name;
+            unique_name = catx('; ', unique_name, temp_name);
+        end;
+    end;
+run;
+
 
