@@ -1,0 +1,13 @@
+Sub ProtectSheet()
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("YourSheetName") ' Replace "YourSheetName" with the actual sheet name
+
+    ' Unprotect the sheet if it's already protected
+    If ws.ProtectContents Then
+        ws.Unprotect "YourExistingPassword" ' Replace with your existing password, if any
+    End If
+
+    ' Protect the sheet
+    ws.Protect Password:="YourNewPassword", DrawingObjects:=True, Contents:=True, Scenarios:=True 
+    ' Replace "YourNewPassword" with the password you want to set
+End Sub
