@@ -1,0 +1,25 @@
+%macro dynamic_report_columns(dataset);
+
+    /* Step 1: Determine necessary columns dynamically */
+    /* This step would involve analyzing 'dataset' to figure out which columns to add */
+    /* For the sake of example, let's assume we have a list of columns in a macro variable */
+    %let column_list = Col1 Col2 Col3; /* This should be dynamically generated based on your logic */
+
+    /* Step 2: Generate COLUMN statement */
+    %put COLUMN &column_list;
+
+    /* Step 3: Generate DEFINE statements for each column */
+    %let num_cols = %sysfunc(countw(&column_list));
+    %do i = 1 %to &num_cols;
+        %let col = %scan(&column_list, &i);
+        %put DEFINE &col / display width=10; /* Customize as needed */
+    %end;
+
+%mend dynamic_report_columns;
+
+
+proc report data=your_dataset nowd;
+    column %dynamic_report_columns(your_dataset);
+    /* The macro will print the COLUMN and DEFINE statements in the log */
+    /* Additional PROC REPORT statements as needed */
+run;
