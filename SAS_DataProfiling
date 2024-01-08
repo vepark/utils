@@ -1,0 +1,36 @@
+%macro data_profiling(dataset);
+
+    /* Placeholder for Data Sampling Logic if needed */
+    /* Example: 
+    %let dsid = %sysfunc(open(&dataset));
+    %let nobs = %sysfunc(attrn(&dsid, NOBS));
+    %let rc = %sysfunc(close(&dsid));
+    %if &nobs > 100000000 %then %do;
+        /* Implement sampling logic */
+        %let dataset_sampled = ...;
+    %end;
+    %else %do;
+        %let dataset_sampled = &dataset;
+    %end;
+    */
+
+    /* Profiling Tasks */
+
+    /* Missing Values Analysis */
+    %dqfa_missing_values(data=&dataset_sampled);
+
+    /* Cardinality Check */
+    %dqfa_cardinality(data=&dataset_sampled);
+
+    /* Pattern Analysis */
+    %dqfa_pattern(data=&dataset_sampled);
+
+    /* Summary Statistics */
+    %dqfa_summary_stats(data=&dataset_sampled);
+
+    /* Additional profiling tasks can be added here */
+
+%mend data_profiling;
+
+/* Example Usage */
+%data_profiling(your_dataset_name);
