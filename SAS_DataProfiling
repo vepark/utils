@@ -79,3 +79,35 @@
 /* To run the data profiling on sashelp.cars */
 %data_profiling;
 
+
+
+
+
+%macro scatter_plot_matrix(dataset, sample_size=10000);
+
+    /* Determine the number of observations in the dataset */
+    %let dsid = %sysfunc(open(&dataset));
+    %let nobs = %sysfunc(attrn(&dsid, NOBS));
+    %let rc = %sysfunc(close(&dsid));
+
+    /* Sample the data if it exceeds a certain threshold */
+    %let use_dataset = &dataset;
+    %if &nobs > &sample_size %then %do;
+        proc surveyselect data=&dataset out=sample(drop=_:) method=srs /* Simple Random Sample */
+                            sampsize=&sample_size;
+        run;
+        %let use_dataset = sample;
+    %end;
+
+    /* Generate Scatter Plot Matrix */
+    ods graphics on;
+    proc sgscatter data=&use_dataset;
+        matrix _numeric_ / diagonal=(histogram);
+    run;
+    ods graphics off;
+
+%mend scatter_plot_matrix;
+
+/* Example Usage */
+%scatter_plot_matrix(sashelp.cars);
+
