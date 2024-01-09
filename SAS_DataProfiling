@@ -181,3 +181,101 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+For a comprehensive data profiling approach in SAS using statistical analysis techniques, we typically consider various aspects like descriptive statistics, distribution analysis, and the detection of outliers. Below, I will provide a SAS code that includes a series of statistical analyses specifically tailored for data profiling, using the `sashelp.cars` dataset as an example.
+
+This code will perform:
+1. Descriptive Statistics
+2. Distribution Analysis (Histograms)
+3. Outlier Detection
+4. Frequency Analysis for Categorical Variables
+
+```sas
+/* Comprehensive Data Profiling Code for sashelp.cars Dataset */
+
+/* Descriptive Statistics */
+/* Provides basic statistics like mean, median, min, max, etc., for numeric variables */
+proc means data=sashelp.cars N Mean Median Min Max Std;
+    var _numeric_;
+run;
+
+/* Distribution Analysis - Histograms */
+/* Histograms for each numeric variable to assess distribution */
+%macro histogram_analysis(data);
+    %let num_vars = %sysfunc(attrn(%sysfunc(open(&data)), nvars));
+    %let dsid = %sysfunc(open(&data));
+    %do i = 1 %to &num_vars;
+        %let varname = %sysfunc(varname(&dsid, &i));
+        %if %sysfunc(vartype(&dsid, &i)) = N %then %do;
+            title "Histogram for variable &varname";
+            proc sgplot data=&data;
+                histogram &varname;
+            run;
+        %end;
+    %end;
+    %let rc = %sysfunc(close(&dsid));
+%mend histogram_analysis;
+%histogram_analysis(sashelp.cars);
+
+/* Outlier Detection */
+/* Box plots for each numeric variable to identify potential outliers */
+%macro outlier_detection(data);
+    %let num_vars = %sysfunc(attrn(%sysfunc(open(&data)), nvars));
+    %let dsid = %sysfunc(open(&data));
+    %do i = 1 %to &num_vars;
+        %let varname = %sysfunc(varname(&dsid, &i));
+        %if %sysfunc(vartype(&dsid, &i)) = N %then %do;
+            title "Box Plot for variable &varname";
+            proc sgplot data=&data;
+                vbox &varname;
+            run;
+        %end;
+    %end;
+    %let rc = %sysfunc(close(&dsid));
+%mend outlier_detection;
+%outlier_detection(sashelp.cars);
+
+/* Frequency Analysis for Categorical Variables */
+/* Provides a count and percentage for each level of categorical variables */
+%macro frequency_analysis(data);
+    %let num_vars = %sysfunc(attrn(%sysfunc(open(&data)), nvars));
+    %let dsid = %sysfunc(open(&data));
+    %do i = 1 %to &num_vars;
+        %let varname = %sysfunc(varname(&dsid, &i));
+        %if %sysfunc(vartype(&dsid, &i)) = C %then %do;
+            proc freq data=&data;
+                tables &varname / nocum nopercent;
+            run;
+        %end;
+    %end;
+    %let rc = %sysfunc(close(&dsid));
+%mend frequency_analysis;
+%frequency_analysis(sashelp.cars);
+```
+
+### Explanation:
+
+1. **Descriptive Statistics:** `proc means` provides basic statistics for all numeric variables. It includes measures like mean, median, standard deviation, minimum, and maximum values.
+
+2. **Distribution Analysis:** The macro `%histogram_analysis` generates histograms for each numeric variable in the dataset. Histograms are useful for visualizing the distribution of data.
+
+3. **Outlier Detection:** The macro `%outlier_detection` creates box plots for each numeric variable. Box plots are effective for identifying outliers.
+
+4. **Frequency Analysis:** The macro `%frequency_analysis` performs a frequency analysis on all categorical variables. It gives a count and percentage for each category level, which is crucial for understanding the distribution of categorical data.
+
+Each part of this code targets a specific aspect of data profiling, providing a thorough overview of the `sashelp.cars` dataset from a statistical standpoint. This comprehensive approach is valuable in assessing the quality and characteristics of the data, forming a solid foundation for any further analysis or decision-making processes.
+
