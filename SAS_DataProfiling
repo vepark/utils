@@ -138,17 +138,25 @@
 /* Example Usage: %box_plot(sashelp.cars, Horsepower, Type); */
 
 
-/* Correlation Heatmap Macro */
-/* Use this macro to create a heatmap of correlations between variables in a dataset. */
 %macro correlation_heatmap(dataset);
-    ods graphics on;
-    proc corr data=&dataset nosimple;
-        matrix plotonly; /* Generates a correlation matrix heatmap */
+    /* Temporary dataset for correlation matrix */
+    ods output PearsonCorr=CorrMatrix;
+    proc corr data=&dataset noprint;
+        var _numeric_;
     run;
-    ods graphics off;
+    ods output close;
+
+    /* Generating heatmap from correlation matrix */
+    proc sgplot data=CorrMatrix(matrix);
+        heatmap x=Variable y=_NAME_ / colorresponse=Correlation;
+        xaxis display=(nolabel);
+        yaxis display=(nolabel);
+    run;
 %mend correlation_heatmap;
 
-/* Example Usage: %correlation_heatmap(sashelp.cars); */
+/* Example Usage: */
+/* %correlation_heatmap(customer_data); */
+
 
 
 /* Bar Plot Macro */
