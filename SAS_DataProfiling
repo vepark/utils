@@ -34,3 +34,48 @@
 
 /* Example Usage */
 %data_profiling(your_dataset_name);
+
+
+
+
+
+
+%macro dqfa_missing_values(data=sashelp.cars);
+    proc freq data=&data;
+        tables _all_ / missing;
+    run;
+%mend dqfa_missing_values;
+
+%macro dqfa_cardinality(data=sashelp.cars);
+    proc sql;
+        select name, count(distinct name) as distinct_count
+        from &data
+        group by name;
+    quit;
+%mend dqfa_cardinality;
+
+%macro dqfa_pattern(data=sashelp.cars, column=Make);
+    proc sql;
+        select &column, count(*) as count
+        from &data
+        group by &column
+        order by count desc;
+    quit;
+%mend dqfa_pattern;
+
+%macro dqfa_summary_stats(data=sashelp.cars);
+    proc means data=&data n mean min max std;
+        var _numeric_;
+    run;
+%mend dqfa_summary_stats;
+
+%macro data_profiling(dataset=sashelp.cars);
+    %dqfa_missing_values(data=&dataset);
+    %dqfa_cardinality(data=&dataset);
+    %dqfa_pattern(data=&dataset);
+    %dqfa_summary_stats(data=&dataset);
+%mend data_profiling;
+
+/* To run the data profiling on sashelp.cars */
+%data_profiling;
+
