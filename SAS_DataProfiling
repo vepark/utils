@@ -137,25 +137,35 @@
 
 /* Example Usage: %box_plot(sashelp.cars, Horsepower, Type); */
 
-
 %macro correlation_heatmap(dataset);
-    /* Temporary dataset for correlation matrix */
-    ods output PearsonCorr=CorrMatrix;
-    proc corr data=&dataset noprint;
+    /* Calculate the correlation matrix */
+    proc corr data=&dataset outp=CorrOut noprint;
         var _numeric_;
     run;
-    ods output close;
 
-    /* Generating heatmap from correlation matrix */
-    proc sgplot data=CorrMatrix(matrix);
-        heatmap x=Variable y=_NAME_ / colorresponse=Correlation;
+    /* Reshape the correlation matrix for the heatmap */
+    data CorrMatrix;
+        set CorrOut;
+        array vars _numeric_;
+        do over vars;
+            Variable = vname(vars);
+            Correlation = vars;
+            if _N_ <= dim(vars) then output; /* Avoid duplication */
+        end;
+    run;
+
+    /* Generating the heatmap */
+    proc sgplot data=CorrMatrix;
+        heatmap x=Variable y=_NAME_ / colorresponse=Correlation colormodel=(blue white red);
+        colormodel=(blue white red);
         xaxis display=(nolabel);
         yaxis display=(nolabel);
     run;
 %mend correlation_heatmap;
 
 /* Example Usage: */
-/* %correlation_heatmap(customer_data); */
+/* %correlation_heatmap(sashelp.cars); */
+
 
 
 
