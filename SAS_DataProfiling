@@ -111,3 +111,54 @@
 /* Example Usage */
 %scatter_plot_matrix(sashelp.cars);
 
+
+
+
+
+
+/* Histogram Plot Macro */
+/* Use this macro to create histograms for a single variable. Useful for analyzing distributions. */
+%macro histogram_plot(dataset, var);
+    proc sgplot data=&dataset;
+        histogram &var; /* Creates a histogram for the specified variable */
+    run;
+%mend histogram_plot;
+
+/* Example Usage: %histogram_plot(sashelp.cars, EngineSize); */
+
+
+/* Box Plot Macro */
+/* This macro generates box plots, which are great for visualizing distributions and identifying outliers. */
+%macro box_plot(dataset, var, category=);
+    proc sgplot data=&dataset;
+        vbox &var / category=&category; /* Creates a box plot for the specified variable, optionally grouped by a category */
+    run;
+%mend box_plot;
+
+/* Example Usage: %box_plot(sashelp.cars, Horsepower, Type); */
+
+
+/* Correlation Heatmap Macro */
+/* Use this macro to create a heatmap of correlations between variables in a dataset. */
+%macro correlation_heatmap(dataset);
+    ods graphics on;
+    proc corr data=&dataset nosimple;
+        matrix plotonly; /* Generates a correlation matrix heatmap */
+    run;
+    ods graphics off;
+%mend correlation_heatmap;
+
+/* Example Usage: %correlation_heatmap(sashelp.cars); */
+
+
+/* Bar Plot Macro */
+/* This macro is for creating bar plots, which are useful for summarizing categorical data. */
+%macro bar_plot(dataset, var);
+    proc sgplot data=&dataset;
+        vbar &var / datalabel; /* Creates a vertical bar plot for the specified categorical variable */
+    run;
+%mend bar_plot;
+
+/* Example Usage: %bar_plot(sashelp.cars, Type); */
+
+
