@@ -12,7 +12,9 @@ def extract_text_between_phrases(text, start_phrase, end_phrase):
         return None
 
 def find_data_sources(text):
-    return re.findall(r'\b\w+\.\w+\b', text)
+    # Regex pattern: matches strings with uppercase letters before or after the dot
+    pattern = r'\b[A-Z]+\.[A-Z0-9]+|\b[A-Z0-9]+\.[A-Z]+\b'
+    return re.findall(pattern, text)
 
 folder_path = 'path_to_your_pdf_folder'  # Replace with your folder path
 extracted_data = []
