@@ -14,8 +14,8 @@ def extract_text_between_phrases(text, start_phrase, end_phrase):
 def find_data_sources(text):
     return re.findall(r'\b\w+\.\w+\b', text)
 
-folder_path = 'path_to_your_pdf_folder'
-business_data = []
+folder_path = 'path_to_your_pdf_folder'  # Replace with your folder path
+extracted_data = []
 
 for filename in os.listdir(folder_path):
     if filename.endswith('.pdf'):
@@ -24,11 +24,18 @@ for filename in os.listdir(folder_path):
         for page in reader.pages:
             full_text += page.extract_text() + "\n"
 
-        business_text = extract_text_between_phrases(full_text, "Group or Business:", "Related ID:")
-        if business_text:
-            data_sources = find_data_sources(business_text)
-            data_sources_str = ', '.join(data_sources)
-            business_data.append((business_text, data_sources_str))
+        # First extraction for business information
+        business_info = extract_text_between_phrases(full_text, "Group or Business:", "Related ID:")
 
-df = pd.DataFrame(business_data, columns=['Business', 'Data Sources'])
+        # Second extraction for data sources
+        data_sources_text = extract_text_between_phrases(full_text, "Your Second Start Phrase", "Your Second End Phrase")
+        if data_sources_text:
+            data_sources = find_data_sources(data_sources_text)
+            data_sources_str = ', '.join(data_sources)
+        else:
+            data_sources_str = ""
+
+        extracted_data.append((business_info, data_sources_str))
+
+df = pd.DataFrame(extracted_data, columns=['Business', 'Data Sources'])
 df.to_excel('output.xlsx', index=False)
