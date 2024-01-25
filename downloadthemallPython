@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import certifi  # Ensure this is installed
 
 # URL of the webpage you want to scrape
 url = 'YOUR_WEBPAGE_URL'
@@ -12,24 +13,34 @@ folder_path = 'YOUR_FOLDER_PATH'
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
-# Get the HTML content of the webpage
-response = requests.get(url)
-html_content = response.content
+try:
+    # Get the HTML content of the webpage with SSL certificate verification
+    response = requests.get(url, verify=certifi.where())
+    html_content = response.content
 
-# Parse the HTML content
-soup = BeautifulSoup(html_content, 'html.parser')
+    # Parse the HTML content
+    soup = BeautifulSoup(html_content, 'html.parser')
 
-# Loop through all the <a> tags (or hyperlinks)
-for link in soup.find_all('a'):
-    href = link.get('href')
+    # Loop through all the <a> tags (or hyperlinks)
+    for link in soup.find_all('a'):
+        href = link.get('href')
 
-    # Check if the href starts with "DAAF" and is a document link
-    if href and href.startswith('DAAF') and href.endswith(('.pdf', '.docx')):
-        # Construct the full URL (if needed) and download the document
-        full_url = href if href.startswith('http') else url + href  # Adjust based on relative or absolute URLs
-        response = requests.get(full_url)
-        filename = os.path.join(folder_path, href.split('/')[-1])
+        # Check if the href starts with "DAAF" and is a document link
+        if href and href.startswith('DAAF') and href.endswith(('.pdf', '.docx')):
+            # Construct the full URL (if needed) and download the document
+            full_url = href if href.startswith('http') else url + href  # Adjust based on relative or absolute URLs
+            doc_response = requests.get(full_url, verify=certifi.where())
+            filename = os.path.join(folder_path, href.split('/')[-1])
 
-        # Write the document to a file
-        with open(filename, 'wb') as file:
-            file.write(response.content)
+            # Write the document to a file
+            with open(filename, 'wb') as file:
+                file.write(doc_response.content)
+
+except requests.exceptions.SSLError as e:
+    print("An SSL error occurred:", e)
+    # If you want to bypass SSL verification (not recommended), uncomment the following lines:
+    # response = requests.get(url, verify=False)
+    # ... [rest of your code with verify=False for requests.get]
+
+except Exception as e:
+    print("An error occurred:", e)
