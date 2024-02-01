@@ -1,6 +1,53 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+import string
+import openpyxl
+
+# Read your Excel file
+df = pd.read_excel('your_file.xlsx')
+
+# Preprocess the text data
+def preprocess(text):
+    text = text.lower()
+    text = ''.join([char for char in text if char not in string.punctuation])
+    return text
+
+df['Processed_Findings'] = df['Findings'].apply(preprocess)
+
+# Vectorize the processed text data
+vectorizer = TfidfVectorizer(stop_words='english')
+X = vectorizer.fit_transform(df['Processed_Findings'])
+
+# Apply clustering
+kmeans = KMeans(n_clusters=5)  # you can choose the number of clusters
+kmeans.fit(X)
+df['Cluster'] = kmeans.labels_
+
+# Group by DocumentType and Cluster and get counts
+grouped_df = df.groupby(['DocumentType', 'Cluster']).size().reset_index(name='Counts')
+
+# Write to Excel
+file_path = 'clustered_output.xlsx'
+grouped_df.to_excel(file_path, index=False)
+
+print(f'Workbook saved as {file_path}')
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import string
