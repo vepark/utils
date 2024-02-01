@@ -2,39 +2,44 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
 import nltk
 
-# Download NLTK data (run this once)
-# nltk.download('stopwords')
-# nltk.download('wordnet')
+# Ensure you have the necessary NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
 
-# Load the Excel file
-df = pd.read_excel('path_to_your_file.xlsx')
+def process_text(text):
+    """ Tokenize text and remove stop words. """
+    tokens = word_tokenize(text)
+    tokens = [word.lower() for word in tokens if word.isalpha()]
+    tokens = [word for word in tokens if word not in stopwords.words('english')]
+    return ' '.join(tokens)
 
-# Pre-process the text
-def preprocess_text(text):
-    text = text.lower()
-    lemmatizer = WordNetLemmatizer()
-    words = nltk.word_tokenize(text)
-    words = [lemmatizer.lemmatize(word) for word in words if word.isalpha()]
-    return ' '.join(words)
+def cluster_findings(file_path):
+    # Read the Excel file
+    df = pd.read_excel(file_path)
 
-df['processed_findings'] = df['findings_column'].apply(preprocess_text)
+    # Process the Findings column
+    df['ProcessedFindings'] = df['Findings'].apply(process_text)
 
-# Vectorize the text
-vectorizer = TfidfVectorizer(stop_words=stopwords.words('english'))
-X = vectorizer.fit_transform(df['processed_findings'])
+    # Vectorize the processed text
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(df['ProcessedFindings'])
 
-# Cluster the data
-n_clusters = 5  # Adjust this based on your data
-kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-df['cluster'] = kmeans.fit_predict(X)
+    # Perform clustering
+    n_clusters = 5  # You can adjust the number of clusters here
+    kmeans = KMeans(n_clusters=n_clusters)
+    kmeans.fit(X)
 
-# Analyze the clusters
-for i in range(n_clusters):
-    print(f"\nCluster {i}:")
-    print(df[df['cluster'] == i]['findings_column'])
+    # Assign the cluster labels to the dataframe
+    df['Cluster'] = kmeans.labels_
 
-# Save the result to a new Excel file
-df.to_excel('clustered_findings.xlsx', index=False)
+    # Group by DocumentType and Cluster
+    grouped_df = df.groupby(['DocumentType', 'Cluster'])
+
+    # Save the grouped results to a new Excel file
+    grouped_df.size().to_excel('clustered_findings.xlsx')
+
+# Replace 'your_file.xlsx' with the path to your Excel file
+cluster_findings('your_file.xlsx')
