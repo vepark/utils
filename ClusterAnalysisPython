@@ -1,206 +1,64 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
-import openpyxl
-from openpyxl.utils.dataframe import dataframe_to_rows
-
-def read_excel(file_path):
-    return pd.read_excel(file_path)
-
-def cluster_findings(df, text_column, n_clusters):
-    # Vectorize the text data
-    vectorizer = TfidfVectorizer(stop_words='english')
-    X = vectorizer.fit_transform(df[text_column])
-
-    # Cluster the data
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0)
-    clusters = kmeans.fit_predict(X)
-
-    return clusters
-
-def save_to_excel(df, file_path):
-    wb = openpyxl.Workbook()
-    sheet = wb.active
-    for row in dataframe_to_rows(df, index=False, header=True):
-        sheet.append(row)
-    wb.save(file_path)
-    print(f'Workbook saved as {file_path}')
-
-# Main execution
-file_path = 'your_file.xlsx'  # Replace with your file path
-n_clusters = 5  # Adjust the number of clusters as needed
-
-df = read_excel(file_path)
-df['Cluster'] = cluster_findings(df, 'Findings', n_clusters)
-
-# Group by DocumentType and Cluster, and count occurrences
-grouped_df = df.groupby(['DocumentType', 'Cluster']).size().reset_index(name='Counts')
-
-# Save the results
-output_file_path = 'clustered_output.xlsx'
-save_to_excel(grouped_df, output_file_path)
-
-
-
-
-
-
-
-
-
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-import openpyxl
-from openpyxl.utils.dataframe import dataframe_to_rows
-
-def categorize_findings(file_path):
-    # Read the Excel file
-    df = pd.read_excel(file_path)
-
-    # Check if 'Findings' and 'DocumentType' columns exist
-    if 'Findings' not in df.columns or 'DocumentType' not in df.columns:
-        raise ValueError("The Excel file must contain 'Findings' and 'DocumentType' columns")
-
-    # Vectorize the 'Findings' text
-    vectorizer = TfidfVectorizer(stop_words='english')
-    X = vectorizer.fit_transform(df['Findings'])
-
-    # Cluster the findings
-    n_clusters = 5  # You can adjust the number of clusters
-    model = KMeans(n_clusters=n_clusters, random_state=42)
-    labels = model.fit_predict(X)
-
-    # Add the cluster labels to the DataFrame
-    df['Category'] = labels
-
-    # Group by 'DocumentType' and 'Category'
-    grouped_df = df.groupby(['DocumentType', 'Category']).size().reset_index(name='Counts')
-
-    return grouped_df
-
-def save_to_excel(df, output_file):
-    # Create a new workbook
-    wb = openpyxl.Workbook()
-
-    # Access the active sheet
-    sheet = wb.active
-
-    # Write DataFrame to the sheet
-    for row in dataframe_to_rows(df, index=False, header=True):
-        sheet.append(row)
-
-    # Save the workbook
-    wb.save(output_file)
-    print(f'Workbook saved as {output_file}')
-
-# Example usage
-input_file = 'path_to_your_input_file.xlsx'  # Update with your file path
-output_file = 'categorized_findings.xlsx'
-
-grouped_data = categorize_findings(input_file)
-save_to_excel(grouped_data, output_file)
-
-
-
-
-
-
-
-
-
-
-
-
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-from openpyxl import Workbook
-
-# Load your Excel file
-df = pd.read_excel('your_file.xlsx')
-
-# Extract the columns of interest
-findings = df['Findings']
-document_types = df['DocumentType']
-
-# Vectorize the findings text
-vectorizer = TfidfVectorizer(stop_words='english')
-X = vectorizer.fit_transform(findings)
-
-# Cluster the findings
-n_clusters = 5  # You can adjust the number of clusters
-kmeans = KMeans(n_clusters=n_clusters, random_state=0)
-clusters = kmeans.fit_predict(X)
-
-# Add the cluster info to the dataframe
-df['Cluster'] = clusters
-
-# Creating a new Excel file to store the results
-writer = pd.ExcelWriter('clustered_findings.xlsx', engine='openpyxl')
-df.to_excel(writer, index=False)
-writer.save()
-
-
-
-
-
-
-
-
-
-
-
-
-
-import pandas as pd
-import nltk
-from nltk.cluster import KMeansClusterer
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import word_tokenize
-from collections import defaultdict
+from nltk.corpus import stopwords
+import string
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
 
-# Download the punkt tokenizer models
-nltk.download('punkt')
+# Function to preprocess text
+def preprocess_text(text):
+    # Tokenize and remove punctuation
+    tokens = word_tokenize(text)
+    tokens = [word.lower() for word in tokens if word.isalpha()]
 
-# Function to tokenize text
-def tokenize(text):
-    return word_tokenize(text)
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    tokens = [word for word in tokens if word not in stop_words]
 
-# Load your Excel file
+    return ' '.join(tokens)
+
+# Load data
 df = pd.read_excel('your_file.xlsx')
 
-# Ensure text is string
-df['Findings'] = df['Findings'].astype(str)
+# Preprocess the 'Findings' column
+df['Findings'] = df['Findings'].apply(preprocess_text)
 
-# TF-IDF Vectorizer
-tfidf_vect = TfidfVectorizer(tokenizer=tokenize)
-tfidf_matrix = tfidf_vect.fit_transform(df['Findings'])
+# Vectorize the findings
+vectorizer = TfidfVectorizer(max_features=500)
+X = vectorizer.fit_transform(df['Findings'])
 
-# Number of clusters
-NUM_CLUSTERS = 5
-
-# KMeans Clustering
-kmeans = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25)
-clusters = kmeans.cluster(np.array(tfidf_matrix.todense()), assign_clusters=True)
-
-# Assigning the clusters to each row
+# Cluster the data
+n_clusters = 5  # Modify as needed
+kmeans = KMeans(n_clusters=n_clusters)
+clusters = kmeans.fit_predict(X)
 df['Cluster'] = clusters
 
-# Group by Document Type and Cluster
-grouped = df.groupby(['DocumentType', 'Cluster'])
+# Create a mapping of clusters to keywords
+cluster_keywords = {}
+for i in range(n_clusters):
+    cluster_center = kmeans.cluster_centers_[i]
+    terms = vectorizer.get_feature_names_out()
+    sorted_terms = [terms[ind] for ind in cluster_center.argsort()[-10:]]
+    cluster_keywords[i] = ', '.join(sorted_terms)
 
-# Aggregate the findings in each cluster for each Document Type
-clustered_findings = defaultdict(list)
-for name, group in grouped:
-    doc_type, cluster = name
-    clustered_findings[doc_type].append((cluster, ', '.join(group['Findings'])))
+# Map clusters to keywords
+df['Cluster_Label'] = df['Cluster'].map(cluster_keywords)
 
-# Write to a new Excel file
-with pd.ExcelWriter('clustered_findings.xlsx') as writer:
-    for doc_type, findings in clustered_findings.items():
-        temp_df = pd.DataFrame(findings, columns=['Cluster', 'Findings'])
-        temp_df.to_excel(writer, sheet_name=doc_type[:31])
+# Group and count
+grouped_df = df.groupby(['DocumentType', 'Cluster_Label']).size().reset_index(name='Counts')
 
-print("Clustering complete. Results saved to 'clustered_findings.xlsx'.")
+# Save to Excel
+wb = openpyxl.Workbook()
+sheet = wb.active
+
+# Write the grouped DataFrame to the sheet
+for row in dataframe_to_rows(grouped_df, index=False, header=True):
+    sheet.append(row)
+
+# Save the workbook
+output_file = 'clustered_data.xlsx'
+wb.save(output_file)
+
+print(f'Workbook saved as {output_file}')
