@@ -1,4 +1,45 @@
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from openpyxl import Workbook
+
+# Load your Excel file
+df = pd.read_excel('your_file.xlsx')
+
+# Extract the columns of interest
+findings = df['Findings']
+document_types = df['DocumentType']
+
+# Vectorize the findings text
+vectorizer = TfidfVectorizer(stop_words='english')
+X = vectorizer.fit_transform(findings)
+
+# Cluster the findings
+n_clusters = 5  # You can adjust the number of clusters
+kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+clusters = kmeans.fit_predict(X)
+
+# Add the cluster info to the dataframe
+df['Cluster'] = clusters
+
+# Creating a new Excel file to store the results
+writer = pd.ExcelWriter('clustered_findings.xlsx', engine='openpyxl')
+df.to_excel(writer, index=False)
+writer.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
 import nltk
 from nltk.cluster import KMeansClusterer
 import numpy as np
