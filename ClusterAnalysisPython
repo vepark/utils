@@ -1,45 +1,51 @@
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import KMeans
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 import nltk
+from nltk.cluster import KMeansClusterer
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from nltk.tokenize import word_tokenize
+from collections import defaultdict
 
-# Ensure you have the necessary NLTK data
+# Download the punkt tokenizer models
 nltk.download('punkt')
-nltk.download('stopwords')
 
-def process_text(text):
-    """ Tokenize text and remove stop words. """
-    tokens = word_tokenize(text)
-    tokens = [word.lower() for word in tokens if word.isalpha()]
-    tokens = [word for word in tokens if word not in stopwords.words('english')]
-    return ' '.join(tokens)
+# Function to tokenize text
+def tokenize(text):
+    return word_tokenize(text)
 
-def cluster_findings(file_path):
-    # Read the Excel file
-    df = pd.read_excel(file_path)
+# Load your Excel file
+df = pd.read_excel('your_file.xlsx')
 
-    # Process the Findings column
-    df['ProcessedFindings'] = df['Findings'].apply(process_text)
+# Ensure text is string
+df['Findings'] = df['Findings'].astype(str)
 
-    # Vectorize the processed text
-    vectorizer = TfidfVectorizer()
-    X = vectorizer.fit_transform(df['ProcessedFindings'])
+# TF-IDF Vectorizer
+tfidf_vect = TfidfVectorizer(tokenizer=tokenize)
+tfidf_matrix = tfidf_vect.fit_transform(df['Findings'])
 
-    # Perform clustering
-    n_clusters = 5  # You can adjust the number of clusters here
-    kmeans = KMeans(n_clusters=n_clusters)
-    kmeans.fit(X)
+# Number of clusters
+NUM_CLUSTERS = 5
 
-    # Assign the cluster labels to the dataframe
-    df['Cluster'] = kmeans.labels_
+# KMeans Clustering
+kmeans = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=25)
+clusters = kmeans.cluster(np.array(tfidf_matrix.todense()), assign_clusters=True)
 
-    # Group by DocumentType and Cluster
-    grouped_df = df.groupby(['DocumentType', 'Cluster'])
+# Assigning the clusters to each row
+df['Cluster'] = clusters
 
-    # Save the grouped results to a new Excel file
-    grouped_df.size().to_excel('clustered_findings.xlsx')
+# Group by Document Type and Cluster
+grouped = df.groupby(['DocumentType', 'Cluster'])
 
-# Replace 'your_file.xlsx' with the path to your Excel file
-cluster_findings('your_file.xlsx')
+# Aggregate the findings in each cluster for each Document Type
+clustered_findings = defaultdict(list)
+for name, group in grouped:
+    doc_type, cluster = name
+    clustered_findings[doc_type].append((cluster, ', '.join(group['Findings'])))
+
+# Write to a new Excel file
+with pd.ExcelWriter('clustered_findings.xlsx') as writer:
+    for doc_type, findings in clustered_findings.items():
+        temp_df = pd.DataFrame(findings, columns=['Cluster', 'Findings'])
+        temp_df.to_excel(writer, sheet_name=doc_type[:31])
+
+print("Clustering complete. Results saved to 'clustered_findings.xlsx'.")
