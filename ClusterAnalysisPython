@@ -1,6 +1,70 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
+
+def categorize_findings(file_path):
+    # Read the Excel file
+    df = pd.read_excel(file_path)
+
+    # Check if 'Findings' and 'DocumentType' columns exist
+    if 'Findings' not in df.columns or 'DocumentType' not in df.columns:
+        raise ValueError("The Excel file must contain 'Findings' and 'DocumentType' columns")
+
+    # Vectorize the 'Findings' text
+    vectorizer = TfidfVectorizer(stop_words='english')
+    X = vectorizer.fit_transform(df['Findings'])
+
+    # Cluster the findings
+    n_clusters = 5  # You can adjust the number of clusters
+    model = KMeans(n_clusters=n_clusters, random_state=42)
+    labels = model.fit_predict(X)
+
+    # Add the cluster labels to the DataFrame
+    df['Category'] = labels
+
+    # Group by 'DocumentType' and 'Category'
+    grouped_df = df.groupby(['DocumentType', 'Category']).size().reset_index(name='Counts')
+
+    return grouped_df
+
+def save_to_excel(df, output_file):
+    # Create a new workbook
+    wb = openpyxl.Workbook()
+
+    # Access the active sheet
+    sheet = wb.active
+
+    # Write DataFrame to the sheet
+    for row in dataframe_to_rows(df, index=False, header=True):
+        sheet.append(row)
+
+    # Save the workbook
+    wb.save(output_file)
+    print(f'Workbook saved as {output_file}')
+
+# Example usage
+input_file = 'path_to_your_input_file.xlsx'  # Update with your file path
+output_file = 'categorized_findings.xlsx'
+
+grouped_data = categorize_findings(input_file)
+save_to_excel(grouped_data, output_file)
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
 from openpyxl import Workbook
 
 # Load your Excel file
