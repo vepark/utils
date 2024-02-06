@@ -1,0 +1,17 @@
+@echo off
+setlocal
+set "searchWord=yourWord"
+
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder1\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder2\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder3\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder4\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder5\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder6\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder7\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder8\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder9\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder10\*.*"
+findstr /s /i /m "%searchWord%" "C:\Path\To\Folder11\*.*"
+
+endlocal
