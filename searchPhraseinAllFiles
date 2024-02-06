@@ -2,47 +2,53 @@ import os
 import fitz  # PyMuPDF
 import pandas as pd
 
-def search_pdf_for_phrase(pdf_path, phrase):
+def search_pdf_for_phrase(pdf_path, phrases):
     try:
         doc = fitz.open(pdf_path)
         results = []
         for page_num, page in enumerate(doc, start=1):
-            text_instances = page.search_for(phrase)
-            if text_instances:
-                for inst in text_instances:
-                    # Extract 100 characters before and after the phrase
-                    surrounding_text = page.get_text("text", clip=fitz.Rect(inst.x0 - 100, inst.y0, inst.x1 + 100, inst.y1))
-                    results.append((page_num, surrounding_text))
+            for phrase in phrases:  # Iterate through each search phrase
+                text_instances = page.search_for(phrase)
+                if text_instances:
+                    for inst in text_instances:
+                        # Attempt to extract 100 characters before and after the phrase
+                        surrounding_text = page.get_text("text", clip=fitz.Rect(max(inst.x0 - 100, 0), max(inst.y0 - 100, 0), inst.x1 + 100, inst.y1 + 100))
+                        results.append({
+                            "Phrase": phrase,
+                            "Page Number": page_num,
+                            "Excerpt": surrounding_text[:200]  # Ensure excerpt is around 200 characters total
+                        })
         doc.close()
         return results
     except Exception as e:
         print(f"Error processing {pdf_path}: {e}")
         return []
 
-def search_directory_for_phrase(start_dir, phrase):
+def search_directory_for_phrase(start_dir, phrases):
     search_results = []
     for root, dirs, files in os.walk(start_dir):
         for file in files:
             if file.lower().endswith('.pdf'):
                 full_path = os.path.join(root, file)
-                matches = search_pdf_for_phrase(full_path, phrase)
-                for page_num, text in matches:
+                matches = search_pdf_for_phrase(full_path, phrases)
+                for match in matches:
                     search_results.append({
                         "Folder Location": root,
                         "Document Name": file,
-                        "Page Number": page_num,
-                        "Excerpt": text
+                        "Phrase": match["Phrase"],
+                        "Page Number": match["Page Number"],
+                        "Excerpt": match["Excerpt"]
                     })
     return search_results
 
 # Replace 'your_start_directory' with the path of the directory you want to start your search from
 start_directory = 'your_start_directory'
-phrase_to_search = 'common code'
-results = search_directory_for_phrase(start_directory, phrase_to_search)
+phrases_to_search = ['common code', 'standard code']  # List of phrases to search for
+results = search_directory_for_phrase(start_directory, phrases_to_search)
 
 # Convert the results to a DataFrame and export to Excel
 df = pd.DataFrame(results)
 excel_filename = 'search_results.xlsx'
-df.to_excel(excel_filename, index=False)
+df.to_excel(excel_filename, index=False, engine='openpyxl')  # Specify engine if needed
 
 print(f"Search completed. Results saved to {excel_filename}.")
