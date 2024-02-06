@@ -1,4 +1,78 @@
 import os
+import fitz  # PyMuPDF for PDFs
+import pandas as pd
+
+def search_text_file(file_path, phrases):
+    results = []
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        content = file.readlines()
+        for page_num, line in enumerate(content, start=1):
+            for phrase in phrases:
+                if phrase.lower() in line.lower():
+                    # Adjust to get 100 characters before and after, respecting line bounds
+                    start = max(line.lower().find(phrase.lower()) - 100, 0)
+                    end = min(start + 200, len(line))
+                    excerpt = line[start:end]
+                    results.append({"Phrase": phrase, "Page Number": page_num, "Excerpt": excerpt})
+    return results
+
+def search_pdf_for_phrase(pdf_path, phrases):
+    try:
+        doc = fitz.open(pdf_path)
+        results = []
+        for page_num, page in enumerate(doc, start=1):
+            text = page.get_text()
+            for phrase in phrases:
+                if phrase.lower() in text.lower():
+                    # Simple approach to extract surrounding text; refine as needed
+                    start = max(text.lower().find(phrase.lower()) - 100, 0)
+                    end = min(start + 200, len(text))
+                    excerpt = text[start:end]
+                    results.append({"Phrase": phrase, "Page Number": page_num, "Excerpt": excerpt})
+        doc.close()
+        return results
+    except Exception as e:
+        print(f"Error processing {pdf_path}: {e}")
+        return []
+
+def search_directory_for_phrase(start_dir, phrases):
+    search_results = []
+    for root, dirs, files in os.walk(start_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            if file.lower().endswith('.pdf'):
+                matches = search_pdf_for_phrase(full_path, phrases)
+            else:
+                # This else block is simplistic and assumes any non-PDF is a readable text file.
+                # Extend this logic for other specific file types as needed.
+                matches = search_text_file(full_path, phrases)
+            for match in matches:
+                search_results.append({
+                    "Folder Location": root,
+                    "Document Name": file,
+                    "Phrase": match["Phrase"],
+                    "Page Number": f"{match['Page Number']} (approx.)" if not file.lower().endswith('.pdf') else match['Page Number'],
+                    "Excerpt": match["Excerpt"]
+                })
+    return search_results
+
+# Configuration
+start_directory = 'your_start_directory'  # Replace with your start directory
+phrases_to_search = ['common code', 'standard code']
+results = search_directory_for_phrase(start_directory, phrases_to_search)
+
+# Output to Excel
+df = pd.DataFrame(results)
+excel_filename = 'search_results.xlsx'
+df.to_excel(excel_filename, index=False, engine='openpyxl')
+
+print(f"Search completed. Results saved to {excel_filename}.")
+
+
+
+
+
+import os
 import fitz  # PyMuPDF
 import pandas as pd
 
