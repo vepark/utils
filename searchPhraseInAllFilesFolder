@@ -1,0 +1,1 @@
+powershell -NoProfile -Command "Get-ChildItem -Recurse | Select-String -Pattern 'key phrase' -Context 20 | ForEach-Object { $_.Path + ',' + $_.Line } > results.csv"
