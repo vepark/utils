@@ -1,1 +1,41 @@
+# Define the key phrases you're searching for as an array
+$keyPhrases = @("phrase1", "phrase2", "phrase3")
+
+# Specify the directory to search in
+$searchDirectory = "C:\Path\To\Your\Documents"
+
+# Output CSV file path
+$outputCsv = "C:\Path\To\Output\results.csv"
+
+# Create a new CSV file and write the header
+"File Path,Key Phrase,Line Content" | Out-File -FilePath $outputCsv -Encoding UTF8
+
+# Search the files for each key phrase
+foreach ($keyPhrase in $keyPhrases) {
+    Get-ChildItem -Path $searchDirectory -Recurse | ForEach-Object {
+        $filePath = $_.FullName
+        $matches = Select-String -Path $filePath -Pattern $keyPhrase -Context 0,0
+        foreach ($match in $matches) {
+            # Construct the line to be written to the CSV
+            $csvLine = """$filePath"",""$keyPhrase"",""$($match.Line)"""
+            # Write to CSV
+            $csvLine | Out-File -FilePath $outputCsv -Append -Encoding UTF8
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 powershell -NoProfile -Command "Get-ChildItem -Recurse | Select-String -Pattern 'key phrase' -Context 20 | ForEach-Object { $_.Path + ',' + $_.Line } > results.csv"
