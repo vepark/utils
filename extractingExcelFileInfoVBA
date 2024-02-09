@@ -1,0 +1,52 @@
+Sub ExtractDataFromFiles()
+    Dim wsTarget As Worksheet
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    Dim myPath As String, myFile As String
+    Dim r As Long
+    Dim summaryValue As String, value205 As String, value206 As String
+
+    ' Setup the target workbook and worksheet
+    Set wbTarget = Workbooks.Add
+    Set wsTarget = wbTarget.Sheets(1)
+    wsTarget.Cells(1, 1).Value = "Filename"
+    wsTarget.Cells(1, 2).Value = "Summary B2"
+    wsTarget.Cells(1, 3).Value = "205 D4"
+    wsTarget.Cells(1, 4).Value = "206 D4"
+    r = 2 ' Start row for data
+
+    ' Define the directory path containing the Excel files
+    myPath = "C:\Path\To\Your\Folder\" ' Update this to your path
+    myFile = Dir(myPath & "*.xlsx") ' Change to "*.xls*" if you have xls and xlsx files
+
+    ' Loop through each Excel file in the folder
+    Do While myFile <> ""
+        ' Open the current workbook
+        Set wbSource = Workbooks.Open(Filename:=myPath & myFile)
+
+        ' Extract the data
+        On Error Resume Next ' In case a sheet or cell does not exist
+        summaryValue = wbSource.Sheets("Summary").Range("B2").Value
+        value205 = wbSource.Sheets("205").Range("D4").Value
+        value206 = wbSource.Sheets("206").Range("D4").Value
+        On Error GoTo 0 ' Turn back on regular error handling
+
+        ' Write the data to the target worksheet
+        wsTarget.Cells(r, 1).Value = myFile
+        wsTarget.Cells(r, 2).Value = summaryValue
+        wsTarget.Cells(r, 3).Value = value205
+        wsTarget.Cells(r, 4).Value = value206
+
+        ' Close the source workbook without saving
+        wbSource.Close savechanges:=False
+
+        ' Move to the next file
+        myFile = Dir
+        r = r + 1
+    Loop
+
+    ' Optionally, save the target workbook
+    wbTarget.SaveAs Filename:=myPath & "ExtractedData.xlsx"
+
+    MsgBox "Data extraction complete!"
+End Sub
