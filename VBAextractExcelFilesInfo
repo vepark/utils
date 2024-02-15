@@ -3,8 +3,9 @@ Sub CollectDataFromFiles()
     Dim wbSource As Workbook, wbTarget As Workbook
     Dim wsSource As Worksheet
     Dim strFolder As String, strFile As String
-    Dim lastRow As Long, i As Long, artifactsRow As Long
-    Dim rowData() As Variant
+    Dim lastRow As Long
+    Dim remda As String, crid As String
+    Dim dataRow As Long, dataCol As Long
     
     ' Update this with the folder path containing your Excel files
     strFolder = "C:\Path\To\Your\Excel\Files\"
@@ -15,7 +16,7 @@ Sub CollectDataFromFiles()
     Set wsTarget = wbTarget.Sheets(1)
     
     ' Headers for the target sheet
-    wsTarget.Cells(1, 1).Resize(1, 7).Value = Array("REMDA", "CRID", "Col3", "Col4", "Col5", "Col6", "Col7")
+    wsTarget.Cells(1, 1).Resize(1, 7).Value = Array("REMDA", "CRID", "A", "B", "C", "D", "E")
     
     Do While strFile <> ""
         Set wbSource = Workbooks.Open(Filename:=strFolder & strFile)
@@ -26,29 +27,28 @@ Sub CollectDataFromFiles()
         
         Set wsSource = wbSource.Sheets("Summary")
         
-        ' Assuming "REMDA" is at A2 and "CRID" is at B3
-        ReDim rowData(1 To 7)
-        rowData(1) = wsSource.Range("B2").Value
-        rowData(2) = wsSource.Range("B3").Value
+        ' Extract "REMDA" and "CRID" values
+        remda = wsSource.Range("B2").Value
+        crid = wsSource.Range("B3").Value
         
-        ' Find "Artifacts" and collect data 5 rows below
-        artifactsRow = FindArtifactsRow(wsSource)
-        
-        If artifactsRow > 0 Then
-            For i = 0 To 4
-                rowData(3 + i) = wsSource.Cells(artifactsRow + 5 + i, 2).Value
-            Next i
-            
+        ' Start extracting data from row 14 onwards
+        dataRow = 14 ' Start from row 14
+        Do While wsSource.Cells(dataRow, 1).Value <> "" ' Loop until an empty cell is found in column A
             lastRow = wsTarget.Cells(wsTarget.Rows.Count, 1).End(xlUp).Row + 1
-            wsTarget.Cells(lastRow, 1).Resize(1, 7).Value = rowData
-        End If
+            wsTarget.Cells(lastRow, 1).Value = remda
+            wsTarget.Cells(lastRow, 2).Value = crid
+            For dataCol = 1 To 5 ' From column A to E
+                wsTarget.Cells(lastRow, dataCol + 2).Value = wsSource.Cells(dataRow, dataCol).Value
+            Next dataCol
+            dataRow = dataRow + 1
+        Loop
         
 NextFile:
         wbSource.Close SaveChanges:=False
         strFile = Dir
     Loop
     
-    ' Save the target workbook
+    ' Save the target workbook, adjust the filename as necessary
     wbTarget.SaveAs Filename:=strFolder & "CompiledData.xlsx"
     MsgBox "Data collection complete."
 End Sub
@@ -59,12 +59,4 @@ Function SheetExists(sheetName As String, wb As Workbook) As Boolean
     Set sht = wb.Sheets(sheetName)
     On Error GoTo 0
     SheetExists = Not sht Is Nothing
-End Function
-
-Function FindArtifactsRow(ws As Worksheet) As Long
-    Dim rng As Range
-    On Error Resume Next
-    Set rng = ws.Columns(1).Find(What:="Artifacts", LookIn:=xlValues, LookAt:=xlPart)
-    On Error GoTo 0
-    If Not rng Is Nothing Then FindArtifactsRow = rng.Row
 End Function
