@@ -7,6 +7,11 @@ Sub CollectDataFromFiles()
     Dim remda As String, crid As String
     Dim dataRow As Long, dataCol As Long
     
+    ' Turn off alerts to prevent pop-up messages
+    Application.DisplayAlerts = False
+    ' Ensure Excel does not display workbooks as they are opened
+    Application.ScreenUpdating = False
+    
     ' Update this with the folder path containing your Excel files
     strFolder = "C:\Path\To\Your\Excel\Files\"
     strFile = Dir(strFolder & "*.xls*")
@@ -19,7 +24,8 @@ Sub CollectDataFromFiles()
     wsTarget.Cells(1, 1).Resize(1, 7).Value = Array("REMDA", "CRID", "A", "B", "C", "D", "E")
     
     Do While strFile <> ""
-        Set wbSource = Workbooks.Open(Filename:=strFolder & strFile)
+        ' Open each workbook in background without updating links
+        Set wbSource = Workbooks.Open(Filename:=strFolder & strFile, UpdateLinks:=0, ReadOnly:=True, AddToMru:=False)
         
         ' Check for sheet "301" and "Summary"
         If Not SheetExists("301", wbSource) Then GoTo NextFile
@@ -47,6 +53,10 @@ NextFile:
         wbSource.Close SaveChanges:=False
         strFile = Dir
     Loop
+    
+    ' Re-enable alerts and screen updating
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
     
     ' Save the target workbook, adjust the filename as necessary
     wbTarget.SaveAs Filename:=strFolder & "CompiledData.xlsx"
