@@ -1,0 +1,11 @@
+=IF(ISNUMBER(SEARCH("data", A2)), "Category 1", IF(ISNUMBER(SEARCH("gap", A2)), "Category 2", IF(ISNUMBER(SEARCH("tax", A2)), "Category 3", IF(ISNUMBER(SEARCH("approval", A2)), "Category 4", "No Category"))))
+
+
+=IF(AND(ISNUMBER(SEARCH("amounts", A2)), ISNUMBER(SEARCH("don't match", A2))), "Combo Category", "No Category")
+
+
+=TEXTJOIN(", ", TRUE, 
+    IF(AND(ISNUMBER(SEARCH("amounts", A2)), ISNUMBER(SEARCH("don't match", A2))), "Combo Category 1", ""), 
+    IF(AND(ISNUMBER(SEARCH("data", A2)), ISNUMBER(SEARCH("error", A2))), "Combo Category 2", "")
+)
+
