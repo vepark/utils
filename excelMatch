@@ -1,3 +1,25 @@
+=TEXTJOIN(" & ", TRUE,
+    IF(ISNUMBER(SEARCH("missing", F2&G2&H2&I2&J2)), "missing", ""),
+    IF(ISNUMBER(SEARCH("missed", F2&G2&H2&I2&J2)), "missed", ""),
+    IF(ISNUMBER(SEARCH("exploratory", F2&G2&H2&I2&J2)), "exploratory", ""),
+    IF(ISNUMBER(SEARCH("logic", F2&G2&H2&I2&J2)), "logic", ""),
+    IF(ISNUMBER(SEARCH("tax", F2&G2&H2&I2&J2)), "tax", ""),
+    IF(ISNUMBER(SEARCH("rem date", F2&G2&H2&I2&J2)), "rem date", ""),
+    IF(ISNUMBER(SEARCH("approval", F2&G2&H2&I2&J2)), "approval", ""),
+    IF(ISNUMBER(SEARCH("IAD decision", F2&G2&H2&I2&J2)), "IAD decision", ""),
+    IF(ISNUMBER(SEARCH("population count", F2&G2&H2&I2&J2)), "population count", ""),
+    IF(ISNUMBER(SEARCH("amounts", F2&G2&H2&I2&J2)), "amounts", ""),
+    IF(ISNUMBER(SEARCH("corrective action", F2&G2&H2&I2&J2)), "corrective action", ""),
+    IF(ISNUMBER(SEARCH("header", F2&G2&H2&I2&J2)), "header", ""),
+    IF(ISNUMBER(SEARCH("data", F2&G2&H2&I2&J2)), "data", ""),
+    IF(ISNUMBER(SEARCH("data profiling", F2&G2&H2&I2&J2)), "data profiling", ""),
+    IF(ISNUMBER(SEARCH("data issue", F2&G2&H2&I2&J2)), "data issue", "")
+)
+
+
+
+
+
 =IF(ISNUMBER(SEARCH("data", A2)), "Category 1", IF(ISNUMBER(SEARCH("gap", A2)), "Category 2", IF(ISNUMBER(SEARCH("tax", A2)), "Category 3", IF(ISNUMBER(SEARCH("approval", A2)), "Category 4", "No Category"))))
 
 
