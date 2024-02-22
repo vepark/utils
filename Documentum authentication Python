@@ -1,0 +1,17 @@
+import requests
+
+# Replace these with your Documentum REST API details
+base_url = 'http://your_documentum_server.com/rest-api'
+auth_endpoint = '/login'
+username = 'your_username'
+password = 'your_password'
+
+# Attempt to authenticate
+auth_response = requests.post(f'{base_url}{auth_endpoint}', auth=(username, password))
+
+if auth_response.status_code == 200:
+    # This example assumes the token is in the response; your API might handle this differently
+    token = auth_response.json().get('access_token')
+    print("Authentication successful.")
+else:
+    print("Authentication failed.")
