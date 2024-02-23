@@ -25,3 +25,32 @@ for rel in relationships:
 # Save or render the diagram to a file
 output_path = 'automation_framework_diagram'
 dot.render(output_path, view=True)
+
+
+
+
+
+
+@startuml
+!define RECTANGLE component
+
+RECTANGLE "Windows Shared Drive" as WSD
+RECTANGLE "Linux Server" as LS
+RECTANGLE "SAS Grid" as SG
+RECTANGLE "Python Scripts" as PS
+RECTANGLE "NDM" as NDM
+RECTANGLE "Master SAS Dataset" as MSD
+RECTANGLE "Error Logging" as EL
+RECTANGLE "Output Generation" as OG
+
+WSD -right-> NDM : Data Movement
+NDM -down-> LS : Data Movement
+LS -right-> PS : Data Processing
+PS -down-> MSD : Data Aggregation
+LS -left-> SG : Data Analysis
+SG -up-> MSD : Data Merge
+MSD -right-> EL : Error Reporting
+MSD -down-> OG : Generate Outputs
+OG -right-> NDM : Move Outputs
+NDM -up-> WSD : Return Outputs
+@enduml
