@@ -1,0 +1,29 @@
+Data Source
+
+Excel and PDF files stored on a Windows Shared Drive.
+Data Movement to Linux Server
+
+Use Network Data Mover (NDM) to transfer files from Windows Shared Drive to Linux Server.
+Data Extraction and Processing
+
+Python scripts on Linux Server to extract data from PDFs and structure it into Excel format.
+SAS Grid on Linux for further data processing and analysis.
+Master Dataset Creation
+
+Import Excel, CSV, TXT files into SAS.
+Merge with data extracted from PDFs by Python.
+Create a Master SAS Dataset with unique keys and self-explanatory column names.
+Error Logging and Handling
+
+Programmatic detection and logging of errors.
+Automated error reports sent to specific reviewers.
+Data Validation and Output Generation
+
+SAS macros to validate data against 30 scorecard criteria.
+Generate output tables with validation results.
+Output Distribution
+
+Create reports/artifacts for communication.
+Email distribution of reports.
+Move output files back to a designated location on the Windows Shared Drive via NDM.
+This structure aims to provide a high-level overview of the proposed automation framework, highlighting the flow from data sourcing to output distribution, including key processes and technologies involved.
