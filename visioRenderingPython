@@ -1,0 +1,27 @@
+from graphviz import Digraph
+
+# Hardcoded components and relationships based on the automation framework
+components = ['Windows Shared Drive', 'Linux Server', 'SAS Grid', 'Python Scripts', 'NDM', 'Master SAS Dataset', 'Error Logging', 'Output Generation']
+relationships = [
+    ('Windows Shared Drive', 'NDM'),
+    ('NDM', 'Linux Server'),
+    ('Linux Server', 'Python Scripts'),
+    ('Python Scripts', 'Master SAS Dataset'),
+    ('Linux Server', 'SAS Grid'),
+    ('SAS Grid', 'Master SAS Dataset'),
+    ('Master SAS Dataset', 'Error Logging'),
+    ('Master SAS Dataset', 'Output Generation'),
+    ('Output Generation', 'NDM'),
+    ('NDM', 'Windows Shared Drive')
+]
+
+# Generate the diagram
+dot = Digraph(comment='Automation Framework')
+for comp in components:
+    dot.node(comp, comp)
+for rel in relationships:
+    dot.edge(*rel)
+
+# Save or render the diagram to a file
+output_path = 'automation_framework_diagram'
+dot.render(output_path, view=True)
