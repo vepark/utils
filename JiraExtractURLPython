@@ -26,3 +26,88 @@ def extract_documentum_links(text):
 documentum_links = extract_documentum_links(issue.fields.description)
 
 print("Extracted Documentum Links:", documentum_links)
+
+
+
+
+
+# korn shell script in Linux
+#!/bin/bash
+
+# Array of Documentum file URLs
+urls=(
+  "https://documentum.example.com/file1"
+  "https://documentum.example.com/file2"
+)
+
+# Directory where files will be saved
+save_dir="/mnt/shared_drive/documents"
+
+# Ensure the save directory exists
+mkdir -p "$save_dir"
+
+# Loop through URLs and download each file
+for url in "${urls[@]}"; do
+  wget -P "$save_dir" "$url"
+done
+
+
+
+
+
+
+# Powershell .ps1 script
+
+# Array of Documentum file URLs
+$urls = @(
+    "https://documentum.example.com/file1",
+    "https://documentum.example.com/file2"
+)
+
+# Directory where files will be saved
+$saveDir = "Z:\shared_drive\documents" # Adjust the path as needed
+
+# Ensure the save directory exists
+if (-not (Test-Path -Path $saveDir)) {
+    New-Item -ItemType Directory -Path $saveDir
+}
+
+# Loop through URLs and download each file
+foreach ($url in $urls) {
+    $fileName = [System.IO.Path]::GetFileName($url)
+    $destinationPath = Join-Path -Path $saveDir -ChildPath $fileName
+    Invoke-WebRequest -Uri $url -OutFile $destinationPath
+}
+
+
+
+
+
+
+
+
+# Python script
+
+import os
+import requests
+
+# List of Documentum file URLs
+urls = [
+    "https://documentum.example.com/file1",
+    "https://documentum.example.com/file2",
+]
+
+# Directory where files will be saved
+save_dir = "/mnt/shared_drive/documents"  # Adjust for Windows or Linux path
+
+# Ensure the save directory exists
+os.makedirs(save_dir, exist_ok=True)
+
+# Download each file
+for url in urls:
+    response = requests.get(url)
+    filename = os.path.join(save_dir, url.split('/')[-1])
+
+    with open(filename, 'wb') as f:
+        f.write(response.content)
+
