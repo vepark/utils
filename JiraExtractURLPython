@@ -1,0 +1,28 @@
+import re
+from jira import JIRA
+
+# Example connection details
+jira_url = 'https://your-jira-instance.com'
+jira_username = 'your_username'
+jira_password = 'your_password'
+
+# Issue ID
+issue_id = 'ISSUE-123'
+
+# Connect to Jira
+jira = JIRA(jira_url, basic_auth=(jira_username, jira_password))
+
+# Get the issue
+issue = jira.issue(issue_id)
+
+# Function to extract Documentum links with a specific pattern
+def extract_documentum_links(text):
+    # Adjusted regex to specifically match 'https://dfs' followed by any characters except whitespace
+    # Adjust the pattern as needed to match the exact structure of your Documentum URLs
+    documentum_urls = re.findall(r'https://dfs[^\s]+', text)
+    return documentum_urls
+
+# Extract Documentum links from the issue description
+documentum_links = extract_documentum_links(issue.fields.description)
+
+print("Extracted Documentum Links:", documentum_links)
