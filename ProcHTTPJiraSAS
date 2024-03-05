@@ -1,0 +1,27 @@
+filename resp temp;
+filename req temp;
+
+data _null_;
+  file req;
+  put '{'; /* If your request requires a JSON body, construct it here. */
+  put '}';
+run;
+
+proc http
+  url="https://your-domain.atlassian.net/rest/api/3/search?jql=project=PROJECTKEY"
+  method="GET" /* Use the appropriate HTTP method (GET, POST, PUT, etc.) */
+  out=resp
+  headerin=req
+  ct="application/json";
+  /*
+    Use headerin to specify request headers, such as Authorization for API tokens.
+    For Basic Auth, encode "username:password" or "email:api_token" in Base64 and add it to the header.
+    For example: Authorization="Basic <Your Base64 encoded string>"
+  */
+run;
+
+data _null_;
+  infile resp;
+  input;
+  put _infile_;
+run;
