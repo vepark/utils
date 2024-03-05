@@ -13,8 +13,7 @@ headers = {
     "Accept": "application/json"
 }
 
-# Construct the request URL
-url = f"{JIRA_URL}/rest/api/3/search?jql={JQL}"
+url = f"{JIRA_URL}/rest/api/3/search?jql={JQL}&fields=key,summary,customfield_X,currentVersions,customfield_Y,customfield_Z"
 
 response = requests.request(
     "GET",
@@ -23,34 +22,33 @@ response = requests.request(
     auth=auth
 )
 
-# Check if the response is successful
 if response.status_code == 200:
     data = response.json()
     issues = data['issues']
     
-    # Assuming your JQL returns fields like summary, status, assignee, etc.
-    # Adjust these fields based on what you need
-    columns = ['key', 'summary', 'status', 'assignee']
+    columns = ['Key', 'Summary', 'Current Versions', 'Effort ID', 'Type of Work']
     rows = []
 
     for issue in issues:
-        # Adjust the field extraction based on your actual data structure
         key = issue['key']
         summary = issue['fields']['summary']
-        status = issue['fields']['status']['name']
-        assignee = issue['fields']['assignee']['displayName'] if issue['fields']['assignee'] else 'Unassigned'
+        # Replace 'customfield_X' with the actual field ID for "Current Versions"
+        current_versions = issue['fields'].get('customfield_X', 'N/A')  
+        # Replace 'customfield_Y' with the actual field ID for "Effort ID"
+        effort_id = issue['fields'].get('customfield_Y', 'N/A')
+        # Replace 'customfield_Z' with the actual field ID for "Type of Work"
+        type_of_work = issue['fields'].get('customfield_Z', 'N/A')
         
-        rows.append([key, summary, status, assignee])
+        rows.append([key, summary, current_versions, effort_id, type_of_work])
 
-    # Create a DataFrame
     df = pd.DataFrame(rows, columns=columns)
     
-    # Save the DataFrame to an Excel file
     excel_file_path = 'jira_issues.xlsx'
     df.to_excel(excel_file_path, index=False)
     print(f"Data saved to {excel_file_path}")
 else:
     print("Failed to fetch data:", response.text)
+
 
 
 
