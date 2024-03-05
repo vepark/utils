@@ -1,31 +1,57 @@
-import re
-from jira import JIRA
+import requests
+import pandas as pd
+from requests.auth import HTTPBasicAuth
 
-# Example connection details
-jira_url = 'https://your-jira-instance.com'
-jira_username = 'your_username'
-jira_password = 'your_password'
+# Your Jira details
+JIRA_URL = 'https://your-domain.atlassian.net'
+JQL = 'your JQL query here'
+EMAIL = 'your-email@domain.com'
+API_TOKEN = 'your_api_token'
 
-# Issue ID
-issue_id = 'ISSUE-123'
+auth = HTTPBasicAuth(EMAIL, API_TOKEN)
+headers = {
+    "Accept": "application/json"
+}
 
-# Connect to Jira
-jira = JIRA(jira_url, basic_auth=(jira_username, jira_password))
+# Construct the request URL
+url = f"{JIRA_URL}/rest/api/3/search?jql={JQL}"
 
-# Get the issue
-issue = jira.issue(issue_id)
+response = requests.request(
+    "GET",
+    url,
+    headers=headers,
+    auth=auth
+)
 
-# Function to extract Documentum links with a specific pattern
-def extract_documentum_links(text):
-    # Adjusted regex to specifically match 'https://dfs' followed by any characters except whitespace
-    # Adjust the pattern as needed to match the exact structure of your Documentum URLs
-    documentum_urls = re.findall(r'https://dfs[^\s]+', text)
-    return documentum_urls
+# Check if the response is successful
+if response.status_code == 200:
+    data = response.json()
+    issues = data['issues']
+    
+    # Assuming your JQL returns fields like summary, status, assignee, etc.
+    # Adjust these fields based on what you need
+    columns = ['key', 'summary', 'status', 'assignee']
+    rows = []
 
-# Extract Documentum links from the issue description
-documentum_links = extract_documentum_links(issue.fields.description)
+    for issue in issues:
+        # Adjust the field extraction based on your actual data structure
+        key = issue['key']
+        summary = issue['fields']['summary']
+        status = issue['fields']['status']['name']
+        assignee = issue['fields']['assignee']['displayName'] if issue['fields']['assignee'] else 'Unassigned'
+        
+        rows.append([key, summary, status, assignee])
 
-print("Extracted Documentum Links:", documentum_links)
+    # Create a DataFrame
+    df = pd.DataFrame(rows, columns=columns)
+    
+    # Save the DataFrame to an Excel file
+    excel_file_path = 'jira_issues.xlsx'
+    df.to_excel(excel_file_path, index=False)
+    print(f"Data saved to {excel_file_path}")
+else:
+    print("Failed to fetch data:", response.text)
+
 
 
 
