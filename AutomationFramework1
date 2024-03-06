@@ -672,3 +672,43 @@ data _null_;
 run;
 
 
+
+
+
+
+
+
+
+
+
+
+%macro process_files(id, file1, file2, file3, file4, file5);
+    %local i file;
+    %let files=&file1 &file2 &file3 &file4 &file5;
+
+    /* Iterate through the file variables */
+    %do i=1 %to 5;
+        %let file=%scan(&files, &i, %str( ));
+        
+        /* Check if the file variable is not empty */
+        %if &&file&i ne %str() %then %do;
+            %put INFO: Transferring file: &&file&i for ID=&id...;
+            /* Construct and execute your NDM command here */
+            /* Example: */
+            /* x "ndmcli -submit -source=/path/to/source/&&file&i -dest=/path/on/SASGrid/&id/&&file&i"; */
+        %end;
+    %end;
+%mend process_files;
+
+data _null_;
+    set work.new_only nobs=nobs;
+    if nobs > 0 then do;
+        do i = 1 to nobs;
+            set work.new_only(keep=id file1-file5) point=i;
+            call execute(cats('%process_files(', id, ',', file1, ',', file2, ',', file3, ',', file4, ',', file5, ')'));
+        end;
+    end;
+    stop;
+run;
+
+
