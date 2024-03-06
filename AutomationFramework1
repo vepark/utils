@@ -480,6 +480,61 @@ This comprehensive approach offers a robust mechanism for detecting, logging, an
 
 
 
+Conditional Macro for Error Handling and Email Alert
+Assuming you have an external mechanism to count and extract ERROR:, WARNING:, and NOTE: statements, you can use macro variables to hold these counts and implement conditional logic for email alerts.
+
+%macro check_errors_and_alert;
+    %if &syserr > 0 or &errorCount > 0 %then %do;
+        %put ERROR: Errors detected in the program execution.;
+        /* Email alert logic goes here */
+    %end;
+    else %do;
+        %put INFO: Program completed without errors.;
+    %end;
+%mend check_errors_and_alert;
+
+
+Email Alerts
+For sending email alerts within SAS, you can use the EMAIL engine within a FILENAME statement. This method requires configuring your SAS session to use an SMTP server.
+
+filename mymail email
+    TO=("recipient@example.com")
+    SUBJECT="Error Alert: SAS Program Execution"
+    TYPE="text/plain";
+
+data _null_;
+    file mymail;
+    put "Errors were detected during the SAS program execution. Please review the log for details.";
+run;
+
+
+Incorporate this logic into the %check_errors_and_alert; macro or wherever appropriate in your workflow. Ensure the SMTP server details are correctly configured in your SAS environment.
+
+Batch Execution and Crontab Integration
+When running your SAS program via crontab in batch mode, you can direct the output and log to specific files. Post-processing scripts can examine these files for ERROR:, WARNING:, and NOTE: statements and invoke the SAS program or script responsible for sending the email alerts.
+
+Example crontab entry:
+
+
+
+0 1 * * * /path/to/sas -batch -sysin /path/to/your_program.sas -log /path/to/your_log.log -print /path/to/your_output.lst && /path/to/process_log_script.sh
+
+
+The process_log_script.sh could be a shell script that parses the SAS log (your_log.log), counts occurrences of ERROR:, WARNING:, and NOTE:, and conditionally calls another SAS program or uses a tool like mail or sendmail for sending the alerts based on the findings.
+
+Final Considerations
+The direct parsing of SAS logs for error/warning/note detection within the same SAS session is not straightforward. Consider post-process analysis.
+Ensure your SAS environment is configured for email sending (via SMTP), and test this capability separately.
+Adjust paths, email addresses, and SMTP settings according to your environment and requirements.
+
+
+
+
+
+
+
+
+
 
 
 
