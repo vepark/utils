@@ -1,0 +1,487 @@
+*-------------------------------------------------------------;
+* Header: Main Wrapper Program for Automated Validation       ;
+* Description: This program orchestrates the workflow for     ;
+*              processing and validating various file types   ;
+*              based on a control Excel file. It integrates   ;
+*              Python for handling PDF and .msg files, and    ;
+*              employs SAS for data manipulation and logging. ;
+*-------------------------------------------------------------;
+
+%let controlFilePath = /path/to/control_file.xlsx;
+%let sharedDrivePath = /path/to/shared/drive;
+%let linuxSASGridPath = /path/to/sasgrid/linux;
+
+libname controlLib excel "&controlFilePath";
+
+* Step 1: Read Control Excel File;
+proc sql;
+    create table work.instructions as
+    select * from controlLib.'Sheet1$'n;
+quit;
+
+* Step 2: Define Macros for Processing and Validation;
+
+%macro process_instructions();
+    %local currentId criteria;
+    data _null_;
+        set work.instructions;
+        call symput('currentId', trim(ID1));
+        call symput('criteria', trim(criteria));
+        %process_file(&currentId, &criteria);
+    run;
+%mend process_instructions;
+
+%macro process_file(id, criteria);
+    %put INFO: Processing ID=&id with Criteria=&criteria...;
+
+    * Fetch files based on ID and criteria;
+    %fetch_files(&id);
+
+    * Criteria-specific validation;
+    %if &criteria = 319 %then %do;
+        %validate_criteria_319(&id);
+    %end;
+    %else %do;
+        %put WARNING: No validation implemented for criteria &criteria.;
+    %end;
+%mend process_file;
+
+%macro fetch_files(id);
+    %put INFO: Fetching files for ID=&id...;
+    * Placeholder for file fetching logic. Adjust to your environment's capabilities;
+%mend fetch_files;
+
+%macro validate_criteria_319(id);
+    %put INFO: Validating Criteria 319 for ID=&id...;
+
+    * Example of Python integration for PDF and .msg files;
+    proc python;
+    submit;
+    # Your Python code goes here
+    print("Processing PDF/.msg files for ID=" + "&id.")
+    endsubmit;
+    end;
+
+    * SAS Data Steps or PROC SQL for processing Excel, TXT, CSV;
+    * Placeholder logic for demonstration;
+%mend validate_criteria_319;
+
+* Step 3: Execute the Main Process;
+%process_instructions();
+
+* Step 4: Logging and Error Handling;
+* Placeholder for logging. Implement as needed based on your logging framework;
+
+
+
+Enhanced Logging and Error Handling
+First, ensure that at the start of your main SAS program, you initialize the logging mechanism by capturing the start time and initializing other necessary variables
+
+* Initialize logging variables;
+%let startDateTime = %sysfunc(datetime());
+%let logID = 100;  * Starting point for log ID, this could be dynamically retrieved from a dataset to ensure uniqueness;
+
+* Example dataset for logging;
+data work.process_log;
+    if 0 then set work.process_log;  * Prevents uninitialized dataset error;
+    format startDateTime endDateTime datetime. 
+           totalTime time8. 
+           processLogID 8. 
+           ID1 $10. 
+           ID2 $10. 
+           numOfErrors 8. 
+           numOfNotes 8. 
+           numOfWarnings 8. 
+           otherMetrics $50.;
+    stop;
+run;
+
+
+
+
+Macro for Process Logging
+The logging macro will be responsible for inserting a log entry into the process_log dataset after each process completes. It dynamically calculates total processing time and formats it for readability.
+%macro log_process(id1=, id2=, numOfErrors=0, numOfNotes=0, numOfWarnings=0, otherMetrics=);
+
+    %local endDateTime totalTime;
+
+    %let endDateTime = %sysfunc(datetime());
+    %let totalTime = %sysevalf(&endDateTime - &startDateTime);
+
+    * Insert log entry;
+    data work.process_log;
+        set work.process_log;
+        format startDateTime endDateTime datetime19. totalTime time8.;
+        startDateTime = "&startDateTime"d;
+        endDateTime = "&endDateTime"d;
+        totalTime = "&totalTime"t;
+        processLogID = &logID;
+        ID1 = "&id1";
+        ID2 = "&id2";
+        numOfErrors = &numOfErrors;
+        numOfNotes = &numOfNotes;
+        numOfWarnings = &numOfWarnings;
+        otherMetrics = "&otherMetrics";
+        output;
+    run;
+
+    %let logID = %eval(&logID + 1);  * Increment log ID for the next entry;
+%mend log_process;
+
+
+
+Example Usage of the Logging Macro
+At the end of your program or at significant checkpoints, call the logging macro with appropriate parameters to insert a log entry.
+
+%log_process(id1=SampleID1, id2=SampleID2, numOfErrors=1, numOfNotes=2, numOfWarnings=3, otherMetrics=SampleMetrics);
+
+
+
+
+Error Handling
+For basic error handling within the SAS program, consider implementing checks after key operations or data steps. Capture and log any errors using SAS automatic variables like &syserr, &syserrortext, and custom logic.
+
+* Example error check after a PROC SQL;
+proc sql;
+    /* Your SQL code here */
+quit;
+%if &syserr ne 0 %then %do;
+    %log_process(id1=ErrorID, id2=, numOfErrors=1, numOfNotes=0, numOfWarnings=0, otherMetrics=&syserrortext);
+%end;
+
+
+
+
+Additional Considerations
+Dynamic Log ID Generation: For a more robust system, especially in concurrent or multi-user environments, consider dynamically retrieving the starting logID from an external source or a control table that tracks the last used ID.
+Advanced Error Handling: Depending on the complexity of your processes and the types of errors you anticipate, you may need more sophisticated error handling mechanisms, such as try-catch logic in Python scripts, error propagation, or custom error logging tables with detailed error messages and troubleshooting information.
+Integration with External Systems: If your processes involve external systems or complex workflows, ensure that your logging mechanism can capture relevant external system statuses or error messages, potentially requiring integration or API calls to those systems for status checks.
+This expanded logging and error handling framework provides a foundational structure for monitoring, auditing, and troubleshooting the automated validation processes within your SAS and Python integrated environment.
+
+
+
+
+This macro aims to:
+
+Identify the folder based on ID1.
+List all files within this folder.
+Determine the type of each file (PDF, .msg, Excel, etc.).
+Move files to the Linux SAS Grid environment if necessary (conceptual).
+Prepare for further processing based on file type.
+
+%macro fetch_files(id);
+
+    %let folderPath = &sharedDrivePath\&id;
+    %let linuxFolderPath = &linuxSASGridPath\&id;
+    %let fileList = %str();
+
+    * List all files in the folder corresponding to ID1;
+    filename dirlist "&folderPath";
+    data fileList;
+        length fname $256;
+        did = dopen('dirlist');
+        if did > 0 then do;
+            do i = 1 to dnum(did);
+                fname = dread(did, i);
+                output;
+            end;
+        end;
+        rc = dclose(did);
+    run;
+
+    * Move files to Linux SAS Grid environment - Conceptual;
+    * This step depends on your infrastructure and permissions;
+    * For demonstration, assuming direct access or a mounted drive that SAS can read from;
+    * In reality, you might need system commands or specific file transfer mechanisms;
+
+    data _null_;
+        set fileList;
+        filevar = trim("&linuxFolderPath") || '\' || trim(fname);
+        * Determine file type and call appropriate processing routine;
+        if lowcase(scan(fname, -1, '.')) = 'pdf' then do;
+            * For PDF, call Python processing;
+            %put INFO: PDF file &fname will be processed with Python.;
+        end;
+        else if lowcase(scan(fname, -1, '.')) = 'msg' then do;
+            * For .msg files, also consider Python for processing;
+            %put INFO: .msg file &fname will be processed with Python.;
+        end;
+        else do;
+            * For Excel, CSV, TXT, use SAS processing;
+            %put INFO: File &fname will be processed with SAS.;
+        end;
+    run;
+
+%mend fetch_files;
+
+
+
+
+
+
+
+
+To enhance the logging and error handling in your SAS program, including capturing start and end times, calculating total processing time, maintaining a process log ID that increments with each entry, and recording key information like ID1, ID2, along with dynamic elements for each execution, follow this structured approach.
+
+First, let's establish a global tracking system for the process log ID, ensuring it starts at 100 and increments with each run. This can be managed by reading the last value from a log dataset and incrementing it for the new entry.
+
+Enhanced Logging and Error Handling SAS Program
+This program includes a macro for initializing logging parameters at the start, capturing process end times, and logging results with dynamic content generation. Additionally, it demonstrates error handling throughout the execution flow.
+
+
+* Initialize global macro variables for logging;
+%let startDateTime = %sysfunc(datetime());
+%let processLogId = 100; * Starting value, will adjust dynamically;
+
+* Create a macro for logging execution details;
+%macro log_execution_details(id1=, id2=, status=, errorMsg=);
+    %local endDateTime totalTime;
+
+    %let endDateTime = %sysfunc(datetime());
+    %let totalTime = %sysevalf((&endDateTime - &startDateTime)/60, floor); * Total time in minutes;
+
+    * Determine the next processLogId by reading the last value from log dataset and incrementing;
+    %if %sysfunc(exist(work.process_log)) %then %do;
+        proc sql noprint;
+            select max(processLogId) into :maxLogId from work.process_log;
+        quit;
+        %let processLogId = %eval(&maxLogId + 1);
+    %end;
+
+    * Append the execution details to the process_log dataset;
+    data work.process_log;
+        format startDateTime endDateTime datetime19. totalTime time8. id1 $10. id2 $10. status $10. errorMsg $200.;
+        if _N_ = 1 and not %sysfunc(exist(work.process_log)) then do;
+            * Initialize dataset if it doesn't exist;
+            call execute('data work.process_log; format startDateTime endDateTime datetime19. totalTime time8. id1 $10. id2 $10. status $10. errorMsg $200.; run;');
+        end;
+        startDateTime = "&startDateTime"d;
+        endDateTime = "&endDateTime"d;
+        totalTime = &totalTime;
+        processLogId = &processLogId;
+        id1 = "&id1";
+        id2 = "&id2";
+        status = "&status";
+        errorMsg = "&errorMsg";
+        output;
+    run;
+%mend log_execution_details;
+
+* Example of using the logging macro with dynamic parameters;
+%log_execution_details(id1=Test1, id2=Test2, status=Success, errorMsg=);
+
+* Implementing error handling within processing macros or steps;
+%macro process_file(id1=, id2=);
+    %local funcStatus errMsg;
+
+    * Placeholder for file processing logic;
+    %let funcStatus = Success; * Assume success by default;
+    %let errMsg = ; * Empty if no error;
+
+    * Simulate error handling;
+    %if &funcStatus ne Success %then %do;
+        %let errMsg = Sample error message;
+    %end;
+
+    %log_execution_details(id1=&id1, id2=&id2, status=&funcStatus, errorMsg=&errMsg);
+%mend process_file;
+
+* Example of executing a process with logging;
+%process_file(id1=SampleID1, id2=SampleID2);
+
+
+
+Key Elements:
+Global Start Time and Log ID: Initializes at the program's start, with log ID dynamically updating based on the last entry in the process log.
+Logging Macro: Captures essential details of each execution phase, including dynamic error messages and process statuses.
+Dynamic Log ID Management: Adjusts the process log ID based on the dataset's last recorded value to ensure uniqueness and sequential incrementation.
+Error Handling: Within each processing macro, you can implement logic to set the status and error message variables, which are then logged by calling the log_execution_details macro.
+
+
+
+
+
+
+To establish a dynamic and comprehensive logging system within your SAS program that captures start time, end time, total processing time, process log ID, ID1, ID2, along with dynamic elements for each execution instance, follow this structured approach. This expanded section introduces a logging mechanism through a macro that dynamically handles log entries, including error handling processes.
+
+Step 1: Initialization
+At the beginning of your main program, initialize the start time and log ID. This setup ensures every program run has a unique log ID and recorded start time.
+
+%let startDateTime = %sysfunc(datetime());
+%let logID = 100; /* Initialize or retrieve this from a persistent store to maintain uniqueness across runs */
+
+
+Step 2: Define the Logging Macro
+This macro captures detailed logging information, including execution metrics and outcomes. It dynamically handles log entries for each process, automatically incrementing the log ID and calculating total processing time.
+
+%macro log_entry(startDateTime, endDateTime, id1, id2, logID, errors=, notes=, warnings=);
+
+    data log;
+        format startDateTime endDateTime datetime19. totalTime time8.;
+
+        /* Retrieve existing logID if this dataset exists, else initialize */
+        if _N_ = 1 then do;
+            if exist('work.process_log') then do;
+                set work.process_log end=last;
+                if not last then call symput('logID', put(logID + 1, 8.));
+            end;
+            else call symput('logID', "&logID");
+        end;
+
+        startDateTime = input("&startDateTime", datetime19.);
+        endDateTime = input("&endDateTime", datetime19.);
+        totalTime = endDateTime - startDateTime;
+        ID1 = "&id1";
+        ID2 = "&id2";
+        ProcessLogID = symget('logID');
+        NumberOfErrors = "&errors";
+        NumberOfNotes = "&notes";
+        NumberOfWarnings = "&warnings";
+
+        output;
+    run;
+
+    /* Append this entry to a master log */
+    proc append base=work.process_log data=log force; run;
+
+%mend log_entry;
+
+
+
+Step 3: Capture End Time and Invoke the Logging Macro
+At the end of your program or specific processes within your program, capture the end time. Then, call the logging macro with all required parameters, including dynamically generated ones.
+
+%let endDateTime = %sysfunc(datetime());
+
+%log_entry(&startDateTime, &endDateTime, ID1=ValueHere, ID2=ValueHere, &logID, errors=0, notes=1, warnings=2);
+
+
+
+Step 4: Error Handling Integration
+Within your SAS program, particularly in parts where errors are likely (file processing, data validations, etc.), include error checks and conditionally populate the errors, notes, and warnings parameters when calling the logging macro. This approach allows for detailed tracking and analysis of execution outcomes.
+
+/* Example error handling within data step or PROC SQL */
+data _null_;
+    set some_dataset;
+    if _ERROR_ then do;
+        %let errors = 1; /* Increment or set based on your error logic */
+        %let notes = %eval(&notes + 1); /* Adjust accordingly */
+        /* Invoke log_entry macro here if needed or at the end of a logical block */
+    end;
+run;
+
+
+Final Considerations
+Persistence and Retrieval of LogID: The initial value of logID could be dynamically retrieved from a persistent dataset or external file to ensure it uniquely increments across program executions. This example assumes starting at 100 and increments within a single execution context.
+
+Log Dataset Management: The process_log dataset stores all log entries. Consider periodically archiving this dataset and managing its size to ensure performance and manageability.
+
+Customization: Customize the log_entry macro and its invocation based on your specific logging needs and the granularity of tracking required. The dynamic aspects, such as calculating total time and handling unique log IDs, provide a flexible foundation for extensive logging requirements.
+
+This framework provides a robust method for dynamic logging and error handling within your SAS programs, facilitating detailed execution monitoring, diagnostics, and compliance with auditing requirements.
+
+
+
+
+
+
+
+
+
+
+Incorporating error handling that examines the SAS log for ERROR:, WARNING:, and NOTE: statements, and subsequently triggers alerts based on the presence of these log entries, requires a multifaceted approach. Here's how to extend your SAS program to include such capabilities, along with a mechanism to alert the team via email in case of errors, especially useful when running the program in batch mode through crontab.
+
+Step 1: Capturing Log Statements
+To count the occurrences of ERROR:, WARNING:, and NOTE: statements in the SAS log, you can redirect the log to a dataset, then parse this dataset to count each type of log statement. However, capturing the SAS log programmatically within the same session that generates the log is complex due to how SAS handles log output. Instead, analyze the log file after the SAS program completes as part of your batch script or subsequent SAS session.
+
+As a workaround, here's a conceptual approach that involves reading the log file post-execution:
+
+Run Your SAS Program via Batch: Execute your SAS program through a batch file or shell script. Ensure to redirect the SAS log output to a file.
+
+
+sas program.sas -log program.log
+
+
+Analyze the Log File: Use a subsequent SAS program or script to read the program.log file, searching for ERROR:, WARNING:, and NOTE: patterns.
+
+Step 2: Email Alert System
+Integrate an email alert system into your framework, activated upon detecting errors. This involves parsing the log file for errors and conditionally sending an email if any are found.
+
+Sample SAS Code to Analyze the Log and Send Email Alerts
+
+
+filename logFile 'path/to/program.log';
+
+data logAnalysis;
+    infile logFile;
+    input;
+    line = _infile_;
+    if index(line, 'ERROR:') then output;
+    if index(line, 'WARNING:') then output;
+    if index(line, 'NOTE:') then output;
+run;
+
+proc sql noprint;
+    select count(*) into :errorCount from logAnalysis where index(line, 'ERROR:');
+    select count(*) into :warningCount from logAnalysis where index(line, 'WARNING:');
+    select count(*) into :noteCount from logAnalysis where index(line, 'NOTE:');
+quit;
+
+%if &errorCount > 0 %then %do;
+    filename mail email "team@example.com";
+    data _null_;
+        file mail subject="SAS Program Error Alert";
+        put "ERROR: SAS Program encountered errors. Please review the log.";
+        put "Errors: &errorCount";
+        put "Warnings: &warningCount";
+        put "Notes: &noteCount";
+    run;
+%end;
+
+
+
+Step 3: Conditional Error Handling within SAS
+For runtime error handling within your SAS program, use %syserr and conditional logic to perform actions based on error occurrences.
+
+%if &syserr > 0 %then %do;
+    %put ERROR: An error occurred during execution.;
+
+    * Additional code to handle errors, e.g., sending alerts, logging, etc.;
+    * This could include invoking the email alert system as described above;
+%end;
+
+
+
+
+Batch Script for Execution and Log Analysis
+Incorporate the execution and log analysis steps into a single batch script or shell script for automation. After executing the SAS program, this script should analyze the log for errors and trigger alerts as necessary.
+
+
+#!/bin/bash
+
+# Run SAS program and capture log
+sas program.sas -log program.log
+
+# Execute SAS log analysis program (assuming it's saved as log_analysis.sas)
+sas log_analysis.sas
+
+
+Final Notes
+Email Configuration: Ensure your SAS environment is configured to send emails. This might involve setting up email-related system options or working with your IT department to allow SAS to send emails.
+
+Security and Privacy: Be cautious about the information included in email alerts, especially when sending error details that might contain sensitive data.
+
+Automation and Scheduling: When integrating this approach into a crontab or any scheduler, ensure that both the main SAS program and the log analysis step are included in your scheduled tasks.
+
+This comprehensive approach offers a robust mechanism for detecting, logging, analyzing, and alerting on errors and warnings in SAS batch jobs, enhancing the oversight and management of automated SAS processes.
+
+
+
+
+
+
+
+
+
+
+
