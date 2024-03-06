@@ -531,6 +531,79 @@ Adjust paths, email addresses, and SMTP settings according to your environment a
 
 
 
+To achieve the functionality of reading an input file in SAS, comparing it with a permanent dataset to identify new entries, and then processing only those new entries (along with associated files from the ID1 folder), you can follow a structured approach involving several key steps:
+
+Read the Input File: Use PROC IMPORT or an appropriate data step to read the new input file into a temporary SAS dataset.
+Load the Permanent Dataset: Load the previously saved dataset that contains the historical records.
+Compare and Identify New Entries: Use a combination of PROC SQL or data step operations to identify which entries in the new dataset do not exist in the permanent dataset.
+Process New Entries: For each new entry, proceed with the required operations, such as fetching associated files (File1 through File5) from the ID1 folder.
+Update the Permanent Dataset: Add the new entries to the permanent dataset to keep the history updated for the next run.
+Here's a detailed implementation outline in SAS:
+
+Step 1 & 2: Read the Input File and Load the Permanent Dataset
+
+/* Step 1: Read the new input file */
+proc import datafile="/path/to/new/input_file.xlsx" /* Update path and options */
+    out=new_entries
+    dbms=xlsx replace; /* Adjust based on file format */
+    getnames=yes;
+run;
+
+/* Step 2: Load the permanent dataset */
+libname permdata "/path/to/permanent/dataset"; /* Update path */
+data old_entries;
+    set permdata.entries; /* Assume 'entries' is the permanent dataset name */
+run;
+
+
+Step 3: Compare and Identify New Entries
+
+/* Identify new entries by comparing with permanent dataset */
+proc sql;
+    create table to_process as
+    select a.*
+    from new_entries a
+    left join old_entries b
+    on a.ID1 = b.ID1 /* Adjust based on unique identifier */
+    where b.ID1 is null; /* This condition finds new entries */
+quit;
+
+
+Step 4: Process New Entries
+Assuming a separate process or macro for processing based on ID1. This step depends on specific operations you need to perform with the new entries and associated files.
+
+/* Example of calling a macro for each new entry */
+%macro process_new_entries(data=);
+    %local dsid i id1;
+    %let dsid = %sysfunc(open(&data));
+
+    /* Iterate through each new entry */
+    %do i=1 %to %sysfunc(attrn(&dsid, nobs));
+        %let id1 = %sysfunc(getvarc(&dsid, %sysfunc(varnum(&dsid, ID1)), &i)); /* Assuming ID1 is the identifier */
+        
+        /* Call your processing macro or steps here, passing ID1 */
+        %process_entry(&id1); /* Placeholder for your processing logic */
+    %end;
+
+    %let dsid = %sysfunc(close(&dsid));
+%mend process_new_entries;
+
+%process_new_entries(data=to_process);
+
+
+
+Step 5: Update the Permanent Dataset
+
+/* Append new entries to the permanent dataset */
+proc append base=permdata.entries data=to_process force;
+run;
+
+
+Additional Considerations
+Ensure your environment paths, dataset names, and unique identifiers (ID1) are correctly specified.
+The %process_entry(&id1); macro (mentioned in Step 4) should contain the logic for handling individual new entries, including fetching and processing associated files. You'll need to implement this macro based on your specific requirements.
+Regularly back up your permanent dataset to prevent data loss and ensure its integrity over time.
+Adjust the code to match the format of your input file (e.g., dbms=xlsx for Excel files) and the structure of your datasets.
 
 
 
