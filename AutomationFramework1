@@ -610,6 +610,48 @@ Adjust the code to match the format of your input file (e.g., dbms=xlsx for Exce
 
 
 
+Extract File Names and Assign to Macro Variables
+Here, I'm assuming the structure of your dataset includes columns ID1, File1 through File5, and you want to assign these to macro variables for the first new entry found. Adjust accordingly for handling multiple new entries.
+/* Check if new entries exist and then assign file names to macro variables */
+data _null_;
+    set work.new_only;
+    if _N_ = 1 then do;
+        call symput('ID1Folder', ID1);
+        call symput('File1', File1);
+        call symput('File2', File2);
+        call symput('File3', File3);
+        call symput('File4', File4);
+        call symput('File5', File5);
+    end;
+    stop;
+run;
+
+Preparing for NDM Step
+Given the macro variables for ID1 folder and files (File1 through File5), you can script the NDM command if it's being called from within SAS or through a command-line interface. The specifics of this command depend on your NDM setup, including paths and credentials.
+
+This section provides a conceptual approach:
+
+/* Example SAS code to execute a hypothetical NDM command */
+x 'ndmcli -submit -source=&ID1Folder\&File1 -dest=/path/on/SASGrid/&ID1Folder/&File1 ...';
+
+
+Replace ndmcli -submit -source=... -dest=... with the actual command syntax for your NDM process, adjusting paths and file names based on your environment.
+
+Note:
+Security and Permissions: Ensure the SAS session or user executing these commands has the necessary permissions for reading the Excel file, writing to the permanent dataset, and executing system commands or NDM transfers.
+
+Handling Multiple New Entries: The example provided assigns macro variables based on the first new entry found. If you're dealing with multiple new entries, consider iterating through the dataset or adapting the logic to handle batch processes or multi-file transfers as required by your workflow.
+
+Automation and Scheduling: For running this process regularly (e.g., via a cron job on Unix/Linux or a scheduled task in Windows), ensure that the SAS environment is properly configured for batch execution, including any necessary environmental variables or startup scripts.
+
+
+
+
+
+
+
+
+
 
 
 
