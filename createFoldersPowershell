@@ -1,0 +1,9 @@
+$parentPath = "C:\Your\Parent\Directory" # Specify the parent directory path
+$start = 4300
+$end = 5000
+
+for ($i = $start; $i -le $end; $i++) {
+    $folderName = "EMDA" + $i
+    $path = Join-Path -Path $parentPath -ChildPath $folderName
+    New-Item -Path $path -ItemType Directory
+}
