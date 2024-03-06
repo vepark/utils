@@ -647,11 +647,28 @@ Automation and Scheduling: For running this process regularly (e.g., via a cron 
 
 
 
+First, define a macro that processes a single new entry given its ID1 and associated files. This macro would include the logic to move files via NDM or perform other required actions for each entry:
+
+%macro process_entry(ID1, File1, File2, File3, File4, File5);
+    %put Processing ID1=&ID1 File1=&File1 File2=&File2 File3=&File3 File4=&File4 File5=&File5;
+    /* Add your file processing logic here, such as NDM transfer commands */
+%mend process_entry;
 
 
 
 
+Next, modify the part of the script that identifies new entries to invoke this macro for each new entry found:
 
-
+/* Iterate through new entries and call the process_entry macro for each */
+data _null_;
+    set work.new_only nobs=nobs;
+    if nobs > 0 then do;
+        do i = 1 to nobs;
+            set work.new_only point=i nobs=nobs;
+            call execute(cats('%process_entry(', ID1, ',', File1, ',', File2, ',', File3, ',', File4, ',', File5, ')'));
+        end;
+    end;
+    stop;
+run;
 
 
