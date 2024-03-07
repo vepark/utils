@@ -1,0 +1,48 @@
+#pip install PyMuPDF nltk
+
+import fitz  # PyMuPDF
+import re
+from collections import Counter
+from nltk.corpus import words
+from nltk.tokenize import word_tokenize
+from nltk import download
+
+# Download the 'words' corpus if not already available
+download('words')
+download('punkt')
+
+# Set of English words for filtering
+english_words = set(words.words())
+
+def extract_text_from_pdf(pdf_path):
+    """Extract all text from a PDF file."""
+    doc = fitz.open(pdf_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    return text
+
+def remove_english_words(text):
+    """Remove all English words from the text."""
+    tokens = word_tokenize(text)
+    filtered_text = ' '.join([word for word in tokens if word.lower() not in english_words])
+    return filtered_text
+
+def find_db_table_combinations(text):
+    """Find all uppercase patterns that look like DB_TABLE combinations."""
+    pattern = r'\b[A-Z]+_[A-Z]+\b'
+    return re.findall(pattern, text)
+
+def main(pdf_path):
+    text = extract_text_from_pdf(pdf_path)
+    non_english_text = remove_english_words(text)
+    db_table_combinations = find_db_table_combinations(non_english_text)
+    
+    # Count occurrences and organize
+    counts = Counter(db_table_combinations)
+    for combo, count in counts.most_common():
+        print(f"{combo}: {count}")
+
+if __name__ == "__main__":
+    pdf_path = 'path/to/your/document.pdf'  # Change this to the path of your PDF file
+    main(pdf_path)
