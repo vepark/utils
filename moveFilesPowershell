@@ -1,0 +1,23 @@
+# Define the source and destination paths
+$sourceFolder = "C:\Path\To\Source"
+$destinationFolder = "C:\Path\To\Destination"
+$miscFolder = Join-Path -Path $sourceFolder -ChildPath "MISC"
+
+# Create the destination folder if it doesn't exist
+if (-not (Test-Path -Path $destinationFolder)) {
+    New-Item -ItemType Directory -Path $destinationFolder
+}
+
+# Create the MISC folder if it doesn't exist
+if (-not (Test-Path -Path $miscFolder)) {
+    New-Item -ItemType Directory -Path $miscFolder
+}
+
+# Move .txt files that start with CR_ and end with _Output to the destination folder
+Get-ChildItem -Path $sourceFolder -Filter "CR_*_Output.txt" |
+    Move-Item -Destination $destinationFolder
+
+# Move the rest of the files (excluding directories) to the MISC folder
+Get-ChildItem -Path $sourceFolder -File |
+    Where-Object { $_.Name -notmatch '^CR_.*_Output\.txt$' } |
+    Move-Item -Destination $miscFolder
