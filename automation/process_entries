@@ -1,0 +1,35 @@
+/* Define a macro to iterate through new entries by criteria and process each REDA */
+%macro process_entries;
+    /* Create a temporary dataset with distinct criteria for iteration */
+    proc sql noprint;
+        create table work.distinct_criteria as
+        select distinct Criteria
+        from work.new_only;
+    quit;
+
+    /* Iterate through each criteria */
+    data _null_;
+        set work.distinct_criteria;
+        call symputx('currentCriteria', Criteria);
+        run;
+
+        /* For each criteria, iterate through associated REDAs and process them */
+        %do_over(values=&currentCriteria, phrase=%str(
+            proc sql noprint;
+                select distinct REDA into :redaList separated by ' ' 
+                from work.new_only
+                where Criteria = '?currentCriteria';
+            quit;
+
+            %let numReda = %sysfunc(countw(&redaList));
+
+            %do i = 1 %to &numReda;
+                %let currentReda = %scan(&redaList, &i);
+                /* Invoke the criteria validation program for each REDA */
+                %include "/path/to/validation/criteria_validation_&currentCriteria..sas"; /* Customize path */
+            %end;
+        ));
+    run;
+%mend process_entries;
+
+%process_entries;
