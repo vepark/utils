@@ -1,0 +1,94 @@
+/* Define macro variables for file paths */
+%let inputFilePath = /path/to/excel_file.xlsx;
+%let emailTablePath = /path/to/email_table.sas7bdat;
+%let permDataPath = /path/to/permanent/dataset.sas7bdat;
+%let sharedDrivePath = \\path\to\shared\drive;
+%let linuxFolderPath = /path/to/linux/folder;
+
+/* Define librefs */
+libname excel "&inputFilePath";
+libname emails "&emailTablePath";
+libname perm "&permDataPath";
+
+/* Step 1: Import new entries from Excel */
+proc import out=work.new_entries
+            datafile=excel."Sheet1$" /* Specify your actual sheet name */
+            dbms=xlsx
+            replace;
+run;
+
+/* Step 2: Load and compare with permanent dataset */
+proc sql;
+    create table work.new_only as 
+    select a.*, b.email as reviewerEmail
+    from work.new_entries as a
+    left join perm.entries as b on a.REDA = b.REDA
+    where b.recordID is null;
+quit;
+
+/* Capture start datetime */
+%let startDateTime = %sysfunc(datetime(), datetime21.);
+
+/* Step 3: Verify file existence and prepare for NDM transfer */
+%macro verify_and_transfer;
+    data _null_;
+        set work.new_only;
+        file log;
+        array files file1-file5;
+        do over files;
+            if not missing(files) then do;
+                if fexist(cats("&sharedDrivePath\", REDA, "\", files)) then do;
+                    /* Placeholder: Insert NDM transfer command here */
+                    put "INFO: Transferring file: " files " for REDA: " REDA;
+                end;
+                else do;
+                    /* Send alert email for missing file */
+                    %send_email(reviewerEmail, REDA, files, "Missing");
+                end;
+            end;
+        end;
+    run;
+%mend verify_and_transfer;
+
+%verify_and_transfer;
+
+/* Step 4: Iterate through new entries for validation */
+%macro process_entries;
+    data _null_;
+        set work.new_only;
+        by REDA;
+        if first.REDA then do;
+            /* Call validation script for each criteria */
+            %include "/path/to/validation/criteriavalidation&Criteria..sas"; /* Customize path and naming */
+        end;
+    run;
+%mend process_entries;
+
+%process_entries;
+
+/* Capture end datetime */
+%let endDateTime = %sysfunc(datetime(), datetime21.);
+
+/* Step 5: Log process */
+data process_log;
+    format startDateTime endDateTime datetime21.;
+    startDateTime = "&startDateTime"d;
+    endDateTime = "&endDateTime"d;
+    output;
+run;
+
+/* Email notification macro */
+%macro send_email(emailAddr, REDA, file, status);
+    filename mail email "mailto:&emailAddr."
+             subject="File Transfer Notification"
+             from="your.email@example.com";
+    data _null_;
+        file mail;
+        put "REDA: &REDA.";
+        put "File: &file.";
+        put "Status: &status.";
+    run;
+%mend send_email;
+
+/* Update the permanent dataset */
+proc append base=perm.entries data=work.new_entries force; run;
