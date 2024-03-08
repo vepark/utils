@@ -1,0 +1,87 @@
+/* Define macro variables for file paths and email settings */
+%let inputFilePath = /path/to/excel_file.xlsx;
+%let permDataPath = /path/to/permanent/dataset.sas7bdat;
+%let emailTablePath = /path/to/email_table.sas7bdat;
+%let sharedDrivePath = \\path\to\shared\drive;
+%let linuxFolderPath = /path/to/linux/folder;
+%let smtpServer = smtp.example.com;
+
+/* Setup libnames */
+libname excel "&inputFilePath";
+libname perm "&permDataPath";
+libname emailDB "&emailTablePath";
+
+/* Step 1: Import Excel file */
+proc import out=work.new_entries
+            datafile="&inputFilePath"
+            dbms=xlsx
+            replace;
+run;
+
+/* Step 2: Compare and find new entries */
+proc sql;
+    create table work.new_only as 
+    select a.* 
+    from work.new_entries a
+    where not exists (select 1 from perm.entries b where a.recordID = b.recordID);
+quit;
+
+/* Step 3: Verify files existence and prepare for NDM transfer */
+%macro verify_and_transfer(REDA, FileList);
+    /* Detailed file verification and transfer logic goes here */
+    %put Verifying and transferring files for REDA: &REDA...;
+%mend;
+
+/* Step 4: Process new entries and execute validations */
+%macro process_entries;
+    %local i n email REDA Criteria;
+    %let n = %sysfunc(countw(%sysfunc(attrn(work.new_only, nobs))));
+
+    %do i=1 %to &n;
+        data _null_;
+            set work.new_only point=&i nobs=n;
+            call symputx('REDA', REDA);
+            call symputx('Criteria', Criteria);
+            /* Assume EmailDB has REDA and Email columns */
+            if exists(select Email from emailDB.emails where REDA="&REDA") then do;
+                select Email into :email from emailDB.emails where REDA="&REDA";
+            end;
+        run;
+
+        /* Verify and Transfer Files */
+        %verify_and_transfer(&REDA, File1-File5);
+
+        /* Criteria Validation */
+        %include "/path/to/criteria/criteriaValidation&Criteria..sas";
+    %end;
+%mend process_entries;
+
+%process_entries;
+
+/* Step 5: Email Notification */
+%macro send_email(emailAddr, message);
+    filename mail email "&emailAddr" subject="Validation Notification";
+    data _null_;
+        file mail;
+        put "&message";
+    run;
+%mend send_email;
+
+/* Additional placeholder for specific pass/fail message composition */
+/* %send_email(emailAddr=&email, message=Pass or Fail message); */
+
+/* Step 6: Finalization and Logging */
+%let startDateTime = %sysfunc(datetime(), datetime22.);
+/* Processing logic */
+%let endDateTime = %sysfunc(datetime(), datetime22.);
+
+data process_log;
+    format startDateTime endDateTime datetime22.;
+    startDateTime = "&startDateTime"d;
+    endDateTime = "&endDateTime"d;
+    /* Additional logging details */
+    output;
+run;
+
+/* Update Permanent Dataset */
+proc append base=perm.entries data=work.new_entries force; run;
