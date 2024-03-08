@@ -1,0 +1,25 @@
+%macro verify_and_transfer;
+    data _null_;
+        set work.new_only;
+        array files(*) File1-File5;
+        do i = 1 to dim(files);
+            if not missing(files(i)) then do;
+                file_path = cats("&sharedDrivePath\", trim(REDA), "\", trim(files(i)));
+                if fexist(trim(file_path)) then do;
+                    /* Log or prepare the file for transfer */
+                    call execute(cats('ndmcli submit process snode=local snodeid=myid snodewd=', 
+                                      '"', trim("&linuxFolderPath"), '"', 
+                                      ' sfile=', trim(files(i)), 
+                                      ' dnode=remote dnodeid=theirid dnodewd="', 
+                                      trim("&sharedDrivePath\", trim(REDA)), '"'));
+                end;
+                else do;
+                    /* Placeholder for sending email alert */
+                    call execute(cats('%send_email(', trim(email), ',', trim(REDA), ',', trim(files(i)), ', "Missing")'));
+                end;
+            end;
+        end;
+    run;
+%mend verify_and_transfer;
+
+%verify_and_transfer;
