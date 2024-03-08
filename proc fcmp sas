@@ -1,0 +1,12 @@
+proc fcmp outlib=work.funcs.pyfuncs;
+   function run_python_script() $;
+      rc = system("python /path/to/hello.py");
+      return(rc);
+   endsub;
+quit;
+
+options cmplib=work.funcs;
+data _null_;
+   rc = run_python_script();
+   put rc=;
+run;
