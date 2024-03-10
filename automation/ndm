@@ -7,3 +7,14 @@ ndmcli submit proc=snode -xlate no -direct no -submit
   PNODEPWD=myWindowsPassword,
   FILE=C:\path\to\example.txt,
   PATH=/unix/path/to/destination
+
+
+
+
+SUBMIT process
+  SNODE=unixServer, 
+  SNODEID=unixUser, 
+  PNODE=windowsServer,
+  PNODEID=windowsUser,
+  COPY FROM (FILE=windowsFilePath)
+       TO (FILE=unixFilePath DISP=NEW);
