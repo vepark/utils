@@ -1,0 +1,9 @@
+ndmcli submit proc=snode -xlate no -direct no -submit
+  SNODE=myUnixServer,
+  SNODEID=myUnixUser,
+  SNODEPWD=myUnixPassword,
+  PNODE=myWindowsServer,
+  PNODEID=myWindowsUser,
+  PNODEPWD=myWindowsPassword,
+  FILE=C:\path\to\example.txt,
+  PATH=/unix/path/to/destination
