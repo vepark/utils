@@ -1,0 +1,22 @@
+/* Check if all specified variables have any non-missing value */
+data _null_;
+    set your_dataset end=last;
+    /* Create a flag that is 1 if any of the specified variables is non-missing, 0 otherwise */
+    flag = (cmiss(of file1-file5) < 5); /* Adjust the range according to your variables */
+    call symputx('anyValue', flag); /* Update the macro variable anyValue with the flag */
+    if last and flag = 0 then call symputx('runMacro', 'Yes');
+    else if last then call symputx('runMacro', 'No');
+run;
+
+%macro checkAndRun;
+    %if &runMacro = Yes %then %do;
+        /* Your conditional macro code here */
+        %put Running conditional macro because all specified variables are missing.;
+    %end;
+    %else %do;
+        %put No need to run the conditional macro. At least one variable has a value.;
+    %end;
+%mend checkAndRun;
+
+/* Execute the macro */
+%checkAndRun;
