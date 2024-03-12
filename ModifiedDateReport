@@ -1,0 +1,61 @@
+import os
+from datetime import datetime, timedelta
+import openpyxl
+from openpyxl import Workbook
+import smtplib
+from email.message import EmailMessage
+
+def scan_drive(base_path):
+    files_to_record = []
+    today = datetime.now()
+    threshold_date = today - timedelta(days=24*30)
+    
+    for root, dirs, files in os.walk(base_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+            if mod_time < threshold_date:
+                files_to_record.append((today.strftime("%Y-%m-%d"), file, file_path, mod_time.strftime("%Y-%m-%d")))
+    return files_to_record
+
+def create_excel(data, filename="Files_Not_Modified.xlsx"):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Files Not Modified in 24 Months"
+    ws.append(["Date Assessed", "Filename", "Absolute Path", "File Modified Date"])
+    for row in data:
+        ws.append(row)
+    wb.save(filename)
+    return filename
+
+def send_email_with_attachment(recipient, subject, body, attachment_path):
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = 'your_email@gmail.com'  # Change to your email
+    msg['To'] = recipient
+    msg.set_content(body)
+
+    with open(attachment_path, 'rb') as f:
+        file_data = f.read()
+        file_name = os.path.basename(f.name)
+    msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=file_name)
+
+    # Login and send the email
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login('your_email@gmail.com', 'your_password')  # Change to your email and password
+        smtp.send_message(msg)
+
+if __name__ == "__main__":
+    base_path = "path_to_your_shared_drive"  # Change this to your shared drive path
+    files_to_record = scan_drive(base_path)
+    excel_file_path = create_excel(files_to_record)
+    print("Excel file created successfully.")
+    
+    # Send the email
+    send_email_with_attachment(
+        recipient='abc@text.com',
+        subject='Files Not Modified in 24 Months',
+        body='Attached is the Excel file listing files not modified in the last 24 months.',
+        attachment_path=excel_file_path
+    )
+    print("Email sent successfully.")
