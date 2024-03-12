@@ -59,3 +59,60 @@ if __name__ == "__main__":
         attachment_path=excel_file_path
     )
     print("Email sent successfully.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Temporary dataset to store file info */
+data work.fileinfo(drop=rc filename fileref);
+    length path $256.;
+    length name $256.;
+    length modDate $20.;
+    /* Modify the 'dir' command to fit your environment */
+    rc = filename(fileref, 'dir "<Your-Directory-Path>" /s/b');
+    rc = fopen(fileref, 's');
+    do while (rc = 0);
+        rc = fread(fileref);
+        rc = fget(fileref, path, $256.);
+        name = scan(path, -1, '\');
+        /* Get file modified date */
+        modDate = put(finfo(fileref, 'Last Modified'), datetime20.);
+        output;
+        rc = fclose(fileref);
+        rc = filename(fileref, 'dir "<Your-Directory-Path>" /s/b');
+        rc = fopen(fileref, 's');
+    end;
+    rc = fclose(fileref);
+run;
+
+
+
+proc export data=work.fileinfo
+    outfile="C:\path\to\your\files_not_modified.xlsx"
+    dbms=xlsx
+    replace;
+run;
+
+
+
+/* Set up email */
+filename mymail email
+    to=("abc@text.com")
+    subject="Files Not Modified in 24 Months Report"
+    attach=("C:\path\to\your\files_not_modified.xlsx" type="application/xlsx");
+
+/* Send the email */
+data _null_;
+    file mymail;
+    put "Find attached the report of files not modified in the last 24 months.";
+run;
+
