@@ -1,46 +1,66 @@
 import fitz  # PyMuPDF
+import os
 import re
-from collections import Counter
+import pandas as pd
 from nltk.corpus import words
 from nltk.tokenize import word_tokenize
-from nltk import download
+from collections import Counter
+import nltk
 
-# Download the 'words' corpus if not already available
-download('words')
-download('punkt')
+# Ensure necessary NLTK data is available
+nltk.download('punkt')
+nltk.download('words')
 
-# Set of English words for filtering
+# Prepare the set of English words
 english_words = set(words.words())
 
-def extract_text_from_pdf(pdf_path):
-    """Extract all text from a PDF file."""
-    doc = fitz.open(pdf_path)
+def process_pdf_file(file_path, start_phrase, end_phrase):
+    """
+    Process a single PDF file to extract the section between start_phrase and end_phrase,
+    remove English words, keep uppercase with underscore and dot, and count occurrences.
+    """
+    # Open the PDF and extract all text
+    doc = fitz.open(file_path)
     text = ""
     for page in doc:
         text += page.get_text()
-    return text
-
-def remove_english_words(text):
-    """Remove all English words from the text."""
-    tokens = word_tokenize(text)
-    filtered_text = ' '.join([word for word in tokens if word.lower() not in english_words])
-    return filtered_text
-
-def find_db_table_combinations(text):
-    """Find all uppercase patterns that look like DB_TABLE combinations."""
-    pattern = r'\b[A-Z]+_[A-Z]+\b'
-    return re.findall(pattern, text)
-
-def main(pdf_path):
-    text = extract_text_from_pdf(pdf_path)
-    non_english_text = remove_english_words(text)
-    db_table_combinations = find_db_table_combinations(non_english_text)
+    doc.close()
     
-    # Count occurrences and organize
-    counts = Counter(db_table_combinations)
-    for combo, count in counts.most_common():
-        print(f"{combo}: {count}")
+    # Extract the relevant section
+    try:
+        start_idx = text.index(start_phrase) + len(start_phrase)
+        end_idx = text.index(end_phrase, start_idx)
+        relevant_section = text[start_idx:end_idx]
+    except ValueError:
+        # If start or end phrase not found, skip this file
+        return Counter()
+    
+    # Tokenize, filter, and count database.table patterns
+    tokens = word_tokenize(relevant_section)
+    filtered_tokens = [token for token in tokens if re.match(r'^[A-Z]+_[A-Z]+\.[A-Z]+$', token) and token.lower() not in english_words]
+    return Counter(filtered_tokens)
 
-if __name__ == "__main__":
-    pdf_path = 'path/to/your/document.pdf'  # Change this to the path of your PDF file
-    main(pdf_path)
+def process_folder(folder_path, start_phrase, end_phrase, output_path):
+    """
+    Process all PDF files in a folder, extracting and counting database.table combinations.
+    """
+    results = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.pdf'):
+            file_path = os.path.join(folder_path, filename)
+            counts = process_pdf_file(file_path, start_phrase, end_phrase)
+            for db_table, count in counts.items():
+                results.append({'Filename': filename, 'DatabaseTable': db_table, 'Count': count})
+    
+    # Save the results to an Excel file
+    df = pd.DataFrame(results)
+    df.to_excel(output_path, index=False)
+
+# Configuration
+folder_path = '/path/to/pdf/folder'
+start_phrase = 'Start of the section'
+end_phrase = 'End of the section'
+output_path = '/path/to/output/results.xlsx'
+
+# Process the folder and save results to an Excel file
+process_folder(folder_path, start_phrase, end_phrase, output_path)
