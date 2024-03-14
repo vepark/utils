@@ -1,0 +1,16 @@
+proc python;
+submit;
+import pandas as pd
+
+# Generate a dataset with numbers and their squares
+data = {'Number': range(1, 11),
+        'Square': [x**2 for x in range(1, 11)]}
+df = pd.DataFrame(data)
+
+# Print the DataFrame to SAS log
+print(df)
+
+# Save the dataset to a CSV file
+df.to_csv('/your/path/numbers_and_squares.csv', index=False)
+endsubmit;
+run;
