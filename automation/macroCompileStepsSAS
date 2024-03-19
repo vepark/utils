@@ -1,0 +1,23 @@
+/* Set the path to your macro catalog directory */
+%let macroCatalogPath = /path/to/your/macro/catalog/directory;
+
+/* Assign a libref to the macro catalog location, attempting to clear it first */
+%macro safeLibnameAssign(libref=, path=);
+    %if %sysfunc(libref(&libref)) = 0 %then %do;
+        libname &libref clear;
+    %end;
+    libname &libref "&path";
+%mend safeLibnameAssign;
+
+%safeLibnameAssign(libref=mymacros, path=&macroCatalogPath);
+
+/* Specify the catalog for stored compiled macros */
+options mstored sasmstore=mymacros;
+
+/* Define your macro */
+%macro greetUser(username) / store;
+    %put Hello, &username. Welcome to SAS!;
+%mend greetUser;
+
+/* Example usage */
+%greetUser(SASUser);
