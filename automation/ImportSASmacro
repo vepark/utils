@@ -1,0 +1,33 @@
+%macro importExeDataFile(ID=, criteria=);
+    %let basePath=/path/to/your/directory; /* Base path of the directory */
+    %let directory=&basePath/&ID; /* Append ID to path for the subdirectory */
+
+    /* Ensure the directory path does not end with a slash */
+    %let directory=%sysfunc(ifc(%sysfunc(substr(&directory, %length(&directory)))=/, 
+                      %sysfunc(substr(&directory, 1, %eval(%length(&directory)-1))), 
+                      &directory));
+
+    /* Step 1: Identify the Excel file within the subdirectory containing 'Exe_Data' in its name */
+    filename filelist pipe "ls &directory/*Exe_Data*.xlsx -t | head -1";
+    data _null_;
+        length fpath $256;
+        infile filelist length=len;
+        input fpath $varying256. len;
+        /* Construct the full path with correct handling for the directory */
+        call symputx('latestFile', "&directory/" || trim(fpath));
+        stop; /* Stop after reading the first line, which is the latest file */
+    run;
+
+    %let outDatasetName=&ID._&criteria._Exe_Data; /* Construct the dataset name */
+
+    /* Step 2: Import the identified Excel file */
+    %put NOTE: Importing file &latestFile. into dataset &outDatasetName.;
+    proc import datafile="&latestFile."
+        out=&outDatasetName
+        dbms=xlsx
+        replace;
+    run;
+%mend importExeDataFile;
+
+/* Example Usage */
+%importExeDataFile(ID=subfolder1, criteria=YourCriteria);
