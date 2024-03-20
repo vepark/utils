@@ -1,0 +1,13 @@
+%macro set_permissions(path=);
+    /* Use the X statement or call execute to issue system commands from SAS */
+    %let rc = %sysfunc(system(chmod -R 777 &path));
+    %if &rc = 0 %then %do;
+        %put NOTE: Permissions set successfully for &path.;
+    %end;
+    %else %do;
+        %put ERROR: Unable to set permissions for &path. RC=&rc.;
+    %end;
+%mend set_permissions;
+
+/* Example usage of the macro to set permissions */
+%set_permissions(path=/path/to/your/directory);
