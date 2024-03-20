@@ -1,0 +1,27 @@
+import saspy
+
+# Establish a connection to SAS
+sas = saspy.SASsession(cfgname='winlocal')  # Adjust cfgname as per your saspy configuration
+
+# Create a simple dataset in SAS
+sas_code = """
+data work.sample;
+    input Name $ Age Height Weight;
+    datalines;
+    John 24 72 180
+    Jane 30 65 120
+    Doe 22 70 150
+;
+"""
+sas.submit(sas_code)
+
+# Use SAS to calculate the mean of the 'Age' column
+mean_age_code = """
+proc means data=work.sample mean;
+    var Age;
+run;
+"""
+result = sas.submit(mean_age_code)
+
+# Print the result
+print(result['LOG'])  # Adjust to 'LST' to see the list output if needed
