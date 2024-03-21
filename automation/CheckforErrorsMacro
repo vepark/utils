@@ -1,0 +1,22 @@
+%macro check_for_errors(logpath, email_recipients);
+
+    /* Temporarily hold the count of error lines */
+    %let err_count = 0;
+
+    /* Read the log file and search for 'ERROR:' */
+    data _null_;
+        infile "&logpath";
+        input;
+        if _infile_ contains 'ERROR:' then call symput('err_count', '1');
+    run;
+
+    /* If errors are found, trigger an email alert */
+    %if &err_count > 0 %then %do;
+        filename mail email to="&email_recipients" subject="Error in SAS Program" type="text/plain";
+        data _null_;
+            file mail;
+            put "Errors were detected in the SAS program. Please check the log file for details.";
+        run;
+    %end;
+
+%mend check_for_errors;
