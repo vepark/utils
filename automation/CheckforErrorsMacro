@@ -1,11 +1,21 @@
-%macro check_for_errors(logpath, email_recipients);
+%macro check_for_errors_and_notify(email_recipients);
+
+    /* Redirect the log output to a specific file */
+    filename logtemp temp;
+    proc printto log=logtemp;
+    run;
+
+    /* SAS code here - Placeholder for your SAS code that might generate errors */
+
+    /* Reset log output to default */
+    proc printto; run; /* This resets the log output to the original location */
 
     /* Temporarily hold the count of error lines */
     %let err_count = 0;
 
-    /* Read the log file and search for 'ERROR:' */
+    /* Read the temporary log file and search for 'ERROR:' */
     data _null_;
-        infile "&logpath";
+        infile logtemp;
         input;
         if _infile_ contains 'ERROR:' then call symput('err_count', '1');
     run;
@@ -15,8 +25,14 @@
         filename mail email to="&email_recipients" subject="Error in SAS Program" type="text/plain";
         data _null_;
             file mail;
-            put "Errors were detected in the SAS program. Please check the log file for details.";
+            put "Errors were detected in the SAS program. Please check the log for details.";
         run;
     %end;
 
-%mend check_for_errors;
+    /* Clean up */
+    filename logtemp clear;
+
+%mend check_for_errors_and_notify;
+
+/* Example usage of the macro */
+%check_for_errors_and_notify(email_recipients=example@example.com);
