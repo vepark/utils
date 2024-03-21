@@ -1,0 +1,25 @@
+import os
+import re
+
+# Define the path to the directory containing the Excel files
+directory_path = '/path/to/your/excel/files'
+
+# This regular expression matches an 8-digit number, possibly surrounded by underscores
+pattern = re.compile(r'_?(\d{8})_?')
+
+# Initialize a list to hold all the 8-digit numbers
+numbers_list = []
+
+# Iterate over each file in the directory
+for filename in os.listdir(directory_path):
+    if filename.endswith('.xls') or filename.endswith('.xlsx'):
+        # Search for the pattern in the filename
+        match = pattern.search(filename)
+        if match:
+            # If a match is found, add the 8-digit number to the list
+            numbers_list.append(match.group(1))
+
+# Join the list of numbers into a string separated by commas
+numbers_string = ','.join(numbers_list)
+
+print(numbers_string)
