@@ -15,26 +15,36 @@ id_mapping = pd.read_csv(id_mapping_file)
 pattern = re.compile(r'_?(\d{8})_?')
 
 def get_target_folder(id1):
-    # Find the ID2 corresponding to the ID1
-    id2 = id_mapping.loc[id_mapping['ID1'] == id1, 'ID2'].values[0]
-    # Remove the hyphen from ID2 for folder naming
-    folder_name = id2.replace('-', '')
-    return os.path.join(main_target_directory, folder_name)
+    try:
+        # Find the ID2 corresponding to the ID1
+        id2_row = id_mapping.loc[id_mapping['ID1'].astype(str) == str(id1), 'ID2']
+        if not id2_row.empty:
+            id2 = id2_row.values[0]
+            # Remove the hyphen from ID2 for folder naming
+            folder_name = id2.replace('-', '')
+            return os.path.join(main_target_directory, folder_name)
+        else:
+            print(f"No ID2 found for ID1: {id1}")
+            return None
+    except Exception as e:
+        print(f"Error processing ID1 {id1}: {e}")
+        return None
+
 
 # Iterate over each file in the directory
 for filename in os.listdir(source_directory):
     if filename.endswith('.xls') or filename.endswith('.xlsx'):
-        # Search for the pattern in the filename
         match = pattern.search(filename)
         if match:
             id1 = match.group(1)
-            # Determine the target folder based on ID1
             target_folder = get_target_folder(id1)
-            # Create the target folder if it doesn't exist
-            if not os.path.exists(target_folder):
-                os.makedirs(target_folder)
-            # Move the file
-            shutil.move(os.path.join(source_directory, filename),
-                        os.path.join(target_folder, filename))
+            if target_folder:  # Proceed only if target_folder is not None
+                # Create the target folder if it doesn't exist
+                if not os.path.exists(target_folder):
+                    os.makedirs(target_folder)
+                # Move the file
+                shutil.move(os.path.join(source_directory, filename),
+                            os.path.join(target_folder, filename))
+            else:
+                print(f"Skipping file: {filename} due to missing target folder.")
 
-print("Files have been moved to their respective folders.")
