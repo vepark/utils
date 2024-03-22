@@ -1,0 +1,31 @@
+import os
+import pandas as pd
+
+# Define the main directory containing the subfolders
+main_directory = '/path/to/main/directory'
+
+# Initialize an empty list to store the data
+data = []
+
+# Iterate over each subfolder in the main directory
+for folder_name in os.listdir(main_directory):
+    folder_path = os.path.join(main_directory, folder_name)
+    if os.path.isdir(folder_path):  # Ensure it's a folder
+        files = os.listdir(folder_path)
+        if files:  # Check if the folder is not empty
+            # Assuming you want to list only the first file found as File1
+            data.append({'ID2': folder_name, 'File1': files[0]})
+        else:
+            # If the folder is empty, still record the folder name with no file
+            data.append({'ID2': folder_name, 'File1': None})
+
+# Convert the list of dictionaries into a DataFrame
+df = pd.DataFrame(data)
+
+# Specify the filename and path for the output Excel file
+output_excel_file = '/path/to/output/folder_name_files.xlsx'
+
+# Write the DataFrame to an Excel file
+df.to_excel(output_excel_file, index=False)
+
+print(f'Excel file has been created: {output_excel_file}')
