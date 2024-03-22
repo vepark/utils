@@ -1,0 +1,37 @@
+%macro check_files_and_notify;
+
+/* Step 1: Read the dataset and create a temporary dataset to check for file presence */
+data _temp;
+    set your_dataset; /* Replace 'your_dataset' with the name of your actual dataset */
+    /* Create a flag to indicate the presence of files. Assume no files initially */
+    file_present = 0; 
+    array files_array(*) File1-File5; /* Assuming your columns are named File1, File2, ..., File5 */
+    do i = 1 to dim(files_array);
+        if not missing(files_array(i)) then do;
+            file_present = 1;
+            leave; /* Exit the loop as soon as a file is found */
+        end;
+    end;
+    drop i;
+run;
+
+/* Step 2: Send an email to IDs with no files */
+proc sql noprint;
+    select count(*) into :count_missing from _temp where file_present = 0;
+quit;
+
+%if &count_missing > 0 %then %do;
+    data _null_;
+        set _temp;
+        where file_present = 0;
+        file sendit email="&email_addr" /* &email_addr should be replaced with the email column */
+             to=("&email_addr") /* Actual recipient's email address */
+             subject="Missing Files Notification";
+        put "Dear user,";
+        put "We have noticed that no files are listed under your ID. Please check and update the records.";
+    run;
+%end;
+
+%mend check_files_and_notify;
+
+%check_files_and_notify;
