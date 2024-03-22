@@ -29,3 +29,37 @@ output_excel_file = '/path/to/output/folder_name_files.xlsx'
 df.to_excel(output_excel_file, index=False)
 
 print(f'Excel file has been created: {output_excel_file}')
+
+
+
+
+
+
+
+
+
+# Define the main directory containing the subfolders
+$mainDirectory = "C:\path\to\main\directory"
+
+# Define the path and filename for the output CSV file
+$outputCsvFile = "C:\path\to\output\folder_name_files.csv"
+
+# Create or overwrite the CSV file with headers
+"ID2,File1" | Out-File -FilePath $outputCsvFile -Encoding UTF8
+
+# Iterate over each subfolder in the main directory
+Get-ChildItem -Path $mainDirectory -Directory | ForEach-Object {
+    $folderName = $_.Name
+    $folderPath = $_.FullName
+
+    # Get the first file in the folder
+    $file = Get-ChildItem -Path $folderPath -File | Select-Object -First 1
+
+    # Prepare the line to be added to the CSV
+    $line = $folderName + "," + ($file.Name -replace ',', ';')  # Replace commas to avoid CSV format issues
+
+    # Append the line to the CSV file
+    $line | Out-File -FilePath $outputCsvFile -Encoding UTF8 -Append
+}
+
+Write-Host "CSV file has been created: $outputCsvFile"
