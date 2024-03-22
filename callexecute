@@ -1,0 +1,6 @@
+data _null_;
+    set thatdataset;
+    call execute(cats('%notificationEmail(emailAddr=', quote(trim(emailAddr)), 
+                      ', name=', quote(trim(name)), 
+                      ', ID=', quote(trim(ID)), ');'));
+run;
