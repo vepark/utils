@@ -1,0 +1,22 @@
+# Define the path to the root folder and output CSV file
+$rootPath = "C:\Your\Root\Directory"
+$outputCsv = "C:\Path\To\output.csv"
+
+# Collect the data
+$data = @()
+Get-ChildItem -Path $rootPath -Directory | ForEach-Object {
+    $mainFolder = $_
+    Get-ChildItem -Path $_.FullName -Directory | ForEach-Object {
+        $subFolder = $_
+        $files = Get-ChildItem -Path $_.FullName -File -Recurse | Select-Object -ExpandProperty Name
+        if($files -eq $null) { $files = "No Files" }
+        $data += [PSCustomObject]@{
+            MainFolder = $mainFolder.Name
+            SubFolder = $subFolder.Name
+            Files = ($files -join ", ")
+        }
+    }
+}
+
+# Export the data to a CSV file
+$data | Export-Csv -Path $outputCsv -NoTypeInformation
