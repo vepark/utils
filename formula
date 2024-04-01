@@ -1,3 +1,14 @@
+TEXTJOIN(", ", TRUE, IF(ISNUMBER(SEARCH("workbook", FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"))), FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"), ""))
+
+
+TEXTJOIN(", ", TRUE, IF(ISNUMBER(SEARCH("clear", FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"))), FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"), ""))
+
+
+TEXTJOIN(", ", TRUE, IF(ISNUMBER(SEARCH("Evidence_document", FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"))), FILTERXML("<t><s>" & SUBSTITUTE(C2, ", ", "</s><s>") & "</s></t>", "//s"), ""))
+
+
+
+
 =IFERROR(INDEX($D$2:$D$51, MAX(IF(ISNUMBER(SEARCH($B$2:$B$51, A2)) * ROW($B$2:$B$51), ROW($B$2:$B$51) - ROW($B$2) + 1, 0))), 0)
 =IFERROR(INDEX($N$2:$N$117, SMALL(IF(ISNUMBER(SEARCH($L$2:$L$117, T2)) * ROW($L$2:$L$117), ROW($L$2:$L$117) - ROW($L$2) + 1), 1)), "")
 
