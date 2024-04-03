@@ -1,0 +1,36 @@
+import os
+import re
+import pandas as pd
+
+def extract_4_digit_numbers(directory):
+    numbers = []
+    # Regex to find 4-digit numbers
+    pattern = r'\b\d{4}\b'
+    
+    # Walk through all files in the specified directory
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            if file.endswith('.txt'):  # assuming you are looking in .txt files
+                filepath = os.path.join(root, file)
+                with open(filepath, 'r') as f:
+                    content = f.read()
+                    found_numbers = re.findall(pattern, content)
+                    numbers.extend(found_numbers)
+    
+    # Add "REDA-" prefix and sort numbers
+    modified_numbers = sorted(["REDA-" + num for num in numbers])
+    
+    return modified_numbers
+
+# Specify the directory where your files are located
+directory = 'path/to/your/directory'
+
+# Extract numbers, modify them, and sort
+modified_numbers = extract_4_digit_numbers(directory)
+
+# Create a DataFrame
+df = pd.DataFrame(modified_numbers, columns=['ID'])
+
+# Save to Excel file
+excel_file = 'output.xlsx'
+df.to_excel(excel_file, index=False)
