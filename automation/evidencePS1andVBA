@@ -55,8 +55,7 @@ Sub CallPowerShellAndImportData()
     Dim driveLetter As String, mainFolders As String, subFolders As String
     
     ' Define the path to the PowerShell script
-    ' Update this path to where you've saved YourScript.ps1
-    psScriptPath = "\\SharedDrive\Path\To\YourScript.ps1"  ' Example: "\\server\share\folder\YourScript.ps1" or "C:\folder\YourScript.ps1"
+    psScriptPath = "C:\Path\To\YourScript.ps1"  ' Adjust this path to your actual PowerShell script location
     
     ' Define the output path for the CSV file
     csvOutputPath = Environ("TEMP") & "\output.csv"
@@ -66,21 +65,52 @@ Sub CallPowerShellAndImportData()
     mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
     subFolders = InputBox("Enter sub-folder names (comma-separated):", "Sub Folders")
     
-    ' Prepare the PowerShell command. Note how the psScriptPath variable is used here.
+    ' Prepare the PowerShell command
     command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
               """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
     
-    ' Create and run the command with waiting on return
+    ' Create and run the command
     Set shell = CreateObject("WScript.Shell")
     shell.Run command, 0, True
     
-    ' Optionally, you might want to add a delay or check for the existence of the output file before proceeding
-    ' This is a simple wait loop to give PowerShell time to finish and create the CSV file.
-    Application.Wait Now + TimeValue("0:00:10")  ' Wait for 10 seconds; adjust as needed based on expected script runtime.
+    ' Simple delay to ensure PowerShell script has time to finish
+    ' Consider implementing a more robust check for the script's completion
+    Application.Wait (Now + TimeValue("0:00:05"))
     
-    ' Import the CSV data into a new worksheet
+    ' Call the subroutine to import the CSV into a new worksheet
     ImportCsvData csvOutputPath
+End Sub
+
+Sub ImportCsvData(csvFilePath As String)
+    Dim ws As Worksheet
+    Dim qt As QueryTable
+    Dim lastRow As Long, i As Long
+    Dim cell As Range
+
+    ' Create a new worksheet for the imported data
+    Set ws = ThisWorkbook.Sheets.Add
+    ws.Name = "PowerShell Results"
+
+    ' Import the CSV file into the new worksheet
+    Set qt = ws.QueryTables.Add(Connection:="TEXT;" & csvFilePath, Destination:=ws.Range("A1"))
+    With qt
+        .TextFileParseType = xlDelimited
+        .TextFileCommaDelimiter = True
+        .Refresh
+    End With
     
-    ' Inform the user that the operation is complete
-    MsgBox "All done! Results have been entered into the sheet.", vbInformation
+    ' Find the last row with data in column A (assuming data starts in column A)
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    ' Loop through each row and apply formatting if "NO FILES FOUND" is present
+    For i = 1 To lastRow
+        For Each cell In ws.Range("C" & i & ":E" & i) ' Check specific columns for "NO FILES FOUND"
+            If cell.Value = "NO FILES FOUND" Then
+                cell.Interior.Color = RGB(255, 0, 0) ' Color the cell red
+            End If
+        Next cell
+    Next i
+    
+    ' Notify the user that the process is complete
+    MsgBox "All done! The results have been imported and formatted.", vbInformation
 End Sub
