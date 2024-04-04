@@ -18,36 +18,47 @@ $results = @()
 foreach ($mainFolder in $mainFoldersArray) {
     $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder.Trim()
     
-    foreach ($subFolderPattern in $subFoldersArray) {
-        $subFolders = Get-ChildItem -Path $mainFolderPath -Directory | Where-Object { $_.Name -like "*$subFolderPattern*" }
-        
-        foreach ($subFolder in $subFolders) {
-            $filesPath = Join-Path -Path $subFolder.FullName -ChildPath "*"
-            
-            # Aggregating file names based on criteria
-            $workbookFiles = (Get-ChildItem -Path $filesPath -File | Where-Object { $_.Name -like '*workbook*.xlsx' -or $_.Name -like '*workbook*.xls' }).Name -join ", "
-            $clearanceFiles = (Get-ChildItem -Path $filesPath -File | Where-Object { $_.Name -like '*clear*.msg' }).Name -join ", "
-            $evidenceFiles = (Get-ChildItem -Path $filesPath -File | Where-Object { $_.Name -like '*evidence*document*.xlsx' -or $_.Name -like '*evidence*document*.xls' }).Name -join ", "
+    foreach ($subFolder in $subFoldersArray) {
+        # Reinitialize the variables for each subfolder processed
+        $workbookFiles = @()
+        $clearanceFiles = @()
+        $evidenceFiles = @()
 
-            # If no files found, set to "NO FILES FOUND"
-            if (-not $workbookFiles) { $workbookFiles = "NO FILES FOUND" }
-            if (-not $clearanceFiles) { $clearanceFiles = "NO FILES FOUND" }
-            if (-not $evidenceFiles) { $evidenceFiles = "NO FILES FOUND" }
+        $subFolderPath = Join-Path -Path $mainFolderPath -ChildPath $subFolder
+        $files = Get-ChildItem -Path $subFolderPath -File -Recurse
 
-            # Create a result object for each sub-folder
-            $result = [PSCustomObject]@{
-                MainFolder = $mainFolder
-                SubFolder = $subFolder.Name
-                WorkbookFiles = $workbookFiles
-                ClearanceFile = $clearanceFiles
-                EvidenceDocumentFile = $evidenceFiles
+        foreach ($file in $files) {
+            if ($file.Name -like '*workbook*.xlsx' -or $file.Name -like '*workbook*.xls') {
+                $workbookFiles += $file.Name
+            } elseif ($file.Name -like '*clear*.msg') {
+                $clearanceFiles += $file.Name
+            } elseif ($file.Name -like '*evidence*document*.xlsx' -or $file.Name -like '*evidence*document*.xls') {
+                $evidenceFiles += $file.Name
             }
-
-            # Add the result to the collection
-            $results += $result
         }
+
+        # Convert arrays to comma-separated strings, ensuring uniqueness
+        $workbooksStr = ($workbookFiles | Select-Object -Unique) -join ", "
+        $clearanceStr = ($clearanceFiles | Select-Object -Unique) -join ", "
+        $evidenceStr = ($evidenceFiles | Select-Object -Unique) -join ", "
+
+        # Check for empty results and replace them with "NO FILES FOUND"
+        if (-not $workbooksStr) { $workbooksStr = "NO FILES FOUND" }
+        if (-not $clearanceStr) { $clearanceStr = "NO FILES FOUND" }
+        if (-not $evidenceStr) { $evidenceStr = "NO FILES FOUND" }
+
+        $result = [PSCustomObject]@{
+            MainFolder = $mainFolder
+            SubFolder = $subFolder
+            WorkbookFiles = $workbooksStr
+            ClearanceFile = $clearanceStr
+            EvidenceDocumentFile = $evidenceStr
+        }
+        
+        # Output or accumulate $result as needed...
     }
 }
+
 
 # Export the collected results to a CSV file
 $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
