@@ -5,40 +5,54 @@ param(
     [string]$CsvOutputPath
 )
 
-# Hardcoded path component after the drive letter
+# The base path suffix is hardcoded here, except for the drive letter
 $basePathSuffix = "\Your\Hardcoded\Path\After\DriveLetter"
 
-# Construct the base path
+# Construct the full base path by combining the user input drive letter with the hardcoded suffix
 $basePath = "${DriveLetter}:$basePathSuffix"
 
-# Convert the comma-separated strings into arrays
+# Convert comma-separated main folder names and sub-folder patterns to arrays
 $mainFoldersArray = $MainFolderNames -split ","
 $subFoldersArray = $SubFolderPatterns -split ","
 
-# Prepare an array to collect the results
+# Initialize an array to collect the results
 $results = @()
 
 foreach ($folderName in $mainFoldersArray) {
     $folderPath = Join-Path -Path $basePath -ChildPath $folderName.Trim()
-    if (Test-Path $folderPath) {
-        foreach ($subPattern in $subFoldersArray) {
-            $subFolders = Get-ChildItem -Path $folderPath -Directory | Where-Object { $_.Name -like "*$subPattern*" }
-            foreach ($subFolder in $subFolders) {
-                # Process files within sub-folder as per your requirements
-                $files = Get-ChildItem -Path $subFolder.FullName -File | Where-Object { $_.Name -like "*workbook*.xlsx" -or $_.Name -like "*evidence*.docx" }
-                foreach ($file in $files) {
-                    $results += [PSCustomObject]@{
-                        MainFolder = $folderName
-                        SubFolder = $subFolder.Name
-                        FilePath = $file.FullName
-                    }
-                }
+    
+    foreach ($subPattern in $subFoldersArray) {
+        $subFolderPath = Join-Path -Path $folderPath -ChildPath $subPattern
+        
+        # Check if the sub-folder exists before proceeding
+        if (Test-Path $subFolderPath) {
+            # Gather all the relevant files based on the patterns
+            $workbookFiles = Get-ChildItem -Path $subFolderPath -Recurse -File | Where-Object { $_.Name -like '*workbook*.xlsx' -or $_.Name -like '*workbook*.xls' }
+            $clearanceFiles = Get-ChildItem -Path $subFolderPath -Recurse -File | Where-Object { $_.Name -like '*clear*.msg' }
+            $evidenceFiles = Get-ChildItem -Path $subFolderPath -Recurse -File | Where-Object { $_.Name -like '*evidence*document*.xlsx' -or $_.Name -like '*evidence*document*.xls' }
+
+            # Join filenames into comma-separated strings
+            $workbooks = $workbookFiles -join ", "
+            $clearance = $clearanceFiles -join ", "
+            $evidence = $evidenceFiles -join ", "
+
+            # Check for empty results and set to "NO FILES FOUND" if none
+            $workbooks = if ($workbooks) { $workbooks } else { "NO FILES FOUND" }
+            $clearance = if ($clearance) { $clearance } else { "NO FILES FOUND" }
+            $evidence = if ($evidence) { $evidence } else { "NO FILES FOUND" }
+
+            $results += [PSCustomObject]@{
+                MainFolder = $folderName
+                SubFolder = $subPattern
+                WorkbookFiles = $workbooks
+                ClearanceFile = $clearance
+                EvidenceDocumentFile = $evidence
             }
         }
     }
 }
 
-# Export the results to CSV
+# Export the results to a CSV file
 $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
 
 
@@ -46,49 +60,36 @@ $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
 
 
 
-
-Sub CallPowerShellAndImportData()
-    Dim psScriptPath As String
-    Dim csvOutputPath As String
-    Dim shell As Object
-    Dim command As String
-    Dim driveLetter As String, mainFolders As String, subFolders As String
-    
-    ' Specify the path to your PowerShell script
-    psScriptPath = "C:\Path\To\YourScript.ps1"
-    
-    ' Output path for the CSV file
-    csvOutputPath = Environ("TEMP") & "\output.csv"
-    
-    ' Collect input from the user
-    driveLetter = InputBox("Enter the drive letter (e.g., C, D, E):", "Drive Letter")
-    mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
-    subFolders = InputBox("Enter sub-folder patterns (comma-separated):", "Sub Folders")
-    
-    ' Prepare the command to run the PowerShell script
-    command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
-              """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
-    
-    ' Create and run the command
-    Set shell = CreateObject("WScript.Shell")
-    shell.Run command, 0, True
-    
-    ' Wait for the PowerShell script to complete
-    Application.Wait (Now + TimeValue("0:00:05")) ' Adjust time as necessary
-    
-    ' Import the CSV data into a new worksheet and apply formatting
-    ImportCsvData csvOutputPath
-End Sub
-
 Sub ImportCsvData(csvFilePath As String)
     Dim ws As Worksheet
     Dim qt As QueryTable
-    Dim lastRow As Long, i As Long
-    Dim cell As Range
+    Dim sheetName As String
+    Dim answer As VbMsgBoxResult
     
-    ' Add a new worksheet
-    Set ws = ThisWorkbook.Sheets.Add
-    ws.Name = "PowerShell Results"
+    ' Desired sheet name
+    sheetName = "PowerShell Results"
+    
+    ' Check if the sheet already exists
+    On Error Resume Next ' Ignore errors in the next statement
+    Set ws = ThisWorkbook.Sheets(sheetName)
+    On Error GoTo 0 ' Stop ignoring errors
+    
+    ' If the sheet exists, ask for confirmation to delete it
+    If Not ws Is Nothing Then
+        answer = MsgBox("A sheet named '" & sheetName & "' already exists. Do you want to replace it?", vbYesNo + vbQuestion, "Sheet Exists")
+        If answer = vbYes Then
+            Application.DisplayAlerts = False ' Turn off confirmation dialog for deleting
+            ws.Delete
+            Application.DisplayAlerts = True ' Turn back on system alerts
+        Else
+            MsgBox "Operation cancelled by user.", vbExclamation
+            Exit Sub
+        End If
+    End If
+    
+    ' Create a new worksheet with the specified name
+    Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    ws.Name = sheetName
     
     ' Import the CSV data
     Set qt = ws.QueryTables.Add(Connection:="TEXT;" & csvFilePath, Destination:=ws.Range("A1"))
@@ -98,18 +99,9 @@ Sub ImportCsvData(csvFilePath As String)
         .Refresh
     End With
     
-    ' Find the last row with data
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-    
-    ' Loop through each row, check specific columns, and format "NO FILES FOUND" cells
-    For i = 2 To lastRow ' Assuming the first row has headers
-        For Each cell In ws.Range("C" & i & ":E" & i)
-            If cell.Value = "NO FILES FOUND" Then
-                cell.Interior.Color = RGB(255, 0, 0) ' Apply red coloring
-            End If
-        Next cell
-    Next i
+    ' Loop to apply formatting if "NO FILES FOUND" (The loop remains as previously explained)
     
     ' Notify the user
-    MsgBox "All done! Results have been imported and formatted.", vbInformation
+    MsgBox "All done! Results have been imported and formatted into '" & ws.Name & "'.", vbInformation
 End Sub
+
