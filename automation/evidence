@@ -1,0 +1,71 @@
+import os
+import fnmatch
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.utils.dataframe import dataframe_to_rows
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+def find_matching_files(directory, patterns):
+    matching_files = {pattern: [] for pattern in patterns}
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            for pattern in patterns:
+                if fnmatch.fnmatch(file.lower(), pattern.lower()):
+                    file_path = os.path.join(root, file)
+                    matching_files[pattern].append(file_path)
+    return matching_files
+
+def adjust_column_width(ws):
+    for column_cells in ws.columns:
+        length = max(len(str(cell.value)) for cell in column_cells)
+        ws.column_dimensions[get_column_letter(column_cells[0].column)].width = length + 2
+
+def process_main_folder(main_folder_path, sub_folder_patterns, file_patterns):
+    data = []
+    # Convert main_folder_path to an absolute path to avoid issues with relative paths in threads
+    main_folder_path = Path(main_folder_path).resolve()
+    for sub_folder_pattern in sub_folder_patterns:
+        for root, dirs, files in os.walk(main_folder_path):
+            for dir_name in fnmatch.filter(dirs, f"*{sub_folder_pattern}*"):
+                sub_folder_path = os.path.join(root, dir_name)
+                row = {'ID1': main_folder_path.name, 'ID2': dir_name}
+                for pattern in file_patterns:
+                    matching_files = find_matching_files(sub_folder_path, [pattern])
+                    files = [os.path.basename(file) for file in matching_files[pattern]]
+                    key = pattern.split('*')[1].capitalize()  # Simplify the column name
+                    row[key] = ', '.join(files) if files else 'NO FILES FOUND'
+                data.append(row)
+    return data
+
+# User inputs
+base_path = input("Enter the base path where all main folders are located: ")
+main_folders = input("Enter the main folder names (8-digit numbers, separated by commas): ").split(',')
+sub_folder_patterns = input("Enter the sub-folder patterns (4-digit numbers, separated by commas): ").split(',')
+file_patterns = ['*workbook*.xlsx', '*workbook*.xls', '*clear*.msg', '*evidence*document*.xlsx', '*evidence*document*.xls']
+
+# Normalize and prepare the inputs
+main_folders = [os.path.join(base_path, folder.strip()) for folder in main_folders]
+sub_folder_patterns = [pattern.strip() for pattern in sub_folder_patterns]
+
+# Parallel processing
+data = []
+with ThreadPoolExecutor() as executor:
+    futures = [executor.submit(process_main_folder, main_folder, sub_folder_patterns, file_patterns) for main_folder in main_folders]
+    for future in as_completed(futures):
+        data.extend(future.result())
+
+# Convert to DataFrame and save as Excel
+df = pd.DataFrame(data)
+wb = Workbook()
+ws = wb.active
+for r in dataframe_to_rows(df, index=False, header=True):
+    ws.append(r)
+adjust_column_width(ws)
+
+# Save the Excel file
+excel_file = 'output_parallel.xlsx'
+wb.save(excel_file)
+
+print("Excel file has been created successfully in 'output_parallel.xlsx'.")
