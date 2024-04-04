@@ -40,11 +40,12 @@ def process_main_folder(main_folder_path, sub_folder_patterns, file_patterns):
     return data
 
 # User inputs
-base_path = input("Enter the base path where all main folders are located: ")
-main_folders = input("Enter the main folder names (8-digit numbers, separated by commas): ").split(',')
-sub_folder_patterns = input("Enter the sub-folder patterns (4-digit numbers, separated by commas): ").split(',')
+base_path = "C:/base/folder/path"  # Update this path
+main_folders = ['12345678', '87654321']  # Update these folder names
+sub_folder_patterns = ['1234', '5678']  # Update these patterns
 file_patterns = ['*workbook*.xlsx', '*workbook*.xls', '*clear*.msg', '*evidence*document*.xlsx', '*evidence*document*.xls']
 
+# The rest of
 # Normalize and prepare the inputs
 main_folders = [os.path.join(base_path, folder.strip()) for folder in main_folders]
 sub_folder_patterns = [pattern.strip() for pattern in sub_folder_patterns]
