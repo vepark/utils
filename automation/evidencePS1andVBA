@@ -53,34 +53,27 @@ Sub CallPowerShellAndImportData()
     Dim shell As Object
     Dim command As String
     Dim driveLetter As String, mainFolders As String, subFolders As String
-    
+
     ' Define the path to the PowerShell script
-    psScriptPath = "C:\Path\To\YourScript.ps1"  ' Update with the actual path
-    
+    psScriptPath = "\\SharedDrive\Path\To\YourScript.ps1" ' Update with the actual path
+
     ' Define the output path for the CSV file
     csvOutputPath = Environ("TEMP") & "\output.csv"
-    
+
     ' Collect inputs from the user
     driveLetter = InputBox("Enter the drive letter (e.g., C, D, E):", "Drive Letter")
     mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
     subFolders = InputBox("Enter sub-folder names (comma-separated):", "Sub Folders")
-    
+
     ' Prepare the PowerShell command
     command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
               """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
-    
-    ' Create and run the command
+
+    ' Create and run the command with waiting on return
     Set shell = CreateObject("WScript.Shell")
-    shell.Run command, 0, True
-    
-    ' Wait for the PowerShell script to complete
-    Do Until shell.Status <> 0
-        DoEvents
-    Loop
-    
-    Application.Wait (Now + TimeValue("0:00:05")) ' Wait a bit to ensure the CSV file is ready
-    
-    ' Import the CSV data into a new worksheet
+    shell.Run command, 0, True ' Here, True waits for the command to complete
+
+    ' After PowerShell script completes, import the CSV data into a new worksheet
     ImportCsvData csvOutputPath
 End Sub
 
@@ -88,7 +81,7 @@ Sub ImportCsvData(csvFilePath As String)
     Dim ws As Worksheet
     Set ws = ThisWorkbook.Sheets.Add
     ws.Name = "PowerShell Results"
-    
+
     With ws.QueryTables.Add("TEXT;" & csvFilePath, ws.Range("A1"))
         .TextFileParseType = xlDelimited
         .TextFileCommaDelimiter = True
