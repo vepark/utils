@@ -105,7 +105,8 @@ foreach ($mainFolder in $mainFolders) {
         }
         if ($matchFound) {
             # Initialize object to hold folder and files information with specific property names
-            $record = New-Object PSObject -Property @{
+            # Using [ordered] to ensure the properties are in the order you define them
+            $record = [PSCustomObject][ordered]@{
                 MainFolder = $mainFolder  # Use just the folder name, adjust if full path
                 SubFolder = $subFolderName
                 Workbooks = $null
