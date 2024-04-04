@@ -70,3 +70,64 @@ excel_file = 'output_parallel.xlsx'
 wb.save(excel_file)
 
 print("Excel file has been created successfully in 'output_parallel.xlsx'.")
+
+
+
+
+
+
+
+# Define the base path where main folders are located and the main folders
+$basePath = "C:\Your\BasePath"
+$mainFolders = @("12345678", "23456789") # Update with your main folder names
+$subFolderPatterns = @("1234", "5678") # Patterns to match in sub-folder names
+$filePatterns = @('*workbook*.xlsx', '*workbook*.xls', '*clear*.msg', '*evidence*document*.xlsx', '*evidence*document*.xls')
+
+# PowerShell 7+ required for -Parallel
+$results = $mainFolders | ForEach-Object -Parallel {
+    $mainFolderPath = Join-Path -Path $using:basePath -ChildPath $_
+    $data = @()
+    Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+        $subFolder = $_
+        $subFolderName = $subFolder.Name
+        # Check if subFolder matches any pattern
+        $matchFound = $false
+        foreach ($pattern in $using:subFolderPatterns) {
+            if ($subFolderName -like "*$pattern*") {
+                $matchFound = $true
+                break
+            }
+        }
+        if ($matchFound) {
+            $record = [PSCustomObject]@{
+                MainFolder = Split-Path $subFolder.FullName -Leaf
+                SubFolder = $subFolder.Name
+                WorkbookFiles = $null
+                ClearFiles = $null
+                EvidenceFiles = $null
+            }
+            # Search for files matching patterns within the sub-folder
+            Get-ChildItem -Path $subFolder.FullName -File -Recurse | ForEach-Object {
+                $file = $_
+                if ($file.Name -like $using:filePatterns[0] -or $file.Name -like $using:filePatterns[1]) {
+                    $record.WorkbookFiles += $file.Name + "; "
+                } elseif ($file.Name -like $using:filePatterns[2]) {
+                    $record.ClearFiles += $file.Name + "; "
+                } elseif ($file.Name -like $using:filePatterns[3] -or $file.Name -like $using:filePatterns[4]) {
+                    $record.EvidenceFiles += $file.Name + "; "
+                }
+            }
+            # Finalize the record
+            $record.WorkbookFiles = if ($record.WorkbookFiles) { $record.WorkbookFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
+            $record.ClearFiles = if ($record.ClearFiles) { $record.ClearFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
+            $record.EvidenceFiles = if ($record.EvidenceFiles) { $record.EvidenceFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
+            $data += $record
+        }
+    }
+    $data
+} -ThrottleLimit 4
+
+# Export to Excel
+$results | Export-Excel -Path "C:\Path\To\output.xlsx" -AutoSize
+
+Write-Host "Excel file has been created successfully."
