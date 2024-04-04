@@ -75,30 +75,30 @@ print("Excel file has been created successfully in 'output_parallel.xlsx'.")
 
 
 
-
-
-# Define the base path where main folders are located and the main folders
+# Define the base path where main folders are located and specify main folder names
 $basePath = "C:\Your\BasePath"
-$mainFolders = @("12345678", "23456789") # Update with your main folder names
-$subFolderPatterns = @("1234", "5678") # Patterns to match in sub-folder names
+$mainFolders = @("12345678", "23456789") # Update with your actual main folder names
+$subFolderPatterns = @("1234", "5678") # Update with your sub-folder patterns
 $filePatterns = @('*workbook*.xlsx', '*workbook*.xls', '*clear*.msg', '*evidence*document*.xlsx', '*evidence*document*.xls')
 
-# PowerShell 7+ required for -Parallel
-$results = $mainFolders | ForEach-Object -Parallel {
-    $mainFolderPath = Join-Path -Path $using:basePath -ChildPath $_
-    $data = @()
+# Prepare an array to collect results
+$results = @()
+
+foreach ($mainFolder in $mainFolders) {
+    $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
     Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
         $subFolder = $_
         $subFolderName = $subFolder.Name
         # Check if subFolder matches any pattern
         $matchFound = $false
-        foreach ($pattern in $using:subFolderPatterns) {
+        foreach ($pattern in $subFolderPatterns) {
             if ($subFolderName -like "*$pattern*") {
                 $matchFound = $true
                 break
             }
         }
         if ($matchFound) {
+            # Initialize object to hold folder and files information
             $record = [PSCustomObject]@{
                 MainFolder = Split-Path $subFolder.FullName -Leaf
                 SubFolder = $subFolder.Name
@@ -109,25 +109,33 @@ $results = $mainFolders | ForEach-Object -Parallel {
             # Search for files matching patterns within the sub-folder
             Get-ChildItem -Path $subFolder.FullName -File -Recurse | ForEach-Object {
                 $file = $_
-                if ($file.Name -like $using:filePatterns[0] -or $file.Name -like $using:filePatterns[1]) {
-                    $record.WorkbookFiles += $file.Name + "; "
-                } elseif ($file.Name -like $using:filePatterns[2]) {
-                    $record.ClearFiles += $file.Name + "; "
-                } elseif ($file.Name -like $using:filePatterns[3] -or $file.Name -like $using:filePatterns[4]) {
-                    $record.EvidenceFiles += $file.Name + "; "
+                foreach ($pattern in $filePatterns) {
+                    if ($file.Name -like $pattern) {
+                        $key = switch -Wildcard ($pattern) {
+                            '*workbook*.xlsx', '*workbook*.xls' { "WorkbookFiles" }
+                            '*clear*.msg' { "ClearFiles" }
+                            '*evidence*document*.xlsx', '*evidence*document*.xls' { "EvidenceFiles" }
+                        }
+                        $record.$key += $file.Name + "; "
+                    }
                 }
             }
             # Finalize the record
-            $record.WorkbookFiles = if ($record.WorkbookFiles) { $record.WorkbookFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
-            $record.ClearFiles = if ($record.ClearFiles) { $record.ClearFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
-            $record.EvidenceFiles = if ($record.EvidenceFiles) { $record.EvidenceFiles.TrimEnd("; ") } else { "NO FILES FOUND" }
-            $data += $record
+            foreach ($key in @("WorkbookFiles", "ClearFiles", "EvidenceFiles")) {
+                if ($record.$key) {
+                    $record.$key = $record.$key.TrimEnd("; ")
+                } else {
+                    $record.$key = "NO FILES FOUND"
+                }
+            }
+            # Add the record to results
+            $results += $record
         }
     }
-    $data
-} -ThrottleLimit 4
+}
 
-# Export to Excel
-$results | Export-Excel -Path "C:\Path\To\output.xlsx" -AutoSize
+# Export results to CSV
+$results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation
 
-Write-Host "Excel file has been created successfully."
+Write-Host "CSV file has been created successfully."
+
