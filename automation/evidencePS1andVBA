@@ -1,0 +1,74 @@
+param(
+    [string]$DriveLetter,
+    [string]$MainFolderNames,
+    [string]$SubFolderPatterns,
+    [string]$CsvOutputPath
+)
+
+# Convert comma-separated strings to arrays
+$mainFoldersArray = $MainFolderNames -split ","
+$subFoldersArray = $SubFolderPatterns -split ","
+
+# Prepare the base path
+$basePath = Join-Path -Path $DriveLetter -ChildPath "\"
+
+# Your existing logic to process folders and generate CSV goes here
+# Simplified for demonstration
+$results = @()
+
+foreach ($folder in $mainFoldersArray) {
+    $fullPath = Join-Path -Path $basePath -ChildPath $folder.Trim()
+    
+    # Assuming your processing logic fills the $results array
+}
+
+# Example of outputting results to CSV
+$results | Export-Csv -Path $CsvOutputPath -NoTypeInformation
+
+
+
+
+
+Sub CallPowerShellAndLoadResults()
+    Dim psScriptPath As String
+    Dim csvOutputPath As String
+    Dim shell As Object
+    Dim command As String
+    Dim driveLetter As String, mainFolders As String, subFolders As String
+    
+    ' Path to the PowerShell script
+    psScriptPath = "\\YourSharedDrive\Path\To\Script.ps1" ' Adjust as necessary
+    
+    ' Output path for the CSV file (temporary location)
+    csvOutputPath = Environ("TEMP") & "\ps_output.csv"
+    
+    ' Collect input from the user
+    driveLetter = InputBox("Enter the drive letter (e.g., C:):", "Drive Letter")
+    mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
+    subFolders = InputBox("Enter sub-folder patterns (comma-separated):", "Sub Folders")
+    
+    ' Prepare the PowerShell command
+    command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
+              """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
+    
+    ' Create a Shell object and run the command
+    Set shell = VBA.CreateObject("WScript.Shell")
+    shell.Run command, 0, True
+    
+    ' Wait for the PowerShell script to finish and the CSV file to be created
+    Do While Not VBA.FileSystem.FileExists(csvOutputPath)
+        VBA.DoEvents
+    Loop
+    
+    ' Import the CSV data into a new worksheet
+    With ThisWorkbook.Sheets.Add
+        .Name = "PowerShell Results"
+        With .QueryTables.Add("TEXT;" & csvOutputPath, .Range("A1"))
+            .TextFileParseType = xlDelimited
+            .TextFileCommaDelimiter = True
+            .Refresh
+        End With
+    End With
+    
+    MsgBox "Data imported successfully from PowerShell script.", vbInformation
+End Sub
