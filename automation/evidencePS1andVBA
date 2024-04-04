@@ -60,6 +60,9 @@ $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
 
 
 
+
+
+
 Sub CallPowerShellAndImportData()
     Dim psScriptPath As String
     Dim csvOutputPath As String
@@ -67,29 +70,29 @@ Sub CallPowerShellAndImportData()
     Dim command As String
     Dim driveLetter As String, mainFolders As String, subFolders As String
     
-    ' Path to the PowerShell script
-    psScriptPath = "C:\Path\To\YourScript.ps1"  ' Update this path
+    ' Path to your PowerShell script
+    psScriptPath = "C:\Path\To\YourScript.ps1" ' Update this path
     
     ' Output path for the CSV file
     csvOutputPath = Environ("TEMP") & "\output.csv"
     
-    ' User inputs
+    ' Collect input from the user
     driveLetter = InputBox("Enter the drive letter (e.g., C, D, E):", "Drive Letter")
     mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
     subFolders = InputBox("Enter sub-folder patterns (comma-separated):", "Sub Folders")
     
-    ' Construct the PowerShell command
+    ' Construct the command to run the PowerShell script
     command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
               """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
     
-    ' Create and run the command
+    ' Execute the command
     Set shell = CreateObject("WScript.Shell")
     shell.Run command, 0, True
     
-    ' Wait for the command to complete
-    Application.Wait Now + TimeValue("0:00:10")  ' Adjust the wait time as needed
+    ' Wait for the PowerShell script to complete its execution
+    Application.Wait Now + TimeValue("0:00:10") ' Adjust the time as needed
     
-    ' Import the CSV data into Excel, replacing a sheet named "PowerShell Results" if it already exists
+    ' Import the CSV data into Excel
     ImportCsvData csvOutputPath
 End Sub
 
@@ -97,26 +100,24 @@ Sub ImportCsvData(csvFilePath As String)
     Dim ws As Worksheet
     Dim qt As QueryTable
     Dim sheetName As String
-    Dim answer As VbMsgBoxResult
+    Dim existingSheet As Worksheet
     
-    ' Check if the "PowerShell Results" sheet exists, and if so, ask to replace it
+    ' Sheet name for the results
     sheetName = "PowerShell Results"
+    
+    ' Check if the sheet already exists
     On Error Resume Next
-    Set ws = ThisWorkbook.Sheets(sheetName)
+    Set existingSheet = ThisWorkbook.Sheets(sheetName)
     On Error GoTo 0
-    If Not ws Is Nothing Then
-        answer = MsgBox("A sheet named '" & sheetName & "' already exists. Do you want to replace it?", vbYesNo + vbQuestion, "Sheet Exists")
-        If answer = vbYes Then
-            Application.DisplayAlerts = False
-            ws.Delete
-            Application.DisplayAlerts = True
-        Else
-            MsgBox "Operation cancelled by user.", vbExclamation
-            Exit Sub
-        End If
+    
+    ' If the sheet exists, delete it
+    If Not existingSheet Is Nothing Then
+        Application.DisplayAlerts = False
+        existingSheet.Delete
+        Application.DisplayAlerts = True
     End If
     
-    ' Create a new worksheet
+    ' Create a new worksheet with the desired name
     Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     ws.Name = sheetName
     
@@ -128,10 +129,10 @@ Sub ImportCsvData(csvFilePath As String)
         .Refresh
     End With
     
-    ' Optional: Apply formatting to cells with "NO FILES FOUND"
+    ' Apply formatting
     ApplyFormatting ws
     
-    ' Notify the user
+    ' Inform the user
     MsgBox "All done! Results have been imported into '" & ws.Name & "'.", vbInformation
 End Sub
 
@@ -139,14 +140,15 @@ Sub ApplyFormatting(ws As Worksheet)
     Dim cell As Range
     Dim lastRow As Long
     
-    ' Find the last row with data in column A
+    ' Determine the last row of data in column A
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Loop through cells and apply red color to "NO FILES FOUND"
+    ' Iterate over cells to apply formatting
     For Each cell In ws.Range("C2:E" & lastRow)
         If cell.Value = "NO FILES FOUND" Then
-            cell.Interior.Color = RGB(255, 0, 0)
+            cell.Interior.Color = RGB(255, 0, 0) ' Apply red fill to cells
         End If
     Next cell
 End Sub
+
 
