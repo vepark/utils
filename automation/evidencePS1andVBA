@@ -47,35 +47,40 @@ $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
 
 
 
-Sub ImportCsvData(csvFilePath As String)
-    Dim ws As Worksheet
-    Dim lastRow As Long, i As Long
-    Dim cell As Range
-
-    ' Add a new worksheet
-    Set ws = ThisWorkbook.Sheets.Add
-    ws.Name = "PowerShell Results"
-
-    ' Import the CSV data into the new worksheet
-    With ws.QueryTables.Add("TEXT;" & csvFilePath, ws.Range("A1"))
-        .TextFileParseType = xlDelimited
-        .TextFileCommaDelimiter = True
-        .Refresh
-    End With
-
-    ' Find the last row with data in Column A
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-
-    ' Loop through each row and check cells for "NO FILES FOUND"
-    For i = 1 To lastRow
-        For Each cell In ws.Range("C" & i & ":E" & i) ' Assuming columns C, D, and E need to be checked
-            If cell.Value = "NO FILES FOUND" Then
-                cell.Interior.Color = RGB(255, 0, 0) ' Apply red color
-            End If
-        Next cell
-    Next i
-
-    ' Inform the user that data import is complete
+Sub CallPowerShellAndImportData()
+    Dim psScriptPath As String
+    Dim csvOutputPath As String
+    Dim shell As Object
+    Dim command As String
+    Dim driveLetter As String, mainFolders As String, subFolders As String
+    
+    ' Define the path to the PowerShell script
+    ' Update this path to where you've saved YourScript.ps1
+    psScriptPath = "\\SharedDrive\Path\To\YourScript.ps1"  ' Example: "\\server\share\folder\YourScript.ps1" or "C:\folder\YourScript.ps1"
+    
+    ' Define the output path for the CSV file
+    csvOutputPath = Environ("TEMP") & "\output.csv"
+    
+    ' Collect inputs from the user
+    driveLetter = InputBox("Enter the drive letter (e.g., C, D, E):", "Drive Letter")
+    mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
+    subFolders = InputBox("Enter sub-folder names (comma-separated):", "Sub Folders")
+    
+    ' Prepare the PowerShell command. Note how the psScriptPath variable is used here.
+    command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
+              """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
+    
+    ' Create and run the command with waiting on return
+    Set shell = CreateObject("WScript.Shell")
+    shell.Run command, 0, True
+    
+    ' Optionally, you might want to add a delay or check for the existence of the output file before proceeding
+    ' This is a simple wait loop to give PowerShell time to finish and create the CSV file.
+    Application.Wait Now + TimeValue("0:00:10")  ' Wait for 10 seconds; adjust as needed based on expected script runtime.
+    
+    ' Import the CSV data into a new worksheet
+    ImportCsvData csvOutputPath
+    
+    ' Inform the user that the operation is complete
     MsgBox "All done! Results have been entered into the sheet.", vbInformation
 End Sub
-
