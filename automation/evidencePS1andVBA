@@ -60,38 +60,67 @@ $results | Export-Csv -Path $CsvOutputPath -NoTypeInformation -Encoding UTF8
 
 
 
+Sub CallPowerShellAndImportData()
+    Dim psScriptPath As String
+    Dim csvOutputPath As String
+    Dim shell As Object
+    Dim command As String
+    Dim driveLetter As String, mainFolders As String, subFolders As String
+    
+    ' Path to the PowerShell script
+    psScriptPath = "C:\Path\To\YourScript.ps1"  ' Update this path
+    
+    ' Output path for the CSV file
+    csvOutputPath = Environ("TEMP") & "\output.csv"
+    
+    ' User inputs
+    driveLetter = InputBox("Enter the drive letter (e.g., C, D, E):", "Drive Letter")
+    mainFolders = InputBox("Enter main folder names (comma-separated):", "Main Folders")
+    subFolders = InputBox("Enter sub-folder patterns (comma-separated):", "Sub Folders")
+    
+    ' Construct the PowerShell command
+    command = "powershell -ExecutionPolicy Bypass -File """ & psScriptPath & """ " & _
+              """" & driveLetter & """ """ & mainFolders & """ """ & subFolders & """ """ & csvOutputPath & """"
+    
+    ' Create and run the command
+    Set shell = CreateObject("WScript.Shell")
+    shell.Run command, 0, True
+    
+    ' Wait for the command to complete
+    Application.Wait Now + TimeValue("0:00:10")  ' Adjust the wait time as needed
+    
+    ' Import the CSV data into Excel, replacing a sheet named "PowerShell Results" if it already exists
+    ImportCsvData csvOutputPath
+End Sub
+
 Sub ImportCsvData(csvFilePath As String)
     Dim ws As Worksheet
     Dim qt As QueryTable
     Dim sheetName As String
     Dim answer As VbMsgBoxResult
     
-    ' Desired sheet name
+    ' Check if the "PowerShell Results" sheet exists, and if so, ask to replace it
     sheetName = "PowerShell Results"
-    
-    ' Check if the sheet already exists
-    On Error Resume Next ' Ignore errors in the next statement
+    On Error Resume Next
     Set ws = ThisWorkbook.Sheets(sheetName)
-    On Error GoTo 0 ' Stop ignoring errors
-    
-    ' If the sheet exists, ask for confirmation to delete it
+    On Error GoTo 0
     If Not ws Is Nothing Then
         answer = MsgBox("A sheet named '" & sheetName & "' already exists. Do you want to replace it?", vbYesNo + vbQuestion, "Sheet Exists")
         If answer = vbYes Then
-            Application.DisplayAlerts = False ' Turn off confirmation dialog for deleting
+            Application.DisplayAlerts = False
             ws.Delete
-            Application.DisplayAlerts = True ' Turn back on system alerts
+            Application.DisplayAlerts = True
         Else
             MsgBox "Operation cancelled by user.", vbExclamation
             Exit Sub
         End If
     End If
     
-    ' Create a new worksheet with the specified name
+    ' Create a new worksheet
     Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     ws.Name = sheetName
     
-    ' Import the CSV data
+    ' Import the CSV file
     Set qt = ws.QueryTables.Add(Connection:="TEXT;" & csvFilePath, Destination:=ws.Range("A1"))
     With qt
         .TextFileParseType = xlDelimited
@@ -99,9 +128,25 @@ Sub ImportCsvData(csvFilePath As String)
         .Refresh
     End With
     
-    ' Loop to apply formatting if "NO FILES FOUND" (The loop remains as previously explained)
+    ' Optional: Apply formatting to cells with "NO FILES FOUND"
+    ApplyFormatting ws
     
     ' Notify the user
-    MsgBox "All done! Results have been imported and formatted into '" & ws.Name & "'.", vbInformation
+    MsgBox "All done! Results have been imported into '" & ws.Name & "'.", vbInformation
+End Sub
+
+Sub ApplyFormatting(ws As Worksheet)
+    Dim cell As Range
+    Dim lastRow As Long
+    
+    ' Find the last row with data in column A
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Loop through cells and apply red color to "NO FILES FOUND"
+    For Each cell In ws.Range("C2:E" & lastRow)
+        If cell.Value = "NO FILES FOUND" Then
+            cell.Interior.Color = RGB(255, 0, 0)
+        End If
+    Next cell
 End Sub
 
