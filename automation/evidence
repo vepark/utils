@@ -76,9 +76,9 @@ print("Excel file has been created successfully in 'output_parallel.xlsx'.")
 
 
 # Define the base path where main folders are located and specify main folder names
-$basePath = "C:\Your\BasePath"
-$mainFolders = @("12345678", "23456789") # Update with your actual main folder names
-$subFolderPatterns = @("1234", "5678") # Update with your sub-folder patterns
+$basePath = "C:\Your\BasePath"  # Update with your actual base path
+$mainFolders = @("12345678", "23456789")  # Update with your actual main folder names
+$subFolderPatterns = @("1234", "5678")  # Update with your sub-folder patterns
 $filePatterns = @('*workbook*.xlsx', '*workbook*.xls', '*clear*.msg', '*evidence*document*.xlsx', '*evidence*document*.xls')
 
 # Prepare an array to collect results
@@ -99,35 +99,32 @@ foreach ($mainFolder in $mainFolders) {
         }
         if ($matchFound) {
             # Initialize object to hold folder and files information
-            $record = [PSCustomObject]@{
+            $record = New-Object PSObject -Property @{
                 MainFolder = Split-Path $subFolder.FullName -Leaf
                 SubFolder = $subFolder.Name
-                WorkbookFiles = $null
-                ClearFiles = $null
-                EvidenceFiles = $null
+                WorkbookFiles = @()
+                ClearFiles = @()
+                EvidenceFiles = @()
             }
+            
             # Search for files matching patterns within the sub-folder
             Get-ChildItem -Path $subFolder.FullName -File -Recurse | ForEach-Object {
                 $file = $_
-                foreach ($pattern in $filePatterns) {
-                    if ($file.Name -like $pattern) {
-                        $key = switch -Wildcard ($pattern) {
-                            '*workbook*.xlsx', '*workbook*.xls' { "WorkbookFiles" }
-                            '*clear*.msg' { "ClearFiles" }
-                            '*evidence*document*.xlsx', '*evidence*document*.xls' { "EvidenceFiles" }
-                        }
-                        $record.$key += $file.Name + "; "
-                    }
+                if ($file.Name -like $filePatterns[0] -or $file.Name -like $filePatterns[1]) {
+                    $record.WorkbookFiles += $file.Name
+                }
+                elseif ($file.Name -like $filePatterns[2]) {
+                    $record.ClearFiles += $file.Name
+                }
+                elseif ($file.Name -like $filePatterns[3] -or $file.Name -like $filePatterns[4]) {
+                    $record.EvidenceFiles += $file.Name
                 }
             }
-            # Finalize the record
-            foreach ($key in @("WorkbookFiles", "ClearFiles", "EvidenceFiles")) {
-                if ($record.$key) {
-                    $record.$key = $record.$key.TrimEnd("; ")
-                } else {
-                    $record.$key = "NO FILES FOUND"
-                }
-            }
+            # Join array elements into strings
+            $record.WorkbookFiles = if ($record.WorkbookFiles.Count -gt 0) { $record.WorkbookFiles -join "; " } else { "NO FILES FOUND" }
+            $record.ClearFiles = if ($record.ClearFiles.Count -gt 0) { $record.ClearFiles -join "; " } else { "NO FILES FOUND" }
+            $record.EvidenceFiles = if ($record.EvidenceFiles.Count -gt 0) { $record.EvidenceFiles -join "; " } else { "NO FILES FOUND" }
+            
             # Add the record to results
             $results += $record
         }
@@ -135,7 +132,8 @@ foreach ($mainFolder in $mainFolders) {
 }
 
 # Export results to CSV
-$results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation
+$results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation -Encoding UTF8
 
 Write-Host "CSV file has been created successfully."
+
 
