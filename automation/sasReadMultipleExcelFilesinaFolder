@@ -1,31 +1,23 @@
 /* Step 1: Create a list of Excel files in a directory */
-filename filelist pipe 'dir "C:\Your\Excel\Directory\*.xlsx" /b';
+filename filelist pipe 'ls /path/to/your/excel/files/*.xlsx';
 
 /* Step 2: Read the list and process each file */
 data _null_;
     length fname $256;
     infile filelist truncover;
     input fname $256.;
-    call execute('%process_file("' || "C:\Your\Excel\Directory\" || trim(fname) || '")');
+    call execute('%process_file("/path/to/your/excel/files/' || trim(fname) || '")');
 run;
 
 %macro process_file(filepath);
-    %let dsid = %sysfunc(open(work.filelist));
-    %if &dsid %then %do;
-        %let nSheets = %sysfunc(attrn(&dsid, nlobs));
+    /* Additional logic may be required to handle sheet names or counts */
+    %let sheetName = Summary; /* Adjust based on how you identify the summary sheet or other sheets */
 
-        /* Assuming 301 to 320 sheets, adjust the loop as necessary */
-        %do i = 1 %to &nSheets;
-            %let sheetName = %sysfunc(scan(&sheetNames, &i));
-
-            /* Your existing PROC IMPORT code goes here, modify as needed */
-            proc import datafile="&filepath"
-                out=sheet&i
-                dbms=xlsx
-                replace;
-                sheet="&sheetName"; /* Adjust this if you need to specify sheet names differently */
-            run;
-        %end;
-    %end;
-    %let rc = %sysfunc(close(&dsid));
+    /* Your existing PROC IMPORT code goes here, adjusted for Linux file paths and potentially sheet names */
+    proc import datafile="&filepath"
+        out=summary
+        dbms=xlsx
+        replace;
+        sheet="&sheetName"; /* Adjust if necessary */
+    run;
 %mend process_file;
