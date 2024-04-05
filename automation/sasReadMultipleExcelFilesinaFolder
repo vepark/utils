@@ -10,30 +10,30 @@ data _null_;
 run;
 
 %macro process_file(filepath);
-    /* Extract the base filename without extension and the 4-digit number */
+    /* Extract the 4-digit number and base filename */
     %let filename = %scan(&filepath, -1, '/');
-    %let filename = %substr(&filename, 1, %length(&filename)-5); /* Remove .xlsx extension */
+    %let filename = %substr(&filename, 1, %length(&filename)-5); /* Remove extension */
     %let fileNum = %substr(&filename, %eval(%length(&filename)-3), 4);
 
-    /* Define a macro variable to collect datasets for appending */
-    %let datasets_to_append = ;
-
-    /* Loop through the specified tab numbers, importing with different ranges for 301 */
+    /* Loop through the specified tab numbers */
     %do tab = 301 %to 320;
-        %let range = %if &tab = 301 %then C:G; %else C:D; /* Determine the range based on the tab number */
-        %let outName = DAQ&fileNum.&tab; /* Construct the output dataset name */
+        /* Correctly use %if to set the range */
+        %if &tab = 301 %then %let range = C:G;
+        %else %let range = C:D;
 
-        /* PROC IMPORT for the current sheet with dynamic range */
+        %let outName = DAQ&fileNum.&tab; /* Dynamic dataset name based on file and tab */
+
+        /* PROC IMPORT with the corrected range */
         proc import datafile="&filepath"
-            out=work.imported&tab /* Temporarily store imported data with tab number */
+            out=work.imported&tab
             dbms=xlsx
             replace;
-            sheet="&tab"; /* Specify sheet name dynamically */
-            range="&range"; /* Use the determined range */
-            getnames=yes; 
+            sheet="&tab"; /* Use tab number as sheet name */
+            range="&range"; 
+            getnames=yes;
         run;
 
-        /* Filter data immediately after import */
+        /* Data step for conditional row deletion */
         data &outName;
             set work.imported&tab;
             if &tab = 301 then do;
@@ -44,11 +44,11 @@ run;
             end;
         run;
 
-        /* Keep track of datasets for appending */
+        /* Append to list for further processing */
         %let datasets_to_append = &datasets_to_append &outName;
     %end;
 
-    /* Append datasets after processing all sheets */
+    /* Call to append and clean datasets */
     %append_data(&fileNum);
 %mend process_file;
 
