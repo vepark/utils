@@ -15,55 +15,53 @@ run;
     %let filename = %substr(&filename, 1, %length(&filename)-5); /* Remove .xlsx extension */
     %let fileNum = %substr(&filename, %eval(%length(&filename)-3), 4);
 
-    /* Clear the list of datasets to append */
+    /* Define a macro variable to collect datasets for appending */
     %let datasets_to_append = ;
 
-    /* Loop through the specified tab numbers, with different ranges for 301 */
+    /* Loop through the specified tab numbers, importing with different ranges for 301 */
     %do tab = 301 %to 320;
-        %let sheetName = &tab;
-        %let range = %if &tab = 301 %then C:G; %else C:D;
-        %let outName = DAQ&fileNum.&tab;
+        %let range = %if &tab = 301 %then C:G; %else C:D; /* Determine the range based on the tab number */
+        %let outName = DAQ&fileNum.&tab; /* Construct the output dataset name */
 
-        /* Your PROC IMPORT with dynamic sheet and range */
+        /* PROC IMPORT for the current sheet with dynamic range */
         proc import datafile="&filepath"
-            out=work.imported_data (&tab=&tab) /* Add tab number as a data attribute */
+            out=work.imported&tab /* Temporarily store imported data with tab number */
             dbms=xlsx
             replace;
-            sheet="&sheetName"; 
-            range="&range"; 
+            sheet="&tab"; /* Specify sheet name dynamically */
+            range="&range"; /* Use the determined range */
             getnames=yes; 
         run;
 
-        /* Data step to filter the dataset based on initial conditions */
+        /* Filter data immediately after import */
         data &outName;
-            set work.imported_data;
-            if missing(cats(of _all_)) or (substr(C, length(C), 1) NE ':' and &tab = 301) then delete;
+            set work.imported&tab;
+            if &tab = 301 then do;
+                if missing(cats(of _all_)) or substr(C, length(C), 1) NE ':' then delete;
+            end;
+            else do;
+                if missing(cats(of _all_)) then delete;
+            end;
         run;
 
-        /* Accumulate dataset names for appending */
+        /* Keep track of datasets for appending */
         %let datasets_to_append = &datasets_to_append &outName;
     %end;
 
-    /* Call the append and further cleaning macro */
-    %append_data(&datasets_to_append, &fileNum);
+    /* Append datasets after processing all sheets */
+    %append_data(&fileNum);
 %mend process_file;
 
-
-
-%macro append_data(datasets, fileNum);
-    /* Create a macro variable for each dataset to append */
-    %local i;
+%macro append_data(fileNum);
     data combined_&fileNum;
         retain SheetName C D;
         length SheetName $32 C $100 D $100;
         %do i = 301 %to 320;
-            set DAQ&fileNum.&i indsname=source;
-            SheetName = source;
+            set DAQ&fileNum.&i indsname=src;
+            SheetName = src;
             if substr(C,1,5) = "Note:" then delete;
             if substr(compress(D),1,1)='[' or substr(compress(D),-1) = ']' then D = '';
-            if D="PASS NA" then D= ' ';
-            if D="YES NO" then D= ' ';
+            if D="PASS NA" or D="YES NO" then D= ' ';
         %end;
     run;
 %mend append_data;
-
