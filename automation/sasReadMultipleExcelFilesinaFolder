@@ -1,3 +1,30 @@
+data filtered(drop=numeric_subfolder start position);
+    set original; /* Your original dataset */
+    retain patternID;
+    if _N_ = 1 then patternID = prxparse("/\b(\d{4})\b/"); /* Compile the regex pattern once */
+
+    start = 1; /* Initialize starting position for each row */
+    numeric_subfolder = .; /* Initialize as missing */
+    do until(position = 0);
+        /* Search for the 4-digit pattern within subfolder */
+        call prxnext(patternID, start, length(subfolder), subfolder, position, length);
+        if position > 0 then do;
+            /* Extract the matched 4-digit number */
+            digit_group = substr(subfolder, position, length);
+            /* Convert to numeric and check if greater than 3815 */
+            if input(digit_group, 4.) > 3815 then do;
+                numeric_subfolder = input(digit_group, 4.);
+                leave; /* Exit the loop if condition is met */
+            end;
+        end;
+    end;
+
+    /* Keep rows where a matching number was found */
+    if numeric_subfolder > 3815;
+run;
+
+
+
 data updated;
     set original; /* Your original dataset */
     length workbook $200 clear $200 evidence_document $200; /* Adjust length as necessary */
