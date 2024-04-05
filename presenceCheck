@@ -6,37 +6,41 @@ $subFolderPatterns = @("SubFolderPattern1", "SubFolderPattern2")  # Adjust these
 # Initialize an array to collect the results
 $results = @()
 
-foreach ($mainFolder in $mainFolders) {
-    $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
+foreach ($subFolder in $subFolders) {
+    # Reset the file lists for each sub-folder
+    $workbookFilesList = @()
+    $clearanceFilesList = @()
+    $evidenceFilesList = @()
 
-    foreach ($subFolderPattern in $subFolderPatterns) {
-        $subFolders = Get-ChildItem -Path $mainFolderPath -Directory -Recurse | Where-Object { $_.Name -like "*$subFolderPattern*" }
-
-        foreach ($subFolder in $subFolders) {
-            $files = Get-ChildItem -Path $subFolder.FullName -File -Recurse
-
-            # Define patterns and collect matching files
-            $workbookPatterns = @('*Prworkbook*.xlsx', '*presworkbook*.xlsx', '*Dworkbook*.xlsx', '*eviworkbook*.xlsx')
-            $workbookFiles = $files | Where-Object { $_.Name -like $workbookPatterns[0] -or $_.Name -like $workbookPatterns[1] -or $_.Name -like $workbookPatterns[2] -or $_.Name -like $workbookPatterns[3] }
-            $clearanceFiles = $files | Where-Object { $_.Name -like '*clear*.msg' }
-            $evidenceFiles = $files | Where-Object { $_.Name -match 'Evidence_Document_\d{4}\.xlsx' }
-
-            # Format file lists as strings
-            $workbooksStr = ($workbookFiles.Name -join ", ") + if ($workbookFiles.Count -gt 0) { " (" + $workbookFiles.Count + ")" } else { " (NO FILES FOUND)" }
-            $clearanceStr = ($clearanceFiles.Name -join ", ") + if ($clearanceFiles.Count -gt 0) { " (" + $clearanceFiles.Count + ")" } else { " (NO FILES FOUND)" }
-            $evidenceStr = ($evidenceFiles.Name -join ", ") + if ($evidenceFiles.Count -gt 0) { " (" + $evidenceFiles.Count + ")" } else { " (NO FILES FOUND)" }
-
-            # Add the result object
-            $results += [PSCustomObject]@{
-                MainFolder = $mainFolder
-                SubFolder = $subFolder.Name
-                WorkbookFiles = $workbooksStr
-                ClearanceFile = $clearanceStr
-                EvidenceDocumentFile = $evidenceStr
-            }
+    # Collect files
+    $files = Get-ChildItem -Path $subFolder.FullName -File -Recurse
+    foreach ($file in $files) {
+        if ($file.Name -like '*Prworkbook*.xlsx' -or $file.Name -like '*presworkbook*.xlsx' -or $file.Name -like '*Dworkbook*.xlsx' -or $file.Name -like '*eviworkbook*.xlsx') {
+            $workbookFilesList += $file.Name
+        }
+        elseif ($file.Name -like '*clear*.msg') {
+            $clearanceFilesList += $file.Name
+        }
+        elseif ($file.Name -match 'Evidence_Document_\d{4}\.xlsx') {
+            $evidenceFilesList += $file.Name
         }
     }
+
+    # Build strings and count information
+    $workbooksStr = if ($workbookFilesList.Count -gt 0) { ($workbookFilesList -join ", ") + " (" + $workbookFilesList.Count + ")" } else { "NO FILES FOUND" }
+    $clearanceStr = if ($clearanceFilesList.Count -gt 0) { ($clearanceFilesList -join ", ") + " (" + $clearanceFilesList.Count + ")" } else { "NO FILES FOUND" }
+    $evidenceStr = if ($evidenceFilesList.Count -gt 0) { ($evidenceFilesList -join ", ") + " (" + $evidenceFilesList.Count + ")" } else { "NO FILES FOUND" }
+
+    # Add the result object
+    $results += [PSCustomObject]@{
+        MainFolder = $mainFolder
+        SubFolder = $subFolder.Name
+        WorkbookFiles = $workbooksStr
+        ClearanceFile = $clearanceStr
+        EvidenceDocumentFile = $evidenceStr
+    }
 }
+
 
 # Specify the CSV output path
 $csvOutputPath = "C:\Path\To\output.csv"  # Update this path as necessary
