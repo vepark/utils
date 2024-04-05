@@ -1,3 +1,21 @@
+data updated;
+    set original; /* Your original dataset */
+    length workbook $200.; /* Adjust length as necessary */
+    workbook = ''; /* Initialize as empty */
+    do i = 1 to countw(files, ',');
+        file_part = scan(files, i, ',');
+        if index(upcase(file_part), 'WORKBOOK') > 0 then do;
+            if workbook = '' then workbook = strip(file_part);
+            else workbook = catx(', ', workbook, strip(file_part)); /* Concatenate if multiple */
+        end;
+    end;
+    drop i file_part; /* Clean up temporary variables */
+run;
+
+
+
+
+
 /* Step 1: Create a list of Excel files in a directory */
 filename filelist pipe 'ls /path/to/your/excel/files/*.xlsx';
 
