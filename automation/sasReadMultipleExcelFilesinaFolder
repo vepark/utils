@@ -1,0 +1,31 @@
+/* Step 1: Create a list of Excel files in a directory */
+filename filelist pipe 'dir "C:\Your\Excel\Directory\*.xlsx" /b';
+
+/* Step 2: Read the list and process each file */
+data _null_;
+    length fname $256;
+    infile filelist truncover;
+    input fname $256.;
+    call execute('%process_file("' || "C:\Your\Excel\Directory\" || trim(fname) || '")');
+run;
+
+%macro process_file(filepath);
+    %let dsid = %sysfunc(open(work.filelist));
+    %if &dsid %then %do;
+        %let nSheets = %sysfunc(attrn(&dsid, nlobs));
+
+        /* Assuming 301 to 320 sheets, adjust the loop as necessary */
+        %do i = 1 %to &nSheets;
+            %let sheetName = %sysfunc(scan(&sheetNames, &i));
+
+            /* Your existing PROC IMPORT code goes here, modify as needed */
+            proc import datafile="&filepath"
+                out=sheet&i
+                dbms=xlsx
+                replace;
+                sheet="&sheetName"; /* Adjust this if you need to specify sheet names differently */
+            run;
+        %end;
+    %end;
+    %let rc = %sysfunc(close(&dsid));
+%mend process_file;
