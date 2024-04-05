@@ -1,7 +1,7 @@
 # Hardcoded values for the base path, main folders, and sub-folder patterns
 $basePath = "C:\Your\Hardcoded\BasePath"
-$mainFolders = @("MainFolder1", "MainFolder2") # Adjust with your actual main folders
-$subFolderPatterns = @("SubFolderPattern1", "SubFolderPattern2") # Adjust with your actual sub-folder patterns
+$mainFolders = @("MainFolder1", "MainFolder2")  # Adjust these to your actual folder names
+$subFolderPatterns = @("SubFolderPattern1", "SubFolderPattern2")  # Adjust these to your actual patterns
 
 # Initialize an array to collect the results
 $results = @()
@@ -15,37 +15,31 @@ foreach ($mainFolder in $mainFolders) {
         foreach ($subFolder in $subFolders) {
             $files = Get-ChildItem -Path $subFolder.FullName -File -Recurse
 
-            # Count workbook files based on specified patterns
+            # Define patterns and collect matching files
             $workbookPatterns = @('*Prworkbook*.xlsx', '*presworkbook*.xlsx', '*Dworkbook*.xlsx', '*eviworkbook*.xlsx')
-            $workbookCount = 0
-            foreach ($pattern in $workbookPatterns) {
-                $workbookCount += ($files | Where-Object { $_.Name -like $pattern }).Count
-            }
+            $workbookFiles = $files | Where-Object { $_.Name -like $workbookPatterns[0] -or $_.Name -like $workbookPatterns[1] -or $_.Name -like $workbookPatterns[2] -or $_.Name -like $workbookPatterns[3] }
+            $clearanceFiles = $files | Where-Object { $_.Name -like '*clear*.msg' }
+            $evidenceFiles = $files | Where-Object { $_.Name -match 'Evidence_Document_\d{4}\.xlsx' }
 
-            # Count clearance files
-            $clearanceCount = ($files | Where-Object { $_.Name -like '*clear*.msg' }).Count
+            # Format file lists as strings
+            $workbooksStr = ($workbookFiles.Name -join ", ") + if ($workbookFiles.Count -gt 0) { " (" + $workbookFiles.Count + ")" } else { " (NO FILES FOUND)" }
+            $clearanceStr = ($clearanceFiles.Name -join ", ") + if ($clearanceFiles.Count -gt 0) { " (" + $clearanceFiles.Count + ")" } else { " (NO FILES FOUND)" }
+            $evidenceStr = ($evidenceFiles.Name -join ", ") + if ($evidenceFiles.Count -gt 0) { " (" + $evidenceFiles.Count + ")" } else { " (NO FILES FOUND)" }
 
-            # Check evidence document file naming convention
-            $evidenceFiles = $files | Where-Object { $_.Name -like 'Evidence_Document_*.xlsx' }
-            $evidenceNamingConvention = $evidenceFiles.Name -match 'Evidence_Document_\d{4}\.xlsx'
-
-            # Construct result object
-            $result = [PSCustomObject]@{
+            # Add the result object
+            $results += [PSCustomObject]@{
                 MainFolder = $mainFolder
                 SubFolder = $subFolder.Name
-                WorkbookCount = $workbookCount
-                ClearanceCount = $clearanceCount
-                EvidenceDocumentNamingConvention = if ($evidenceNamingConvention) { "Yes" } else { "No" }
+                WorkbookFiles = $workbooksStr
+                ClearanceFile = $clearanceStr
+                EvidenceDocumentFile = $evidenceStr
             }
-
-            # Add the result to the collection
-            $results += $result
         }
     }
 }
 
 # Specify the CSV output path
-$csvOutputPath = "C:\Path\To\output.csv" # Update this path as necessary
+$csvOutputPath = "C:\Path\To\output.csv"  # Update this path as necessary
 
-# Export the collected results to a CSV file
+# Export the results to a CSV file
 $results | Export-Csv -Path $csvOutputPath -NoTypeInformation -Encoding UTF8
