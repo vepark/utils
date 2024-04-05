@@ -10,10 +10,23 @@ data _null_;
 run;
 
 %macro process_file(filepath);
-    /* Extract the 4-digit number and base filename */
-    %let filename = %scan(&filepath, -1, '/');
-    %let filename = %substr(&filename, 1, %length(&filename)-5); /* Remove extension */
-    %let fileNum = %substr(&filename, %eval(%length(&filename)-3), 4);
+    %local filename fileNum separator;
+
+    /* Determine the file separator based on the operating system */
+    %let separator=%str(/); /* Default to Unix/Linux */
+    %if %index(&filepath,\) %then %let separator=%str(\); /* Adjust for Windows if needed */
+
+    /* Extract the filename from the filepath */
+    %let filename = %qscan(&filepath, -1, &separator);
+
+    /* Extract the specific part of the filename, such as a 4-digit code */
+    /* Adjust the following line according to your filename structure */
+    %let fileNum = %substr(&filename, %eval(%length(&filename)-8), 4);
+
+    /* Debugging: Print the extracted values to the log */
+    %put Filename: &filename;
+    %put FileNum: &fileNum;
+
 
     /* Loop through the specified tab numbers */
     %do tab = 301 %to 320;
