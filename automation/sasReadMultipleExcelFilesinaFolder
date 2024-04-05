@@ -16,17 +16,17 @@ data updated;
             if clear = '' then clear = strip(file_part);
             else clear = catx(', ', clear, strip(file_part));
         end;
-        /* Check and append file parts containing 'evidence*document' */
+        /* Adjusted check for parts containing 'evidence' and 'document' */
         pos_evidence = index(upcase(file_part), 'EVIDENCE');
         pos_document = index(upcase(file_part), 'DOCUMENT');
-        /* Ensure 'document' follows 'evidence' in the file_part */
-        if pos_evidence > 0 and pos_document > pos_evidence then do;
+        if pos_evidence > 0 and pos_document > pos_evidence then do; /* Ensure 'evidence' is before 'document' */
             if evidence_document = '' then evidence_document = strip(file_part);
             else evidence_document = catx(', ', evidence_document, strip(file_part));
         end;
     end;
     drop i file_part pos_evidence pos_document; /* Clean up temporary variables */
 run;
+
 
 
 
