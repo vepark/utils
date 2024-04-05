@@ -1,0 +1,51 @@
+# Hardcoded values for the base path, main folders, and sub-folder patterns
+$basePath = "C:\Your\Hardcoded\BasePath"
+$mainFolders = @("MainFolder1", "MainFolder2") # Adjust with your actual main folders
+$subFolderPatterns = @("SubFolderPattern1", "SubFolderPattern2") # Adjust with your actual sub-folder patterns
+
+# Initialize an array to collect the results
+$results = @()
+
+foreach ($mainFolder in $mainFolders) {
+    $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
+
+    foreach ($subFolderPattern in $subFolderPatterns) {
+        $subFolders = Get-ChildItem -Path $mainFolderPath -Directory -Recurse | Where-Object { $_.Name -like "*$subFolderPattern*" }
+
+        foreach ($subFolder in $subFolders) {
+            $files = Get-ChildItem -Path $subFolder.FullName -File -Recurse
+
+            # Count workbook files based on specified patterns
+            $workbookPatterns = @('*Prworkbook*.xlsx', '*presworkbook*.xlsx', '*Dworkbook*.xlsx', '*eviworkbook*.xlsx')
+            $workbookCount = 0
+            foreach ($pattern in $workbookPatterns) {
+                $workbookCount += ($files | Where-Object { $_.Name -like $pattern }).Count
+            }
+
+            # Count clearance files
+            $clearanceCount = ($files | Where-Object { $_.Name -like '*clear*.msg' }).Count
+
+            # Check evidence document file naming convention
+            $evidenceFiles = $files | Where-Object { $_.Name -like 'Evidence_Document_*.xlsx' }
+            $evidenceNamingConvention = $evidenceFiles.Name -match 'Evidence_Document_\d{4}\.xlsx'
+
+            # Construct result object
+            $result = [PSCustomObject]@{
+                MainFolder = $mainFolder
+                SubFolder = $subFolder.Name
+                WorkbookCount = $workbookCount
+                ClearanceCount = $clearanceCount
+                EvidenceDocumentNamingConvention = if ($evidenceNamingConvention) { "Yes" } else { "No" }
+            }
+
+            # Add the result to the collection
+            $results += $result
+        }
+    }
+}
+
+# Specify the CSV output path
+$csvOutputPath = "C:\Path\To\output.csv" # Update this path as necessary
+
+# Export the collected results to a CSV file
+$results | Export-Csv -Path $csvOutputPath -NoTypeInformation -Encoding UTF8
