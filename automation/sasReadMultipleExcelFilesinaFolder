@@ -1,16 +1,33 @@
 data updated;
     set original; /* Your original dataset */
-    length workbook $200.; /* Adjust length as necessary */
+    length workbook $200 clear $200 evidence_document $200; /* Adjust length as necessary */
     workbook = ''; /* Initialize as empty */
+    clear = ''; /* Initialize as empty */
+    evidence_document = ''; /* Initialize as empty */
     do i = 1 to countw(files, ',');
         file_part = scan(files, i, ',');
+        /* Check and append file parts containing 'workbook' */
         if index(upcase(file_part), 'WORKBOOK') > 0 then do;
             if workbook = '' then workbook = strip(file_part);
-            else workbook = catx(', ', workbook, strip(file_part)); /* Concatenate if multiple */
+            else workbook = catx(', ', workbook, strip(file_part));
+        end;
+        /* Check and append file parts containing 'clear' */
+        if index(upcase(file_part), 'CLEAR') > 0 then do;
+            if clear = '' then clear = strip(file_part);
+            else clear = catx(', ', clear, strip(file_part));
+        end;
+        /* Check and append file parts containing 'evidence*document' */
+        pos_evidence = index(upcase(file_part), 'EVIDENCE');
+        pos_document = index(upcase(file_part), 'DOCUMENT');
+        /* Ensure 'document' follows 'evidence' in the file_part */
+        if pos_evidence > 0 and pos_document > pos_evidence then do;
+            if evidence_document = '' then evidence_document = strip(file_part);
+            else evidence_document = catx(', ', evidence_document, strip(file_part));
         end;
     end;
-    drop i file_part; /* Clean up temporary variables */
+    drop i file_part pos_evidence pos_document; /* Clean up temporary variables */
 run;
+
 
 
 
