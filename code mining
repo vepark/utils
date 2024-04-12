@@ -1,0 +1,15 @@
+%let search_term=your_keyword;  /* Replace your_keyword with the actual keyword */
+%let directory_path=/path/to/your/files; /* Set your directory path */
+%let output_csv=/path/to/output/search_results.csv; /* Set path for the output CSV file */
+
+/* Delete the output CSV file if it already exists */
+x "rm -f &output_csv";
+
+/* Header for the CSV file */
+data _null_;
+   file "&output_csv";
+   put 'Search Term,File Name,Matched Line';
+run;
+
+/* Use grep to find the keyword and append results to the CSV */
+x "grep -r -H -e '&search_term' &directory_path | sed 's/:/,/' | awk -v kw='&search_term' -F',' '{print kw\",\"$0}' >> &output_csv";
