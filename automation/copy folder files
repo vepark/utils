@@ -1,3 +1,23 @@
+
+import requests
+from bs4 import BeautifulSoup
+
+url = 'http://example.com/main'
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html.parser')
+file_links = []
+
+for a in soup.find_all('a', href=True):
+    if 'pfmt=' in a['href']:
+        file_links.append(a['href'])
+
+with open('urls.txt', 'w') as f:
+    for link in file_links:
+        f.write(f"{link}\n")
+
+
+
+
 import requests
 from bs4 import BeautifulSoup
 
