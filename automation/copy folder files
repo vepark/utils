@@ -1,0 +1,16 @@
+import requests
+from bs4 import BeautifulSoup
+
+# URL of the page where files are listed
+url = 'http://example.com/documentum/folder/'
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html.parser')
+
+# Assuming files are in <a> tags and directly downloadable
+for link in soup.find_all('a'):
+    file_url = link.get('href')
+    if file_url:
+        print("Downloading:", file_url)
+        r = requests.get(file_url)
+        with open(file_url.split('/')[-1], 'wb') as f:
+            f.write(r.content)
