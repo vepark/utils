@@ -1,0 +1,39 @@
+import requests
+from bs4 import BeautifulSoup
+import re
+
+# URL of the web page containing the JavaScript with links
+url = 'http://example.com'
+
+# Start a session and download the page
+session = requests.Session()
+response = session.get(url)
+html_content = response.text
+
+# Use BeautifulSoup to parse the HTML
+soup = BeautifulSoup(html_content, 'html.parser')
+
+# Find script tags - assuming the data is within <script> tags
+script_tags = soup.find_all('script')
+links = []
+
+# Regex to find URLs within scripts (adjust regex according to actual JavaScript code structure)
+url_pattern = re.compile(r'pname=(.*?)&pfmt=(.*?)\"')
+
+for script in script_tags:
+    if script.string:  # Only proceed if the script tag contains something
+        urls = url_pattern.findall(script.string)
+        links.extend(urls)
+
+# Download each file found
+for pname, pfmt in links:
+    file_url = f"http://example.com/path/to/file?pname={pname}&pfmt={pfmt}"
+    file_name = f"{pname}.{pfmt}"
+    response = session.get(file_url)
+    if response.status_code == 200:
+        with open(file_name, 'wb') as f:
+            f.write(response.content)
+        print(f"Downloaded {file_name}")
+    else:
+        print(f"Failed to download {file_name}")
+
