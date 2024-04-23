@@ -1,0 +1,52 @@
+param(
+    [string]$mainfolders,       # String of main folder paths
+    [string]$subfolderpatterns  # String of subfolder name patterns
+)
+
+# Convert comma-separated strings to arrays
+$mainfolderArray = $mainfolders -split ",", [System.StringSplitOptions]::RemoveEmptyEntries
+$subfolderPatternArray = $subfolderpatterns -split ",", [System.StringSplitOptions]::RemoveEmptyEntries
+
+# Function to find all matching subfolders that contain the 4-digit pattern in their names
+function Get-MatchingSubfolders {
+    param(
+        [string]$baseFolder,
+        [string]$pattern
+    )
+
+    Get-ChildItem -Path $baseFolder -Recurse -Directory |
+    Where-Object { $_.Name -match $pattern } |
+    ForEach-Object { $_.FullName }
+}
+
+# Prepare the output array
+$results = @()
+
+# Process each main folder (trim to remove any leading/trailing spaces)
+foreach ($mainfolder in $mainfolderArray) {
+    foreach ($pattern in $subfolderPatternArray) {
+        # Find subfolders matching the pattern (trim to ensure no extra spaces)
+        $matchingSubfolders = Get-MatchingSubfolders -baseFolder ($mainfolder.Trim()) -pattern ($pattern.Trim())
+
+        foreach ($subfolder in $matchingSubfolders) {
+            # Get all files in the subfolder and its subfolders
+            $files = Get-ChildItem -Path $subfolder -Recurse -File | Select-Object -ExpandProperty FullName
+
+            # Create output object
+            $output = [PSCustomObject]@{
+                MainFolder  = $mainfolder.Trim()
+                SubFolder   = $subfolder
+                AllFileNames = ($files -join ",")  # Join all file names with commas
+            }
+
+            # Add the output to results
+            $results += $output
+        }
+    }
+}
+
+# Export results to CSV
+$results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation
+
+# Optionally, print results to the console
+$results | Format-Table | Out-String | Write-Host
