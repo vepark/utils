@@ -51,3 +51,76 @@ foreach ($mainFolder in $mainFolders) {
 $results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation -Encoding UTF8
 
 Write-Host "CSV file has been created successfully."
+
+
+
+
+
+
+# FOR LONG LENGTH PATH ISSUE
+# Function to convert a normal path to a UNC path which supports long file paths
+function Convert-ToLongPath {
+    param([string]$Path)
+    return "\\?\$Path"
+}
+
+# Define the base path where main folders are located and specify main folder names
+$basePath = "C:\Your\BasePath"  # Update with your actual base path
+$mainFolders = @("12345678", "23456789")  # Update with your actual main folder names
+$subFolderPatterns = @("1234", "5678")  # Update with your sub-folder patterns
+
+# Convert base path to a long path format
+$longBasePath = Convert-ToLongPath -Path $basePath
+
+# Prepare an array to collect results
+$results = @()
+
+foreach ($mainFolder in $mainFolders) {
+    $mainFolderPath = Join-Path -Path $longBasePath -ChildPath $mainFolder
+    Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+        $subFolder = $_
+        $subFolderName = $subFolder.Name
+        # Check if subFolder matches any pattern
+        $matchFound = $false
+        foreach ($pattern in $subFolderPatterns) {
+            if ($subFolderName -like "*$pattern*") {
+                $matchFound = $true
+                break
+            }
+        }
+        if ($matchFound) {
+            # Initialize object to hold folder and files information
+            $record = [PSCustomObject][ordered]@{
+                MainFolder = $mainFolder  # Use just the folder name, adjust if full path
+                SubFolder = $subFolderName
+                AllFileNames = ""
+            }
+            
+            # Convert sub-folder path to a long path format
+            $longSubFolderPath = Convert-ToLongPath -Path $subFolder.FullName
+
+            # Search for all files within the sub-folder
+            Get-ChildItem -Path $longSubFolderPath -File -Recurse | ForEach-Object {
+                $file = $_
+                $record.AllFileNames += $file.Name + ", "  # Append each file name with a comma
+            }
+            
+            # Trim trailing comma
+            $record.AllFileNames = $record.AllFileNames.TrimEnd(", ")
+
+            # Add the record to results if any files found
+            if ($record.AllFileNames -ne "") {
+                $results += $record
+            } else {
+                $record.AllFileNames = "NO FILES FOUND"
+                $results += $record
+            }
+        }
+    }
+}
+
+# Export results to CSV
+$results | Export-Csv -Path "C:\Path\To\output.csv" -NoTypeInformation -Encoding UTF8
+
+Write-Host "CSV file has been created successfully."
+
