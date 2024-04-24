@@ -1,49 +1,45 @@
-%macro import_xlsx(folder);
+%macro importSheetsDAQ3(file_path);
+   /* Your existing code goes here, modify it to use &file_path */
+%mend importSheetsDAQ3;
 
+%macro append(file_path);
+   /* Your existing code goes here, modify it to use &file_path */
+%mend append;
+
+%macro importAllSheets(directory);
    /* Get the list of all xlsx files */
-   filename _dir_ "%bquote(&folder)";
+   filename _dir_ "&directory";
    data file_list(keep=filename);
-       handle = dopen('_dir_');
-       if handle > 0 then do;
-           count = dnum(handle);
-           do i = 1 to count;
-               filename = dread(handle, i);
+       length filename $256.;
+       dir_id = dopen('_dir_');
+       if dir_id > 0 then do;
+           file_num = dnum(dir_id);
+           do i = 1 to file_num;
+               filename = dread(dir_id, i);
+               /* Check for xlsx extension */
                if lowcase(scan(filename, -1, '.')) = 'xlsx' then output;
            end;
        end;
-       rc = dclose(handle);
+       rc = dclose(dir_id);
    run;
 
-   /* Loop through each file and process */
-   data _null_;
-       set file_list;
-       call symputx('file_name', filename);
-       last4 = prxchange('s/.*(\d{4})\.xlsx/$1/', -1, filename);
-       call symputx('last4', last4);
-       rc = dosubl('
-           proc import datafile="&folder/&file_name" out=work.temp dbms=xlsx replace;
-               sheet="Summary";
-           run;
-           data Summary&last4;
-               set work.temp;
-           run;
+   /* Process each file with your macros */
+   proc sql noprint;
+      select filename into :filelist separated by ' ' from file_list;
+   quit;
 
-           /* Import sheets 301 to 320 with range C-G */
-           %do i=301 %to 320;
-               %let sheetname = &i;
-               proc import datafile="&folder/&file_name" out=work.temp2 dbms=xlsx replace;
-                   sheet="&sheetname" range="C:G";
-               run;
-               %if &syserr = 0 %then %do;
-                   data CR&sheetname.&last4;
-                       set work.temp2;
-                   run;
-               %end;
-           %end;
-       ');
-   run;
+   %let total_files = &sqlobs;
 
-%mend import_xlsx;
+   /* Call your macros for each file */
+   %do i = 1 %to &total_files;
+       %let current_file = %scan(&filelist, &i, ' ');
+       %let current_file_with_path = &directory/&current_file;
+       
+       /* Call your existing macros with the file path */
+       %importSheetsDAQ3(&current_file_with_path);
+       %append(&current_file_with_path);
+   %end;
+%mend importAllSheets;
 
-/* Call the macro with the path to your folder */
-%import_xlsx(C:\path\to\xlsx\files);
+/* Call the master macro with the path to your folder */
+%importAllSheets(/path/to/your/xlsx/files);
