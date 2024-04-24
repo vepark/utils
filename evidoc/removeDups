@@ -3,12 +3,16 @@ Function RemoveDupes(inputString As String, delimiter As String) As String
     Set dict = CreateObject("Scripting.Dictionary")
     Dim part As Variant
     Dim parts As Variant
-    
+
+    ' Normalize the string: Trim spaces, replace newlines and ensure uniform spacing
+    inputString = Trim(Replace(Replace(inputString, Chr(10), ""), Chr(13), ""))
+
     ' Split the inputString by the delimiter
     parts = Split(inputString, delimiter)
 
-    ' Add only unique non-empty items to the dictionary
+    ' Add only unique, trimmed non-empty items to the dictionary
     For Each part In parts
+        part = Trim(part)  ' Trim spaces from each part to ensure clean comparison
         If part <> "" And Not dict.exists(part) Then
             dict.Add part, Nothing
         End If
