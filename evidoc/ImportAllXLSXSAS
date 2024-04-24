@@ -1,3 +1,17 @@
+%macro importSheetsDAQ3(file_path, last4);
+    /* Here you use the &file_path to import the file */
+    proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
+        sheet="Summary";
+    run;
+
+    data REDA_&last4._Summary;
+        set work.temp;
+        /* ... additional data processing ... */
+    run;
+
+    /* You would continue with any other sheets that need to be processed, appending the &last4 to their names */
+%mend importSheetsDAQ3;
+
 %macro importAllSheets(directory);
    /* Get the list of all xlsx files and their last 4 digits */
    filename _dir_ "&directory";
@@ -29,24 +43,14 @@
            call symputx('current_file', filename);
            call symputx('current_file_with_path', "&directory/&current_file");
            call symputx('last4', last4);
-           /* Adjusted macro calls with new dataset naming convention */
+           /* Call your existing macros with the file path and last4 */
            %importSheetsDAQ3(&current_file_with_path, &last4);
-           %append(&current_file_with_path, &last4);
+           /* if you have a separate append macro, call it here with the required parameters */
+           /* %append(&current_file_with_path, &last4); */
        end;
        stop;
    run;
 %mend importAllSheets;
-
-/* Example modifications for the %importSheetsDAQ3 and %append macros */
-%macro importSheetsDAQ3(file_path, last4);
-   /* Your existing code goes here, modify it to use &file_path and &last4 */
-   /* Update dataset names to use the new naming convention, e.g., REDA_&last4._&sheetname */
-%mend importSheetsDAQ3;
-
-%macro append(file_path, last4);
-   /* Your existing code goes here, modify it to use &file_path and &last4 */
-   /* Update dataset names to use the new naming convention, e.g., REDA_&last4._&sheetname */
-%mend append;
 
 /* Call the master macro with the path to your folder */
 %importAllSheets(/path/to/your/xlsx/files);
