@@ -1,0 +1,57 @@
+# Define the output file
+$outputFile = "directory_structure.csv"
+
+# Ask the user for the directory path or use a default path
+$path = Read-Host "Enter the directory path to analyze (or press Enter to use the current directory)"
+if ([string]::IsNullOrWhiteSpace($path)) {
+    $path = Get-Location
+}
+
+# Write the CSV header
+"Main Folder,Subfolder 1,Subfolder 2,Files" | Out-File $outputFile
+
+# Get all main directories from the specified path
+$mainDirectories = Get-ChildItem -Path $path -Directory
+
+# Job list
+$jobs = @()
+
+foreach ($main in $mainDirectories) {
+    # Start a background job for each main directory
+    $job = Start-Job -ScriptBlock {
+        param($main, $outputFile)
+        $result = @()
+
+        # Get immediate subdirectories
+        $subdirs = Get-ChildItem -Path $main.FullName -Directory
+
+        if ($subdirs.Count -eq 0) {
+            # No subdirectories, just list files
+            $files = (Get-ChildItem -Path $main.FullName -File -Recurse | Select-Object -ExpandProperty FullName)
+            $result += "`"$($main.Name)`",,," + ($files -join ",")
+        } else {
+            foreach ($subdir in $subdirs) {
+                $subsubdirs = Get-ChildItem -Path $subdir.FullName -Directory
+
+                if ($subsubdirs.Count -eq 0) {
+                    # No further subdirectories
+                    $files = (Get-ChildItem -Path $subdir.FullName -File -Recurse | Select-Object -ExpandProperty FullName)
+                    $result += "`"$($main.Name)`",`"$($subdir.Name)`",," + ($files -join ",")
+                } else {
+                    foreach ($subsub in $subsubdirs) {
+                        $files = (Get-ChildItem -Path $subsub.FullName -File -Recurse | Select-Object -ExpandProperty FullName)
+                        $result += "`"$($main.Name)`",`"$($subdir.Name)`",`"$($subsub.Name)`"," + ($files -join ",")
+                    }
+                }
+            }
+        }
+        $result | Out-File $outputFile -Append
+    } -ArgumentList $main, $outputFile
+    $jobs += $job
+}
+
+# Wait for all jobs to complete
+$jobs | Wait-Job
+
+# Clean up
+$jobs | Remove-Job
