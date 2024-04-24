@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultTextAlignment center
+skinparam activity {
+    BackgroundColor Wheat
+    BorderColor Black
+}
+skinparam arrow {
+    Color Black
+}
+
+start
+
+:Fetch Jira Ticket Data\nfrom Backend Tables;
+
+:Extract ID1 and ID2\nin Base SAS;
+
+:Use PowerShell to extract file info\nfor ID1 and ID2;\nnote right: Includes downloading\nall ED documents
+
+:Import and Process Data\nin SAS;
+
+:Load processed data into\nmultiple tables in Teradata Sandbox;
+
+:Create reports using\nSAS Grid;
+
+:Email reports on a\nweekly basis;
+
+stop
+@enduml
