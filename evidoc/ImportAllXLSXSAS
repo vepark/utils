@@ -1,13 +1,5 @@
-%macro importSheetsDAQ3(file_path);
-   /* Your existing code goes here, modify it to use &file_path */
-%mend importSheetsDAQ3;
-
-%macro append(file_path);
-   /* Your existing code goes here, modify it to use &file_path */
-%mend append;
-
 %macro importAllSheets(directory);
-   /* Get the list of all xlsx files */
+   /* Step 1: Get the list of all xlsx files */
    filename _dir_ "&directory";
    data file_list(keep=filename);
        length filename $256.;
@@ -23,22 +15,20 @@
        rc = dclose(dir_id);
    run;
 
-   /* Process each file with your macros */
-   proc sql noprint;
-      select filename into :filelist separated by ' ' from file_list;
-   quit;
-
-   %let total_files = &sqlobs;
-
-   /* Call your macros for each file */
-   %do i = 1 %to &total_files;
-       %let current_file = %scan(&filelist, &i, ' ');
-       %let current_file_with_path = &directory/&current_file;
-       
-       /* Call your existing macros with the file path */
-       %importSheetsDAQ3(&current_file_with_path);
-       %append(&current_file_with_path);
-   %end;
+   /* Step 2: Create macro variables for each file and process them */
+   data _null_;
+       set file_list nobs=numrows;
+       do i = 1 to numrows;
+           set file_list point=i;
+           call symputx('current_file', filename);
+           call symputx('current_file_with_path', "&directory/&current_file");
+           call symputx('i', i); /* Just in case you need an iterator */
+           /* You may need to ensure that your macros can handle being called sequentially like this */
+           %importSheetsDAQ3(&current_file_with_path);
+           %append(&current_file_with_path);
+       end;
+       stop;
+   run;
 %mend importAllSheets;
 
 /* Call the master macro with the path to your folder */
