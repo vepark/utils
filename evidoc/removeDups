@@ -1,0 +1,16 @@
+Function RemoveDupes(inputString As String, delimiter As String) As String
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    Dim part As Variant
+    Dim parts As Variant
+    parts = Split(inputString, delimiter)
+
+    For Each part In parts
+        If Not dict.exists(part) Then
+            dict.Add part, Nothing
+        End If
+    Next part
+
+    RemoveDupes = Join(dict.keys, delimiter)
+    Set dict = Nothing
+End Function
