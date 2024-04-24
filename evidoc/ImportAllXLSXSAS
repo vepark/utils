@@ -1,7 +1,7 @@
 %macro importAllSheets(directory);
-   /* Step 1: Get the list of all xlsx files */
+   /* Get the list of all xlsx files and their last 4 digits */
    filename _dir_ "&directory";
-   data file_list(keep=filename);
+   data file_list(keep=filename last4);
        length filename $256.;
        dir_id = dopen('_dir_');
        if dir_id > 0 then do;
@@ -9,27 +9,44 @@
            do i = 1 to file_num;
                filename = dread(dir_id, i);
                /* Check for xlsx extension */
-               if lowcase(scan(filename, -1, '.')) = 'xlsx' then output;
+               if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
+                   /* Extract the last four digits from the filename */
+                   last4 = prxmatch("/(\d{4})\.xlsx$/", filename);
+                   if last4 > 0 then last4 = substr(filename, last4, 4);
+                   else last4 = "0000";
+                   output;
+               end;
            end;
        end;
        rc = dclose(dir_id);
    run;
 
-   /* Step 2: Create macro variables for each file and process them */
+   /* Process each file with your macros */
    data _null_;
        set file_list nobs=numrows;
        do i = 1 to numrows;
            set file_list point=i;
            call symputx('current_file', filename);
            call symputx('current_file_with_path', "&directory/&current_file");
-           call symputx('i', i); /* Just in case you need an iterator */
-           /* You may need to ensure that your macros can handle being called sequentially like this */
-           %importSheetsDAQ3(&current_file_with_path);
-           %append(&current_file_with_path);
+           call symputx('last4', last4);
+           /* Adjusted macro calls with new dataset naming convention */
+           %importSheetsDAQ3(&current_file_with_path, &last4);
+           %append(&current_file_with_path, &last4);
        end;
        stop;
    run;
 %mend importAllSheets;
+
+/* Example modifications for the %importSheetsDAQ3 and %append macros */
+%macro importSheetsDAQ3(file_path, last4);
+   /* Your existing code goes here, modify it to use &file_path and &last4 */
+   /* Update dataset names to use the new naming convention, e.g., REDA_&last4._&sheetname */
+%mend importSheetsDAQ3;
+
+%macro append(file_path, last4);
+   /* Your existing code goes here, modify it to use &file_path and &last4 */
+   /* Update dataset names to use the new naming convention, e.g., REDA_&last4._&sheetname */
+%mend append;
 
 /* Call the master macro with the path to your folder */
 %importAllSheets(/path/to/your/xlsx/files);
