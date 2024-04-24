@@ -1,0 +1,49 @@
+%macro import_xlsx(folder);
+
+   /* Get the list of all xlsx files */
+   filename _dir_ "%bquote(&folder)";
+   data file_list(keep=filename);
+       handle = dopen('_dir_');
+       if handle > 0 then do;
+           count = dnum(handle);
+           do i = 1 to count;
+               filename = dread(handle, i);
+               if lowcase(scan(filename, -1, '.')) = 'xlsx' then output;
+           end;
+       end;
+       rc = dclose(handle);
+   run;
+
+   /* Loop through each file and process */
+   data _null_;
+       set file_list;
+       call symputx('file_name', filename);
+       last4 = prxchange('s/.*(\d{4})\.xlsx/$1/', -1, filename);
+       call symputx('last4', last4);
+       rc = dosubl('
+           proc import datafile="&folder/&file_name" out=work.temp dbms=xlsx replace;
+               sheet="Summary";
+           run;
+           data Summary&last4;
+               set work.temp;
+           run;
+
+           /* Import sheets 301 to 320 with range C-G */
+           %do i=301 %to 320;
+               %let sheetname = &i;
+               proc import datafile="&folder/&file_name" out=work.temp2 dbms=xlsx replace;
+                   sheet="&sheetname" range="C:G";
+               run;
+               %if &syserr = 0 %then %do;
+                   data CR&sheetname.&last4;
+                       set work.temp2;
+                   run;
+               %end;
+           %end;
+       ');
+   run;
+
+%mend import_xlsx;
+
+/* Call the macro with the path to your folder */
+%import_xlsx(C:\path\to\xlsx\files);
