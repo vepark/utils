@@ -4,19 +4,17 @@ Function RemoveDupes(inputString As String, delimiter As String) As String
     Dim part As Variant
     Dim parts As Variant
     
-    ' Ensure the inputString ends with the delimiter for consistent splitting
-    If Right(inputString, Len(delimiter)) <> delimiter Then
-        inputString = inputString & delimiter
-    End If
-    
+    ' Split the inputString by the delimiter
     parts = Split(inputString, delimiter)
 
+    ' Add only unique non-empty items to the dictionary
     For Each part In parts
-        If Not dict.exists(part) And part <> "" Then ' Ensure empty strings are not added
+        If part <> "" And Not dict.exists(part) Then
             dict.Add part, Nothing
         End If
     Next part
 
+    ' Join all unique keys by the delimiter to form the result
     RemoveDupes = Join(dict.keys, delimiter)
     Set dict = Nothing
 End Function
