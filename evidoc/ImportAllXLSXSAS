@@ -1,5 +1,5 @@
 %macro importSheetsDAQ3(file_path, last4);
-    /* Here you use the &file_path to import the file */
+    /* Sample placeholder for your import logic - replace with your actual code */
     proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
         sheet="Summary";
     run;
@@ -8,49 +8,42 @@
         set work.temp;
         /* ... additional data processing ... */
     run;
-
-    /* You would continue with any other sheets that need to be processed, appending the &last4 to their names */
 %mend importSheetsDAQ3;
 
 %macro importAllSheets(directory);
-   /* Get the list of all xlsx files and their last 4 digits */
-   filename _dir_ "&directory";
-   data file_list(keep=filename last4);
-       length filename $256.;
-       dir_id = dopen('_dir_');
-       if dir_id > 0 then do;
-           file_num = dnum(dir_id);
-           do i = 1 to file_num;
-               filename = dread(dir_id, i);
-               /* Check for xlsx extension */
-               if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                   /* Extract the last four digits from the filename */
-                   last4 = prxmatch("/(\d{4})\.xlsx$/", filename);
-                   if last4 > 0 then last4 = substr(filename, last4, 4);
-                   else last4 = "0000";
-                   output;
-               end;
-           end;
-       end;
-       rc = dclose(dir_id);
-   run;
+    /* Step 1: Get the list of all xlsx files and their last 4 digits */
+    filename _dir_ "&directory";
+    data file_list(keep=filename last4);
+        length filename $256.;
+        dir_id = dopen('_dir_');
+        if dir_id > 0 then do;
+            file_num = dnum(dir_id);
+            do i = 1 to file_num;
+                filename = dread(dir_id, i);
+                /* Check for xlsx extension and extract last four digits */
+                if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
+                    /* Reverse the filename to get the last four digits easily */
+                    reversed_filename = reverse(filename);
+                    /* Extract the first four characters which are now the last of the original filename */
+                    last4 = substr(reversed_filename, 6, 4);
+                    /* Reverse back to get the correct order */
+                    last4 = reverse(last4);
+                    output;
+                end;
+            end;
+        end;
+        rc = dclose(dir_id);
+    run;
 
-   /* Process each file with your macros */
-   data _null_;
-       set file_list nobs=numrows;
-       do i = 1 to numrows;
-           set file_list point=i;
-           call symputx('current_file', filename);
-           call symputx('current_file_with_path', "&directory/&current_file");
-           call symputx('last4', last4);
-           /* Call your existing macros with the file path and last4 */
-           %importSheetsDAQ3(&current_file_with_path, &last4);
-           /* if you have a separate append macro, call it here with the required parameters */
-           /* %append(&current_file_with_path, &last4); */
-       end;
-       stop;
-   run;
+    /* Step 2: Process each file with the %importSheetsDAQ3 macro */
+    data _null_;
+        set file_list;
+        /* Construct the full path of the file */
+        file_path = catx('/', "&directory", filename);
+        /* Call the import macro with the full path and last four digits of the file name */
+        call execute(cats('%importSheetsDAQ3(', quote(trim(file_path)), ', ', last4, ')'));
+    run;
 %mend importAllSheets;
 
-/* Call the master macro with the path to your folder */
+/* Invoke the master macro with the directory containing your XLSX files */
 %importAllSheets(/path/to/your/xlsx/files);
