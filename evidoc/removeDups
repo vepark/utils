@@ -3,10 +3,16 @@ Function RemoveDupes(inputString As String, delimiter As String) As String
     Set dict = CreateObject("Scripting.Dictionary")
     Dim part As Variant
     Dim parts As Variant
+    
+    ' Ensure the inputString ends with the delimiter for consistent splitting
+    If Right(inputString, Len(delimiter)) <> delimiter Then
+        inputString = inputString & delimiter
+    End If
+    
     parts = Split(inputString, delimiter)
 
     For Each part In parts
-        If Not dict.exists(part) Then
+        If Not dict.exists(part) And part <> "" Then ' Ensure empty strings are not added
             dict.Add part, Nothing
         End If
     Next part
