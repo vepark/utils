@@ -1,33 +1,55 @@
-%macro importSheetsDAQ3(file_path, last4);
-    /* Sample placeholder for your import logic - replace with your actual code */
-    proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
+%macro importSheetsQC3(file_path, last4);
+    /* Import 'Summary' sheet */
+    proc import datafile="&file_path" out=REDA&last4._Summary dbms=xlsx replace;
         sheet="Summary";
     run;
 
-    data REDA_&last4._Summary;
-        set work.temp;
-        /* ... additional data processing ... */
-    run;
-%mend importSheetsDAQ3;
+    /* Loop through sheets 301 to 320 */
+    %do i=301 %to 320;
+        /* Special case for sheet 310 */
+        %if &i = 310 %then %do;
+            /* Import with range C:G */
+            proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
+                sheet="&i" range="C:G";
+            run;
+            /* Data cleaning: delete if all missing or C ends with ':' */
+            data REDA&last4._&i;
+                set work.temp;
+                if cmiss(of _all_) or substr(C, length(C)) = ':' then delete;
+            run;
+        %end;
+        %else %do;
+            /* Import with range C:D for other sheets */
+            proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
+                sheet="&i" range="C:D";
+            run;
+            /* Possibly further processing, creating final dataset */
+            data REDA&last4._&i;
+                set work.temp;
+                /* Further processing or data cleaning if needed */
+            run;
+        %end;
+    %end;
+
+%mend importSheetsQC3;
 
 %macro importAllSheets(directory);
-    /* Step 1: Get the list of all xlsx files and their last 4 digits */
+    /* Step 1: Get the list of all xlsx files and extract a four-digit number from anywhere in the filename */
     filename _dir_ "&directory";
     data file_list(keep=filename last4);
-        length filename $256.;
+        length filename $256. last4 $4.;
         dir_id = dopen('_dir_');
         if dir_id > 0 then do;
             file_num = dnum(dir_id);
             do i = 1 to file_num;
                 filename = dread(dir_id, i);
-                /* Check for xlsx extension and extract last four digits */
+                /* Check for xlsx extension */
                 if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                    /* Reverse the filename to get the last four digits easily */
-                    reversed_filename = reverse(filename);
-                    /* Extract the first four characters which are now the last of the original filename */
-                    last4 = substr(reversed_filename, 6, 4);
-                    /* Reverse back to get the correct order */
-                    last4 = reverse(last4);
+                    /* Use a regular expression to find the first occurrence of a four-digit number in the filename */
+                    if prxmatch("/(\d{4})/", filename) then do;
+                        last4 = prxposn(prxparse("/(\d{4})/"), 1, filename);
+                    end;
+                    else last4 = "0000";
                     output;
                 end;
             end;
@@ -40,8 +62,8 @@
         set file_list;
         /* Construct the full path of the file */
         file_path = catx('/', "&directory", filename);
-        /* Call the import macro with the full path and last four digits of the file name */
-        call execute(cats('%importSheetsDAQ3(', quote(trim(file_path)), ', ', last4, ')'));
+        /* Call the import macro with the full path and the four-digit number found in the filename */
+        call execute(cats('%importSheetsQC3(', quote(trim(file_path)), ', ', last4, ')'));
     run;
 %mend importAllSheets;
 
