@@ -1,40 +1,42 @@
-%macro importSheetsQC3(file_path, last4);
+%macro importSheetsDAQ3(file_path, last4);
+    /* Ensure last4 is received correctly */
+    %put &=last4; /* Debugging: Print last4 to log */
+    
     /* Import 'Summary' sheet */
-    proc import datafile="&file_path" out=REDA&last4._Summary dbms=xlsx replace;
+    proc import datafile="&file_path" out=work.temp_summary dbms=xlsx replace;
         sheet="Summary";
     run;
 
-    /* Loop through sheets 301 to 320 */
+    /* Correct naming convention with last4 resolved */
+    data REDA_&last4._Summary;
+        set work.temp_summary;
+    run;
+
+    /* Loop through sheets 301 to 320, with specific logic for sheet 310 */
     %do i=301 %to 320;
-        /* Special case for sheet 310 */
+        %let sheet_name = %str(&i);
         %if &i = 310 %then %do;
-            /* Import with range C:G */
-            proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
-                sheet="&i" range="C:G";
+            proc import datafile="&file_path" out=work.temp310 dbms=xlsx replace;
+                sheet="&sheet_name" range="C:G";
             run;
-            /* Data cleaning: delete if all missing or C ends with ':' */
-            data REDA&last4._&i;
-                set work.temp;
+            data REDA_&last4._&sheet_name;
+                set work.temp310;
                 if cmiss(of _all_) or substr(C, length(C)) = ':' then delete;
             run;
         %end;
         %else %do;
-            /* Import with range C:D for other sheets */
-            proc import datafile="&file_path" out=work.temp dbms=xlsx replace;
-                sheet="&i" range="C:D";
+            proc import datafile="&file_path" out=work.temp_others dbms=xlsx replace;
+                sheet="&sheet_name" range="C:D";
             run;
-            /* Possibly further processing, creating final dataset */
-            data REDA&last4._&i;
-                set work.temp;
-                /* Further processing or data cleaning if needed */
+            data REDA_&last4._&sheet_name;
+                set work.temp_others;
             run;
         %end;
     %end;
-
-%mend importSheetsQC3;
+%mend importSheetsDAQ3;
 
 %macro importAllSheets(directory);
-    /* Step 1: Get the list of all xlsx files and extract a four-digit number from anywhere in the filename */
+    /* Get the list of all xlsx files and extract a four-digit number from anywhere in the filename */
     filename _dir_ "&directory";
     data file_list(keep=filename last4);
         length filename $256. last4 $4.;
@@ -43,12 +45,9 @@
             file_num = dnum(dir_id);
             do i = 1 to file_num;
                 filename = dread(dir_id, i);
-                /* Check for xlsx extension */
                 if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                    /* Use a regular expression to find the first occurrence of a four-digit number in the filename */
-                    if prxmatch("/(\d{4})/", filename) then do;
-                        last4 = prxposn(prxparse("/(\d{4})/"), 1, filename);
-                    end;
+                    /* Use a regex to find the first occurrence of a four-digit number */
+                    if prxmatch("/(\d{4})/", filename) > 0 then last4 = prxposn(prxparse("/(\d{4})/"), 1, filename);
                     else last4 = "0000";
                     output;
                 end;
@@ -57,15 +56,19 @@
         rc = dclose(dir_id);
     run;
 
-    /* Step 2: Process each file with the %importSheetsDAQ3 macro */
-    data _null_;
-        set file_list;
-        /* Construct the full path of the file */
-        file_path = catx('/', "&directory", filename);
-        /* Call the import macro with the full path and the four-digit number found in the filename */
-        call execute(cats('%importSheetsQC3(', quote(trim(file_path)), ', ', last4, ')'));
-    run;
+    /* Process each file using call execute */
+    proc sql noprint;
+        select catx(' ', '%importSheetsDAQ3(', quote(trim(directory)) || '/' || trim(filename), ',', last4, ')') into :exec_list separated by ';'
+        from file_list;
+    quit;
+
+    /* Execute each macro call for processing files */
+    %do i = 1 %to &sqlobs;
+        %let exec_call = %scan(&exec_list, &i, ';');
+        %put &exec_call; /* Debugging: Print each call to log */
+        &exec_call.;
+    %end;
 %mend importAllSheets;
 
-/* Invoke the master macro with the directory containing your XLSX files */
+/* Call the master macro */
 %importAllSheets(/path/to/your/xlsx/files);
