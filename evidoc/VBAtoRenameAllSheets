@@ -4,7 +4,11 @@ Sub RenameAndCleanSheets()
     Dim summaryValue As String
     Dim path As String
     Dim filename As String
-
+    
+    ' Turn off screen updating and alerts
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
     ' Set the directory path where the Excel files are located
     path = "C:\path\to\your\excel\files\"
     
@@ -12,7 +16,7 @@ Sub RenameAndCleanSheets()
     filename = Dir(path & "*.xlsx")
     Do While filename <> ""
         ' Open the workbook
-        Set wb = Workbooks.Open(path & filename)
+        Set wb = Workbooks.Open(Filename:=path & filename, UpdateLinks:=xlUpdateLinksNever)
         
         ' Retrieve the prefix value from cell B2 of the "Summary" sheet
         On Error Resume Next ' Skip if "Summary" sheet doesn't exist
@@ -34,9 +38,7 @@ Sub RenameAndCleanSheets()
             For i = wb.Sheets.Count To 1 Step -1
                 Set ws = wb.Sheets(i)
                 If Not (ws.Name Like summaryValue & "_###" Or ws.Name = "Summary") Then
-                    Application.DisplayAlerts = False ' Turn off confirmation prompt
                     ws.Delete
-                    Application.DisplayAlerts = True ' Turn on confirmation prompt
                 End If
             Next i
         End If
@@ -47,4 +49,8 @@ Sub RenameAndCleanSheets()
         ' Get the next filename in the folder
         filename = Dir
     Loop
+    
+    ' Turn on screen updating and alerts
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
 End Sub
