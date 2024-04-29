@@ -1,20 +1,19 @@
-%macro importAll(dir=, physname=);
+%macro importAll(dir, physname);
     options nodate nonumber;
     /* Determine the last four digits from the file name */
     %let last4 = %substr(&physname, %length(&physname) - 7, 4);
 
     libname in_xlsx xlsx "&dir.&physname";
-    libname tmp TEMP;
-    
+
     /* Copy each sheet and rename to include the last four digits */
     proc datasets library=in_xlsx nolist;
-        copy out=tmp;
+        copy out=work; /* Using work as the temporary library */
         %let num = 1;
         %do %while(%sysfunc(exist(in_xlsx._DATA_&num)) eq 1);
             modify _DATA_&num (rename=(_DATA_&num=REDA_&last4._DATA_&num));
             %let num = %eval(&num + 1);
         %end;
-    run; 
+    run;
 
     libname in_xlsx clear;
 %mend importAll;
