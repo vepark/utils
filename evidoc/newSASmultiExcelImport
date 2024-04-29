@@ -6,11 +6,15 @@
     %let did = %sysfunc(dopen(&fileref));
 
     %if &did %then %do;
-        %do %while (%sysfunc(dread(&did, &i, filename)) ne '');
+        %let i = 1;
+        %let filename = %sysfunc(dread(&did, &i));
+        %do %while(&filename ne '');
+            /* Filter only Excel files */
             %if %upcase(%sysfunc(prxmatch(/\.xlsx$/, &filename))) > 0 %then %do;
                 %processFile(directory=&directory, filename=&filename);
             %end;
             %let i = %eval(&i + 1);
+            %let filename = %sysfunc(dread(&did, &i));
         %end;
         %let rc = %sysfunc(dclose(&did));
     %end;
@@ -24,7 +28,7 @@
 %macro processFile(directory, filename);
     %local libname filepath prefix sheet range;
     %let libname = excel;
-    %let filepath = "&directory&filename";
+    %let filepath = "&directory/&filename";
 
     libname &libname xlsx "&filepath";
 
