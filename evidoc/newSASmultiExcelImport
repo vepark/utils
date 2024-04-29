@@ -1,31 +1,59 @@
 %macro processExcelFiles(directory);
-    /* Set up a fileref to the directory */
+    %local fileref rc did filename;
+    %let fileref = dirlist;
+    
+    /* Create a fileref to the directory */
     filename dirlist "&directory";
-
-    /* Open the directory */
-    data filelist(keep=filename);
-        length filename $256;
-        did = dopen('dirlist');
-        if did > 0 then do;
-            count = dnum(did);
-            do i = 1 to count;
-                filename = dread(did, i);
-                /* Check if the file is an Excel file */
-                if lowcase(scan(filename, -1, '.')) = 'xlsx' then output;
-            end;
-            rc = dclose(did);
-        end;
-        else put "Directory cannot be opened or is empty";
-    run;
-
-    /* Process each file */
-    data _null_;
-        set filelist;
-        call execute(cats('%processFile(path=', "&directory", ', filename=', trim(filename), ');'));
-    run;
-
+    did = dopen('dirlist');
+    
+    /* Read filenames from directory */
+    if did > 0 then do;
+        %do %while(%sysfunc(dread(did, _n_, filename)) ne '');
+            %if %upcase(%sysfunc(prxmatch(/\.xlsx$/, &filename))) > 0 %then %do;
+                %processFile(directory=&directory, filename=&filename);
+            %end;
+        %end;
+        rc = dclose(did);
+    end;
+    else put "ERROR: Unable to open directory.";
+    
     filename dirlist clear;
 %mend;
 
-/* Update the path to where your Excel files are stored */
-%processExcelFiles(/path/to/your/excel/files/);
+%macro processFile(directory, filename);
+    %local libref rc prefix;
+    %let libref = excel;
+    
+    /* Setup libname to point to the Excel file */
+    libname &libref xlsx "&directory&filename";
+    
+    /* Attempt to read the prefix from the 'Summary' sheet, if it exists */
+    %let prefix = %sysfunc(ifc(%sysfunc(exist(&libref.'Summary$'n)), %sysfunc(putn(%sysfunc(getvarc(&libref.'Summary$'n, %sysfunc(varnum(&libref.'Summary$'n, B2)))), $20.)), %str()));
+    
+    /* Process each sheet */
+    proc sql noprint;
+        select memname into :sheets separated by ' ' 
+        from dictionary.tables 
+        where libname = upcase("&libref") and (memname like '___' or memname = 'SUMMARY$');
+    quit;
+
+    %let num_sheets = &sqlobs;
+    %do i = 1 %to &num_sheets;
+        %let sheet = %scan(&sheets, &i);
+        %let is_three_digit = %sysfunc(prxmatch(/^[0-9]{3}$/, %sysfunc(compress(&sheet, ,$)))) and %sysfunc(not(&sheet eq '301'));
+
+        data &prefix._&sheet.;
+            set &libref..&sheet.(keep=%if(&sheet = '301') %then %do;C--G%end; %else %if &is_three_digit %then %do;C D%end;);
+            if _n_ = 1 then call symputx('dataset_created', 1);
+        run;
+
+        %if &dataset_created %then %do;
+            /* Add logic to combine or further process data as needed */
+        %end;
+    %end;
+    
+    libname &libref clear;
+%mend;
+
+/* Specify the path to your Excel files */
+%processExcelFiles(C:\path\to\your\excel\files\);
