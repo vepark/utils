@@ -1,0 +1,50 @@
+Sub RenameAndCleanSheets()
+    Dim ws As Worksheet
+    Dim wb As Workbook
+    Dim summaryValue As String
+    Dim path As String
+    Dim filename As String
+
+    ' Set the directory path where the Excel files are located
+    path = "C:\path\to\your\excel\files\"
+    
+    ' Loop through each Excel file in the folder
+    filename = Dir(path & "*.xlsx")
+    Do While filename <> ""
+        ' Open the workbook
+        Set wb = Workbooks.Open(path & filename)
+        
+        ' Retrieve the prefix value from cell B2 of the "Summary" sheet
+        On Error Resume Next ' Skip if "Summary" sheet doesn't exist
+        summaryValue = wb.Sheets("Summary").Range("B2").Value
+        On Error GoTo 0 ' Resume normal error handling
+        
+        ' Check if summaryValue is not empty
+        If summaryValue <> "" Then
+            ' Loop through each sheet in the workbook
+            For Each ws In wb.Sheets
+                ' Check if the sheet name is a 3-digit number
+                If ws.Name Like "###" Then
+                    ' Rename the sheet with the prefix from the "Summary" sheet
+                    ws.Name = summaryValue & "_" & ws.Name
+                End If
+            Next ws
+            
+            ' Now loop again to delete sheets that do not match the criteria
+            For i = wb.Sheets.Count To 1 Step -1
+                Set ws = wb.Sheets(i)
+                If Not (ws.Name Like summaryValue & "_###" Or ws.Name = "Summary") Then
+                    Application.DisplayAlerts = False ' Turn off confirmation prompt
+                    ws.Delete
+                    Application.DisplayAlerts = True ' Turn on confirmation prompt
+                End If
+            Next i
+        End If
+        
+        ' Save and close the workbook
+        wb.Close SaveChanges:=True
+        
+        ' Get the next filename in the folder
+        filename = Dir
+    Loop
+End Sub
