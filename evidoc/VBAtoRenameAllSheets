@@ -15,7 +15,7 @@ Sub RenameAndCleanSheets()
     Do While filename <> ""
         Set wb = Workbooks.Open(Filename:=path & filename, UpdateLinks:=False)
         
-        ' Check if "Summary" sheet exists
+        ' Check if "Summary" sheet exists and has a value in cell B2
         On Error Resume Next
         summaryValue = wb.Sheets("Summary").Range("B2").Value
         On Error GoTo 0
