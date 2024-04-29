@@ -1,40 +1,34 @@
 Sub RenameAndCleanSheets()
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Application.AskToUpdateLinks = False
+
     Dim ws As Worksheet
     Dim wb As Workbook
     Dim summaryValue As String
     Dim path As String
     Dim filename As String
-    
-    ' Turn off screen updating and alerts
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-    
-    ' Set the directory path where the Excel files are located
-    path = "C:\path\to\your\excel\files\"
-    
-    ' Loop through each Excel file in the folder
+
+    path = "C:\path\to\your\excel\files\" ' Adjust this to your path
+
     filename = Dir(path & "*.xlsx")
     Do While filename <> ""
-        ' Open the workbook
-        Set wb = Workbooks.Open(Filename:=path & filename, UpdateLinks:=xlUpdateLinksNever)
+        Set wb = Workbooks.Open(Filename:=path & filename, UpdateLinks:=False)
         
-        ' Retrieve the prefix value from cell B2 of the "Summary" sheet
-        On Error Resume Next ' Skip if "Summary" sheet doesn't exist
+        ' Check if "Summary" sheet exists
+        On Error Resume Next
         summaryValue = wb.Sheets("Summary").Range("B2").Value
-        On Error GoTo 0 ' Resume normal error handling
+        On Error GoTo 0
         
-        ' Check if summaryValue is not empty
         If summaryValue <> "" Then
-            ' Loop through each sheet in the workbook
             For Each ws In wb.Sheets
-                ' Check if the sheet name is a 3-digit number
                 If ws.Name Like "###" Then
-                    ' Rename the sheet with the prefix from the "Summary" sheet
                     ws.Name = summaryValue & "_" & ws.Name
                 End If
             Next ws
-            
-            ' Now loop again to delete sheets that do not match the criteria
+
+            ' Delete all sheets except for those with the new names and "Summary"
+            Dim i As Integer
             For i = wb.Sheets.Count To 1 Step -1
                 Set ws = wb.Sheets(i)
                 If Not (ws.Name Like summaryValue & "_###" Or ws.Name = "Summary") Then
@@ -42,15 +36,15 @@ Sub RenameAndCleanSheets()
                 End If
             Next i
         End If
-        
-        ' Save and close the workbook
-        wb.Close SaveChanges:=True
-        
-        ' Get the next filename in the folder
-        filename = Dir
+
+        ' Save and close without prompting
+        wb.Save
+        wb.Close SaveChanges:=False ' No changes after this point, so SaveChanges is False
+
+        filename = Dir() ' Continue with the next file
     Loop
-    
-    ' Turn on screen updating and alerts
+
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
+    Application.AskToUpdateLinks = True
 End Sub
