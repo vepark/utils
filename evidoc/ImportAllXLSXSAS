@@ -1,41 +1,66 @@
-%macro importAll(dir, physname);
-    options nodate nonumber;
-    libname in_xlsx xlsx "&dir.&physname";
-    
-    /* Extract the last four digits from the file name */
-    %let last4 = %substr(%scan(&physname, -1, '.'), %eval(%length(%scan(&physname, -1, '.')) - 3));
+%macro importAndCombine(dir, filename);
+    /* Extract the last four digits from the filename */
+    %let last4 = %substr(&filename, %length(&filename) - 7, 4);
 
-    /* Copy and rename sheets from the Excel file */
-    data _null_;
-        set sashelp.vmember (where=(libname='IN_XLSX'));
-        /* Create the call execute statement for renaming the datasets */
-        call execute(cats('proc datasets library=work nolist; change ', memname, '=REDA_', &last4., '_', memname, '; run; quit;'));
+    libname excel_lib xlsx "&dir.&filename";
+
+    /* Create a combined dataset with all the sheets and the required prefixes */
+    data work.REDA_&last4._combined;
+        length SheetName $32 REDA $4;
+
+        %let num = 1;
+        %let sheet = %sysfunc(varnum(excel_lib, _DATA_&num));
+
+        /* Loop through each sheet in the Excel file */
+        %do %while(&sheet ne 0);
+            set excel_lib.'Sheet&num'n; /* Import sheet data */
+            REDA = "&last4";
+            SheetName = "Sheet&num";
+
+            /* Special handling for Sheet301 */
+            %if &num = 301 %then %do;
+                keep REDA SheetName C--G; /* Keep columns C to G */
+            %end;
+            %else %do;
+                keep REDA SheetName C D; /* Keep columns C and D */
+            %end;
+
+            output;
+            
+            %let num = %eval(&num + 1);
+            %let sheet = %sysfunc(varnum(excel_lib, _DATA_&num));
+        %end;
     run;
 
-    /* Append additional data and combine all sheets into one dataset */
-    /* ... (Your logic for appending and creating combined dataset) ... */
+    libname excel_lib clear;
+%mend importAndCombine;
 
-    /* Clear the libname after the call execute statements are resolved */
-    run; /* This run statement will ensure previous data step has fully executed */
-    libname in_xlsx clear;
-%mend importAll;
-
-/* Create a dataset with the list of files */
-data test(keep=dir physname);
-    filename thisdir "/path/to/excel/files";
-    dir = "/path/to/excel/files";
-    did=dopen(thisdir);
-    numfiles=dnum(did);
-
-    do i=1 to numfiles;
-        physname=dread(did,i);
-        if scan(physname, -1, '.') = "xlsx" then output;
+/* List all the Excel files in the directory */
+data file_list;
+    length fpath $256;
+    dir_id = dopen("&dir");
+    if dir_id > 0 then do;
+        do i = 1 to dnum(dir_id);
+            fpath = dread(dir_id, i);
+            if lowcase(scan(fpath, -1, '.')) = 'xlsx' then output;
+        end;
+        rc = dclose(dir_id);
     end;
-    rc=dclose(did);
+    else put "Directory cannot be opened.";
 run;
 
-/* Call the macro for each file */
-data _null_;
-    set test;
-    call execute(cats('%importAll(dir=', strip(dir), ', physname=', strip(physname), ');'));
-run;
+/* Apply the macro to each Excel file */
+proc sql noprint;
+    select cats('%importAndCombine(', "&dir", ', ', quote(trim(fpath)), ');') into :exec_list separated by ' ' from file_list;
+quit;
+
+/* Execute the macro calls */
+%macro runImportAndCombine;
+    %local i;
+    %do i = 1 %to &sqlobs;
+        %let call = %scan(&exec_list, &i);
+        &call;
+    %end;
+%mend runImportAndCombine;
+
+%runImportAndCombine;
