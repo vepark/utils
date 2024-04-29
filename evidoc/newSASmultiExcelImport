@@ -1,13 +1,9 @@
 %macro processExcelFiles(directory);
-    %local fileref rc filename i;
     %let fileref = dirlist;
-    
-    /* Assign a directory list fileref */
-    filename dirlist "&directory";
-    
-    /* Open the directory and read filenames */
+    filename &fileref "&directory";
     %let did = %sysfunc(dopen(&fileref));
-    %if &did > 0 %then %do;
+
+    %if &did %then %do;
         %do i = 1 %to %sysfunc(dnum(&did));
             %let filename = %sysfunc(dread(&did, &i));
             /* Filter for Excel files */
@@ -17,54 +13,54 @@
         %end;
         %let rc = %sysfunc(dclose(&did));
     %end;
-    %else %do;
-        %put ERROR: Unable to open directory &directory.;
-    %end;
+    %else %put ERROR: Unable to open directory: &directory.;
     
-    filename dirlist clear;
+    filename &fileref clear;
 %mend;
 
 %macro processFile(directory, filename);
-    %local libref;
-    %let libref = excel;
+    %let libname = excel;
+    %let filepath = "&directory&filename";
+    
+    libname &libname xlsx &filepath;
 
-    /* Setup libname to point to the Excel file */
-    libname &libref xlsx "&directory.&filename";
-
-    /* Retrieve prefix from the Summary sheet, assuming cell B2 contains the prefix */
-    %local prefix;
-    %if %sysfunc(exist(&libref.'Summary$'n)) %then %do;
+    /* Get the prefix from the Summary sheet's B2 cell, if it exists */
+    %if %sysfunc(exist(&libname.'Summary$'n)) %then %do;
         proc sql noprint;
-            select put(B2, $20.) into :prefix
-            from &libref.'Summary$'n(obs=1);
+            select put(B2, $20.) into :prefix trimmed
+            from &libname.'Summary$'n;
         quit;
     %end;
     %else %do;
-        %let prefix = %substr(&filename, 1, %length(&filename)-5); /* Use filename as prefix if Summary not found */
+        %let prefix = %sysfunc(propcase(%qscan(&filename, -2, .)));
     %end;
 
-    /* Process each sheet */
+    /* Import and process sheets */
     proc sql noprint;
-        select memname into :sheets separated by ' '
+        create table work.sheets as
+        select memname
         from dictionary.tables
-        where libname = upcase("&libref") and (memname like: '___');
+        where libname = "&libname" and (memname like: '___' or memname = 'Summary$');
     quit;
 
-    /* Import and rename sheets */
-    %do i = 1 %to &sqlobs;
-        %let sheet = &&sheets&i;
-        data &&prefix._&&sheet;
-            set &libref..&&sheet (keep=%if(&&sheet = '301') %then %do;C--G%end; %else %do;C D%end;);
+    %let nSheets = %sysfunc(attrn(work.sheets, nlobs));
+
+    %do i = 1 %to &nSheets;
+        %let sheet = %scan(&sheets, &i, ' ');
+        %let range = %if(&sheet = '301') %then C--G %else C--D;
+
+        data &prefix._&sheet;
+            set &libname..&sheet (keep=&range);
+            if _n_ = 1 then call symputx('dataExists', 1);
         run;
+
+        %if &dataExists %then %do;
+            proc append base=&prefix._combined data=&prefix._&sheet force; run;
+        %end;
     %end;
 
-    /* Combine sheets */
-    data &prefix._combined;
-        set &prefix.:;
-    run;
-
-    libname &libref clear;
+    libname &libname clear;
 %mend;
 
-/* Call the macro with your directory */
-%processExcelFiles(C:\path\to\your\excel\files\);
+/* Specify the directory path using forward slashes */
+%processExcelFiles(/path/to/your/excel/files/);
