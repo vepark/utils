@@ -1,13 +1,12 @@
 %macro processExcelFiles(directory);
-    /* Set up fileref for directory listing */
+    %local fileref did filename i rc;
     %let fileref = dirlist;
+
     filename &fileref "&directory";
     %let did = %sysfunc(dopen(&fileref));
 
     %if &did %then %do;
-        %let i = 1;
         %do %while (%sysfunc(dread(&did, &i, filename)) ne '');
-            /* Filter only Excel files */
             %if %upcase(%sysfunc(prxmatch(/\.xlsx$/, &filename))) > 0 %then %do;
                 %processFile(directory=&directory, filename=&filename);
             %end;
@@ -23,33 +22,43 @@
 %mend;
 
 %macro processFile(directory, filename);
+    %local libname filepath prefix sheet range;
     %let libname = excel;
     %let filepath = "&directory&filename";
 
     libname &libname xlsx "&filepath";
 
-    /* Attempt to fetch prefix from Summary sheet B2 */
-    %let prefix = %sysfunc(ifc(%sysfunc(exist(&libname.'Summary$'n)), %sysfunc(getvarc(&libname.'Summary$'n, 2)), 'NoPrefix'));
+    /* Retrieve prefix from Summary if it exists */
+    %if %sysfunc(exist(&libname.'Summary$'n)) %then %do;
+        proc sql noprint;
+            select put(B2, $20.) into :prefix trimmed from &libname.'Summary$'n;
+        quit;
+    %end;
+    %else %do;
+        %let prefix = NoPrefix; /* Default if no Summary or B2 is empty */
+    %end;
 
-    /* Handle import of sheets with three-digit names or Summary */
+    /* Process sheets */
     proc sql noprint;
         select memname into :sheets separated by ' ' from dictionary.tables
         where libname = "&libname" and (memname like: '___' or memname = 'Summary$');
     quit;
 
-    %let nSheets = %sysfunc(countw(&sheets));
-
-    %do i = 1 %to &nSheets;
+    %do i = 1 %to %sysfunc(countw(&sheets));
         %let sheet = %scan(&sheets, &i);
-        %let range = %if(&sheet = '301') %then C--G %else C--D;
+        %if &sheet = '301' %then %do;
+            %let range = C--G;
+        %end;
+        %else %do;
+            %let range = C--D;
+        %end;
 
-        /* Import the sheet with specified columns and rename */
         data &prefix._&sheet;
             set &libname..&sheet (keep=&range);
         run;
     %end;
 
-    /* Optionally, combine relevant sheets into one dataset */
+    /* Combine sheets if required */
     data &prefix._combined;
         set &prefix.:;
     run;
@@ -57,5 +66,5 @@
     libname &libname clear;
 %mend;
 
-/* Specify your directory containing Excel files */
+/* Example usage */
 %processExcelFiles(/path/to/your/excel/files/);
