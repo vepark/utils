@@ -1,72 +1,40 @@
-%macro importAndCombine(directory);
-    filename _dir_ "&directory";
-    data file_list(keep=filename last4);
-        length filename $256 last4 $4;
-        dir_id = dopen('_dir_');
+%macro importAll(dir=, physname=);
+    options nodate nonumber;
+    /* Determine the last four digits from the file name */
+    %let last4 = %substr(&physname, %length(&physname) - 7, 4);
 
-        if dir_id > 0 then do;
-            file_num = dnum(dir_id);
-            do i = 1 to file_num;
-                filename = dread(dir_id, i);
-                if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                    /* Extract last four digits from the filename */
-                    last4 = prxmatch("/(\d{4})/", filename) ? prxposn(prxparse("/(\d{4})/"), 1, filename) : "0000";
-                    output;
-                end;
-            end;
-        end;
-        rc = dclose(dir_id);
-    run;
+    libname in_xlsx xlsx "&dir.&physname";
+    libname tmp TEMP;
+    
+    /* Copy each sheet and rename to include the last four digits */
+    proc datasets library=in_xlsx nolist;
+        copy out=tmp;
+        %let num = 1;
+        %do %while(%sysfunc(exist(in_xlsx._DATA_&num)) eq 1);
+            modify _DATA_&num (rename=(_DATA_&num=REDA_&last4._DATA_&num));
+            %let num = %eval(&num + 1);
+        %end;
+    run; 
 
-    /* Process each file */
-    data _null_;
-        set file_list;
-        call execute(cats('%processFile(', quote(trim("&directory") || '/' || trim(filename)), ',', last4, ')'));
-    run;
-%mend importAndCombine;
+    libname in_xlsx clear;
+%mend importAll;
 
-%macro processFile(file_path, last4);
-    %put NOTE: Processing file=&file_path last4=&last4;
+/* Example data step to create a list of files to process */
+data test(keep=dir physname);
+    filename thisdir "/path/to/excel/files";
+    dir = "/path/to/excel/files";
+    did=dopen("thisdir");
+    numfiles=dnum(did);
 
-    data all_sheets;
-    length REDA $4 SheetName $32;
+    do i=1 to numfiles;
+        physname=dread(did,i);
+        if scan(physname, 2, '.') = "xlsx" then output;
+    end;
+    rc=dclose(did);
+run;
 
-    /* Define the sheet ranges and loop through them */
-    %do i = 101 %to 120;
-        %do_import(&i);
-    %end;
-    %do i = 201 %to 232;
-        %do_import(&i);
-    %end;
-    %do i = 301 %to 320;
-        %do_import(&i);
-    %end;
-    %do_import(Summary); /* Also process the Summary sheet */
-
-    /* Combine sheets */
-    proc append base=all_sheets data=work.this_sheet force;
-    run;
-
-    proc datasets lib=work; delete this_sheet; run;
-
-    %mend processFile;
-
-%macro do_import(sheet_name);
-    %local range;
-    %if &sheet_name = 301 %then %let range = C:G;
-    else %let range = C:D;
-
-    proc import datafile="&file_path" out=work.this_sheet (keep=&range) dbms=xlsx replace;
-        sheet="&sheet_name";
-    run;
-
-    data work.this_sheet;
-        set work.this_sheet;
-        REDA = "&last4";
-        SheetName = "&sheet_name";
-    run;
-
-%mend do_import;
-
-/* Call the macro with the path to the directory containing the Excel files */
-%importAndCombine(/path/to/your/xlsx/files);
+/* Call the macro for each file */
+data _null_;
+    set test;
+    call execute('%importAll(dir=' || strip(dir) || ', physname=' || strip(physname) || ');');
+run;
