@@ -1,31 +1,39 @@
 %macro importSheetsDAQ3(file_path, last4);
     %put NOTE: Processing file=&file_path last4=&last4;
 
-    /* Prepare a dataset to append all data */
+    /* Initialize a temporary dataset to combine all sheet data */
     data REDA_&last4._combined;
     run;
 
-    /* Loop to handle sheets with three-digit numbers only */
-    %do i = 100 %to 399;
+    /* Loop through the specified sheets */
+    %do i = 100 %to 399;  /* Adjust the range if necessary */
         %let sheet_name = %str(&i);
-        %let range_value = C:D; /* Default range for most sheets */
         
-        /* Check if the sheet is 301 and adjust the range */
+        /* Determine the range based on the sheet number */
         %if &i = 301 %then %let range_value = C:G;
-        
-        /* Try to import the sheet */
-        proc import datafile="&file_path" out=work.temp_sheet (where=(n(of _all_) > 0)) dbms=xlsx replace;
+        %else %if (&i >= 101 & &i <= 120) or (&i >= 201 & &i <= 232) or (&i >= 302 & &i <= 320) %then %let range_value = C:D;
+        %else %let range_value = ;  /* If no specific range is needed, leave it empty */
+
+        /* Attempt to import the sheet with the specified range */
+        proc import datafile="&file_path" out=work.temp_sheet dbms=xlsx replace;
             sheet="&sheet_name";
-            range="&range_value";
+            %if "&range_value" ne "" %then %do;
+                range="&range_value";
+            %end;
         run;
 
-        /* Check if the dataset is created and non-empty */
+        /* Append to the combined dataset if the sheet exists and has records */
         %if &syserr = 0 and %sysfunc(attrn(work.temp_sheet, nobs)) > 0 %then %do;
-            data REDA_&last4._combined;
-                set REDA_&last4._combined work.temp_sheet;
+            proc append base=REDA_&last4._combined data=work.temp_sheet force;
             run;
         %end;
+        /* Clear the temporary dataset to prevent memory issues */
+        proc datasets library=work nolist;
+            delete temp_sheet;
+        quit;
     %end;
+
+    %put NOTE: Combined data for &last4. created with specified sheets and ranges.;
 %mend importSheetsDAQ3;
 
 %macro importAllSheets(directory);
@@ -38,7 +46,9 @@
             do i = 1 to file_num;
                 filename = dread(dir_id, i);
                 if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                    if prxmatch("/(\d{4})/", filename) > 0 then last4 = prxposn(prxparse("/(\d{4})/"), 1, filename);
+                    /* Extract digits and then keep the last four */
+                    last4 = compress(filename, , 'kd');
+                    if length(last4) >= 4 then last4 = substr(last4, length(last4)-3, 4);
                     else last4 = "0000";
                     output;
                 end;
