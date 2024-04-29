@@ -1,21 +1,34 @@
-%macro importSheetsDAQ3(file_path, last4, sheet_start, sheet_end);
+%macro importSheetsDAQ3(file_path, last4);
     %put NOTE: Processing file=&file_path last4=&last4;
 
-    /* Loop through specified sheets */
-    %do i = &sheet_start %to &sheet_end;
+    /* Prepare a dataset to append all data */
+    data REDA_&last4._combined;
+    run;
+
+    /* Loop to handle sheets with three-digit numbers only */
+    %do i = 100 %to 399;
         %let sheet_name = %str(&i);
-        proc import datafile="&file_path" out=work.temp_sheet dbms=xlsx replace;
+        %let range_value = C:D; /* Default range for most sheets */
+        
+        /* Check if the sheet is 301 and adjust the range */
+        %if &i = 301 %then %let range_value = C:G;
+        
+        /* Try to import the sheet */
+        proc import datafile="&file_path" out=work.temp_sheet (where=(n(of _all_) > 0)) dbms=xlsx replace;
             sheet="&sheet_name";
+            range="&range_value";
         run;
 
-        data REDA_&last4._&sheet_name;
-            set work.temp_sheet;
-            /* Add any specific data cleaning or processing here */
-        run;
+        /* Check if the dataset is created and non-empty */
+        %if &syserr = 0 and %sysfunc(attrn(work.temp_sheet, nobs)) > 0 %then %do;
+            data REDA_&last4._combined;
+                set REDA_&last4._combined work.temp_sheet;
+            run;
+        %end;
     %end;
 %mend importSheetsDAQ3;
 
-%macro importAllSheets(directory, sheet_start, sheet_end);
+%macro importAllSheets(directory);
     filename _dir_ "&directory";
     data file_list(keep=filename last4);
         length filename $256. last4 $4.;
@@ -35,7 +48,7 @@
     run;
 
     proc sql noprint;
-        select cats('%importSheetsDAQ3(', quote(trim("&directory") || '/' || trim(filename)), ',', trim(last4), ',', &sheet_start, ',', &sheet_end, ')') into :exec_list separated by ';'
+        select cats('%importSheetsDAQ3(', quote(trim("&directory") || '/' || trim(filename)), ',', trim(last4), ')') into :exec_list separated by ';'
         from file_list;
     quit;
 
@@ -46,7 +59,5 @@
     %end;
 %mend importAllSheets;
 
-/* Invoke the master macro with the directory path and the sheet range */
-%importAllSheets(/path/to/your/xlsx/files, 301, 320);
-%importAllSheets(/path/to/your/xlsx/files, 201, 232);
-%importAllSheets(/path/to/your/xlsx/files, 101, 130);
+/* Invoke the master macro with the directory path */
+%importAllSheets(/path/to/your/xlsx/files);
