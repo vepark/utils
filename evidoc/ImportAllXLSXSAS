@@ -1,55 +1,16 @@
-%macro importSheetsDAQ3(file_path, last4);
-    %put NOTE: Processing file=&file_path last4=&last4;
-
-    /* Initialize a temporary dataset to combine all sheet data */
-    data REDA_&last4._combined;
-    run;
-
-    /* Loop through the specified sheets */
-    %do i = 100 %to 399;  /* Adjust the range if necessary */
-        %let sheet_name = %str(&i);
-        
-        /* Determine the range based on the sheet number */
-        %if &i = 301 %then %let range_value = C:G;
-        %else %if (&i >= 101 & &i <= 120) or (&i >= 201 & &i <= 232) or (&i >= 302 & &i <= 320) %then %let range_value = C:D;
-        %else %let range_value = ;  /* If no specific range is needed, leave it empty */
-
-        /* Attempt to import the sheet with the specified range */
-        proc import datafile="&file_path" out=work.temp_sheet dbms=xlsx replace;
-            sheet="&sheet_name";
-            %if "&range_value" ne "" %then %do;
-                range="&range_value";
-            %end;
-        run;
-
-        /* Append to the combined dataset if the sheet exists and has records */
-        %if &syserr = 0 and %sysfunc(attrn(work.temp_sheet, nobs)) > 0 %then %do;
-            proc append base=REDA_&last4._combined data=work.temp_sheet force;
-            run;
-        %end;
-        /* Clear the temporary dataset to prevent memory issues */
-        proc datasets library=work nolist;
-            delete temp_sheet;
-        quit;
-    %end;
-
-    %put NOTE: Combined data for &last4. created with specified sheets and ranges.;
-%mend importSheetsDAQ3;
-
-%macro importAllSheets(directory);
+%macro importAndCombine(directory);
     filename _dir_ "&directory";
     data file_list(keep=filename last4);
-        length filename $256. last4 $4.;
+        length filename $256 last4 $4;
         dir_id = dopen('_dir_');
+
         if dir_id > 0 then do;
             file_num = dnum(dir_id);
             do i = 1 to file_num;
                 filename = dread(dir_id, i);
                 if lowcase(scan(filename, -1, '.')) = 'xlsx' then do;
-                    /* Extract digits and then keep the last four */
-                    last4 = compress(filename, , 'kd');
-                    if length(last4) >= 4 then last4 = substr(last4, length(last4)-3, 4);
-                    else last4 = "0000";
+                    /* Extract last four digits from the filename */
+                    last4 = prxmatch("/(\d{4})/", filename) ? prxposn(prxparse("/(\d{4})/"), 1, filename) : "0000";
                     output;
                 end;
             end;
@@ -57,17 +18,55 @@
         rc = dclose(dir_id);
     run;
 
-    proc sql noprint;
-        select cats('%importSheetsDAQ3(', quote(trim("&directory") || '/' || trim(filename)), ',', trim(last4), ')') into :exec_list separated by ';'
-        from file_list;
-    quit;
+    /* Process each file */
+    data _null_;
+        set file_list;
+        call execute(cats('%processFile(', quote(trim("&directory") || '/' || trim(filename)), ',', last4, ')'));
+    run;
+%mend importAndCombine;
 
-    %do i = 1 %to &sqlobs;
-        %let exec_call = %scan(&exec_list, &i, ';');
-        %put &exec_call.; /* Debugging: Print each call */
-        &exec_call.;
+%macro processFile(file_path, last4);
+    %put NOTE: Processing file=&file_path last4=&last4;
+
+    data all_sheets;
+    length REDA $4 SheetName $32;
+
+    /* Define the sheet ranges and loop through them */
+    %do i = 101 %to 120;
+        %do_import(&i);
     %end;
-%mend importAllSheets;
+    %do i = 201 %to 232;
+        %do_import(&i);
+    %end;
+    %do i = 301 %to 320;
+        %do_import(&i);
+    %end;
+    %do_import(Summary); /* Also process the Summary sheet */
 
-/* Invoke the master macro with the directory path */
-%importAllSheets(/path/to/your/xlsx/files);
+    /* Combine sheets */
+    proc append base=all_sheets data=work.this_sheet force;
+    run;
+
+    proc datasets lib=work; delete this_sheet; run;
+
+    %mend processFile;
+
+%macro do_import(sheet_name);
+    %local range;
+    %if &sheet_name = 301 %then %let range = C:G;
+    else %let range = C:D;
+
+    proc import datafile="&file_path" out=work.this_sheet (keep=&range) dbms=xlsx replace;
+        sheet="&sheet_name";
+    run;
+
+    data work.this_sheet;
+        set work.this_sheet;
+        REDA = "&last4";
+        SheetName = "&sheet_name";
+    run;
+
+%mend do_import;
+
+/* Call the macro with the path to the directory containing the Excel files */
+%importAndCombine(/path/to/your/xlsx/files);
