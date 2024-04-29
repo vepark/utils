@@ -1,34 +1,55 @@
 %macro importAll(dir, physname);
     options nodate nonumber;
-    /* Determine the last four digits from the file name */
+    
     %let last4 = %substr(&physname, %length(&physname) - 7, 4);
+    %let filepath = &dir.&physname;
 
-    libname in_xlsx xlsx "&dir.&physname";
+    libname in_xlsx xlsx "&filepath";
 
-    /* Copy each sheet and rename to include the last four digits */
+    /* Copy each sheet and rename to include last4 */
     proc datasets library=in_xlsx nolist;
-        copy out=work; /* Using work as the temporary library */
-        %let num = 1;
-        %do %while(%sysfunc(exist(in_xlsx._DATA_&num)) eq 1);
-            modify _DATA_&num (rename=(_DATA_&num=REDA_&last4._DATA_&num));
-            %let num = %eval(&num + 1);
-        %end;
-    run;
+        copy out=work;
+    run; quit; /* Make sure to quit the proc */
 
-    libname in_xlsx clear;
+    /* Append datasets and add REDA and SheetName columns */
+    %let num = 1;
+    %do %while(%sysfunc(exist(in_xlsx._DATA_&num)) eq 1);
+        /* Create temporary dataset for appending */
+        data work.temp;
+            set in_xlsx._DATA_&num;
+            length REDA $4 SheetName $32;
+            REDA = "&last4";
+            SheetName = compress("_DATA_&num",,'kad'); /* Keep alpha-numeric and discard others */
+        run;
+
+        /* Append to the master dataset */
+        proc append base=work.master data=work.temp force; 
+        run; quit;
+
+        /* Increment the counter */
+        %let num = %eval(&num + 1);
+
+        /* Clean up the temporary dataset */
+        proc datasets library=work nolist; 
+            delete temp;
+        run; quit;
+    %end;
+
+    libname in_xlsx clear; /* Clear the library after all datasets are processed */
 %mend importAll;
 
-/* Example data step to create a list of files to process */
+/* Create a dataset with the list of files */
 data test(keep=dir physname);
     filename thisdir "/path/to/excel/files";
     dir = "/path/to/excel/files";
-    did=dopen("thisdir");
+    did=dopen(thisdir);
     numfiles=dnum(did);
 
     do i=1 to numfiles;
         physname=dread(did,i);
-        if scan(physname, 2, '.') = "xlsx" then output;
+        if scan(physname, -1, '.') = "xlsx" then output;
     end;
+
     rc=dclose(did);
 run;
 
