@@ -1,0 +1,63 @@
+%macro processExcelFiles(path);
+    /* Get a list of all Excel files in the directory */
+    libname myxls 'path';
+    data filelist;
+        set sashelp.vmember (where=(libname='MYXLS' and memtype='XLSX'));
+    run;
+
+    /* Process each file */
+    data _null_;
+        set filelist;
+        call execute(cats('%processFile(path=', path, ', filename=', memname, ');'));
+    run;
+%mend;
+
+%macro processFile(path, filename);
+    %let filepath = &path.&filename;
+    libname in_xlsx xlsx "&filepath";
+
+    /* Check for the Summary sheet and get the prefix from cell B2 */
+    %let prefix =;
+    proc sql noprint;
+        select put(B2, best12.) into :prefix
+        from in_xlsx.'Summary$'n
+        where _ROW_ = 2 and _COLUMN_ = 2;
+    quit;
+
+    /* Handle files without a valid Summary sheet or prefix */
+    %if &prefix = %then %do;
+        data &filename._no_summary;
+            length Notes $100;
+            Notes = "No valid Summary sheet or prefix value in B2";
+        run;
+    %end;
+
+    /* Import data from each relevant sheet */
+    %do i = 100 %to 999;
+        %let sheet_name = &i;
+        %let range = C:D;
+        %if &i = 301 %then %let range = C:G;
+
+        data &prefix._&sheet_name;
+            set in_xlsx.'&sheet_name$'n (keep=&range);
+        run;
+    %end;
+
+    /* Combine all datasets */
+    data &prefix._combined;
+        set &prefix.:;
+    run;
+
+    /* Also save the Summary sheet entirely */
+    proc datasets lib=in_xlsx;
+        copy in_xlsx out=work;
+        select 'Summary$'n;
+    run;
+    data &prefix._Summary;
+        set work.'Summary$'n;
+    run;
+
+    libname in_xlsx clear;
+%mend;
+
+%processExcelFiles(/path/to/your/excel/files/);
