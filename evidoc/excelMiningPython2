@@ -47,11 +47,20 @@ def get_prefix(wb):
     except KeyError:
         return 'NoSummarySheet'
 
+import pandas as pd
+
 def filter_rows(df):
-    # Apply filters and transformations
-    df = df[~df['C'].str.endswith(':') & ~df['C'].str.startswith('Note:')]
-    df['D'] = df['D'].apply(lambda x: '' if x.endswith(']') and x.startswith('[') or x in ['YES/NO', 'PASS/NA'] else x)
+    # Ensure the columns are strings to avoid issues with non-string data
+    df['C'] = df['C'].astype(str)
+    df['D'] = df['D'].astype(str)
+
+    # Apply filters safely, check for NaN explicitly
+    df = df[~(df['C'].apply(lambda x: x.endswith(':') if pd.notna(x) else False))]
+    df = df[~(df['C'].apply(lambda x: x.startswith('Note:') if pd.notna(x) else False))]
+    df['D'] = df['D'].apply(lambda x: '' if pd.notna(x) and (x.endswith(']') and x.startswith('[') or x in ['YES/NO', 'PASS/NA']) else x)
+
     return df
+
 
 # Example usage
 directory_path = '/path/to/your/excel/files'
