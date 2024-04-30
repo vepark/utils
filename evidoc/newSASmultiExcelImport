@@ -1,5 +1,5 @@
 %macro processExcelFiles(directory);
-    %local fileref did filename i rc;
+    %local fileref did filename i;
     %let fileref = dirlist;
 
     filename &fileref "&directory";
@@ -9,7 +9,6 @@
         %let i = 1;
         %let filename = %sysfunc(dread(&did, &i));
         %do %while(&filename ne '');
-            /* Filter only Excel files */
             %if %upcase(%sysfunc(prxmatch(/\.xlsx$/, &filename))) > 0 %then %do;
                 %processFile(directory=&directory, filename=&filename);
             %end;
@@ -26,13 +25,13 @@
 %mend;
 
 %macro processFile(directory, filename);
-    %local libname filepath prefix sheet range;
-    %let libname = excel;
-    %let filepath = "&directory/&filename";
+    %local libname filepath prefix sheet nSheets;
+    %let libname = work;  /* Using the work library for temporary storage */
+    %let filepath = "&directory&filename";
 
     libname &libname xlsx "&filepath";
 
-    /* Retrieve prefix from Summary if it exists */
+    /* Retrieve prefix from the Summary sheet's B2 cell, if it exists */
     %if %sysfunc(exist(&libname.'Summary$'n)) %then %do;
         proc sql noprint;
             select put(B2, $20.) into :prefix trimmed from &libname.'Summary$'n;
@@ -42,33 +41,30 @@
         %let prefix = NoPrefix; /* Default if no Summary or B2 is empty */
     %end;
 
-    /* Process sheets */
+    /* Import and process sheets */
     proc sql noprint;
         select memname into :sheets separated by ' ' from dictionary.tables
-        where libname = "&libname" and (memname like: '___' or memname = 'Summary$');
+        where libname = "&libname" and (memname like '___' or memname = 'Summary$');
     quit;
 
-    %do i = 1 %to %sysfunc(countw(&sheets));
+    %let nSheets = %sysfunc(countw(&sheets));
+
+    %do i = 1 %to &nSheets;
         %let sheet = %scan(&sheets, &i);
-        %if &sheet = '301' %then %do;
-            %let range = C--G;
-        %end;
-        %else %do;
-            %let range = C--D;
-        %end;
+        %let range = %if(&sheet = '301') %then C--G %else C--D;
 
         data &prefix._&sheet;
             set &libname..&sheet (keep=&range);
         run;
     %end;
 
-    /* Combine sheets if required */
+    /* Combine relevant sheets into one dataset */
     data &prefix._combined;
-        set &prefix.:;
+        set &prefix._:;
     run;
 
     libname &libname clear;
 %mend;
 
-/* Example usage */
+/* Specify your directory containing Excel files */
 %processExcelFiles(/path/to/your/excel/files/);
