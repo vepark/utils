@@ -1,0 +1,29 @@
+%macro importSelectedSheets(path=, file=);
+    libname myxls EXCEL "&path.&file";
+
+    /* Create a macro variable to hold sheet names */
+    proc sql noprint;
+        select distinct memname into :sheetList separated by ' '
+        from dictionary.tables
+        where libname = 'MYXLS' and upcase(memname) like '%:_%' escape ':';
+    quit;
+
+    libname myxls clear;
+
+    %let numSheets = %sysfunc(countw(&sheetList));
+    %do i = 1 %to &numSheets;
+        %let sheetName = %scan(&sheetList, &i);
+
+        /* Check if the sheet is one of the target sheets and import if true */
+        %if %sysfunc(prxmatch(/^[0-9]{3}$/, &sheetName)) %then %do;
+            proc import datafile="&path.&file"
+                out=work.data&sheetName
+                dbms=xlsx replace;
+                sheet="&sheetName";
+                getnames=yes;
+            run;
+        %end;
+    %end;
+%mend;
+
+%importSelectedSheets(path=/your/path/, file=example.xlsx);
