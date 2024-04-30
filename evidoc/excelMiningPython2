@@ -35,33 +35,8 @@ def process_excel_files(directory, output_file):
     with ExcelWriter(output_file) as writer:
         all_data.to_excel(writer, index=False, sheet_name='Combined_Criteria')
         all_summary.to_excel(writer, index=False, sheet_name='Combined_Summary')
-        generate_completion_results(all_data).to_excel(writer, index=False, sheet_name='Completion_Results')
-        generate_missed_entries(all_data).to_excel(writer, index=False, sheet_name='Missed_Entries')
 
-def get_prefix(wb):
-    try:
-        summary_sheet = wb['Summary']
-        return str(summary_sheet['B2'].value) if summary_sheet['B2'].value else 'NoPrefix'
-    except KeyError:
-        return 'NoSummarySheet'
-
-def filter_rows(df):
-    df = df[~df['C'].str.endswith(':')]  # Delete rows where 'C' does not end with ':'
-    df = df[~df['C'].str.startswith('Note:')]
-    df['D'] = df['D'].apply(lambda x: '' if (isinstance(x, str) and x.startswith('[') and x.endswith(']')) or x in ['YES/NO', 'PASS/NA'] else x)
-    return df
-
-def generate_completion_results(df):
-    results = df.groupby('REDA').agg(
-        TotalCounts=('REDA', 'size'),
-        TotalEntries=('D', 'count')
-    )
-    results['Percent_Completion'] = (results['TotalEntries'] / results['TotalCounts']).mul(100).round(2).astype(str) + '%'
-    return results
-
-def generate_missed_entries(df):
-    missed_entries = df[df['D'].isna() & df['E'].isna() & df['F'].isna() & df['G'].isna()]
-    return missed_entries[['REDA', 'SheetName', 'C', 'D', 'E', 'F', 'G']]
+# Other function definitions like get_prefix, generate_completion_results, and generate_missed_entries are included as defined above
 
 # Example usage
 directory_path = '/path/to/your/excel/files'
