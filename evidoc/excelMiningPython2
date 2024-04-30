@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 
 def process_excel_files(directory, output_file):
     all_data = pd.DataFrame()
@@ -11,54 +11,44 @@ def process_excel_files(directory, output_file):
             filepath = os.path.join(directory, filename)
             wb = load_workbook(filepath, data_only=True)
             prefix = get_prefix(wb)
+            
             for sheet_name in wb.sheetnames:
                 if sheet_name.isdigit() and len(sheet_name) == 3:
-                    df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl')
-                    df = df.loc[:, 'C':]  # Keep columns from C to the last
-                    df = df.dropna(how='all')  # Remove completely empty rows
+                    # Load the sheet with pandas using the openpyxl engine
+                    df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', header=None)
+                    # Specify columns by Excel letter columns
+                    cols_to_use = range(2, 7) if sheet_name == '301' else range(2, 4)  # 0-based index, C=2, D=3, G=6
+                    df = df.iloc[:, cols_to_use]
+                    df.columns = ['C', 'D', 'E', 'F', 'G'] if sheet_name == '301' else ['C', 'D']
+                    df = filter_rows(df)
                     df['REDA'] = prefix
                     df['SheetName'] = sheet_name
-                    df = filter_rows(df)  # Apply filtering rules on the data
                     all_data = pd.concat([all_data, df], ignore_index=True)
+
                 elif sheet_name == 'Summary':
-                    df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols="A:F")
-                    df.dropna(how='all', inplace=True)  # Remove completely empty rows
+                    df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols="A:F", header=None)
+                    df.columns = ['A', 'B', 'C', 'D', 'E', 'F']
+                    df.dropna(how='all', inplace=True)
                     df['REDA'] = prefix
                     df['SheetName'] = 'Summary'
                     all_summary = pd.concat([all_summary, df], ignore_index=True)
 
-    # Write results to different sheets in a new Excel file
     with pd.ExcelWriter(output_file) as writer:
         all_data.to_excel(writer, index=False, sheet_name='Combined_Criteria')
         all_summary.to_excel(writer, index=False, sheet_name='Combined_Summary')
-        # Additional data analysis and results
-        generate_completion_results(all_data).to_excel(writer, index=False, sheet_name='Completion_Results')
-        generate_missed_entries(all_data).to_excel(writer, index=False, sheet_name='Missed_Entries')
 
 def get_prefix(wb):
     try:
         summary_sheet = wb['Summary']
-        return summary_sheet['B2'].value or 'NoPrefix'
+        return str(summary_sheet['B2'].value) if summary_sheet['B2'].value else 'NoPrefix'
     except KeyError:
         return 'NoSummarySheet'
 
 def filter_rows(df):
-    df = df[~df['C'].str.endswith(':')]
-    df = df[~df['C'].str.startswith('Note:')]
-    df['D'] = df['D'].apply(lambda x: '' if (str(x).endswith(']') and str(x).startswith('[')) or x in ['YES/NO', 'PASS/NA'] else x)
+    df = df[df['C'].str.endswith(':') == False]
+    df = df[df['C'].str.startswith('Note:') == False]
+    df['D'] = df['D'].apply(lambda x: x if not (str(x).startswith('[') and str(x).endswith(']')) else '')
     return df
-
-def generate_completion_results(df):
-    results = df.groupby('REDA').agg(
-        TotalCounts=('REDA', 'size'),
-        TotalEntries=('D', 'count')
-    )
-    results['Percent_Completion'] = (results['TotalEntries'] / results['TotalCounts']).mul(100).round(2).astype(str) + '%'
-    return results
-
-def generate_missed_entries(df):
-    missed_entries = df[df['D'].isna()]
-    return missed_entries[['REDA', 'SheetName', 'C', 'D', 'E', 'F', 'G']]
 
 # Example usage
 directory_path = '/path/to/your/excel/files'
