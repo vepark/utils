@@ -1,0 +1,50 @@
+Sub ProcessExcelFiles()
+    Dim wb As Workbook, summaryWb As Workbook
+    Dim ws As Worksheet, summaryWs As Worksheet, criteriaWs As Worksheet
+    Dim fileName As String
+    Dim folderPath As String
+    Dim lastRow As Long, lastCol As Long, i As Long
+    
+    ' Set the folder path containing Excel files
+    folderPath = "C:\path\to\your\excel\files\"
+    ' Create a new workbook for the summaries
+    Set summaryWb = Workbooks.Add
+    ' Add worksheets for criteria and summary
+    Set criteriaWs = summaryWb.Sheets.Add(After:=summaryWb.Sheets(summaryWb.Sheets.Count))
+    criteriaWs.Name = "Combined_Criteria"
+    Set summaryWs = summaryWb.Sheets.Add(After:=summaryWb.Sheets(summaryWb.Sheets.Count))
+    summaryWs.Name = "Combined_Summary"
+    
+    fileName = Dir(folderPath & "*.xlsx")
+    Do While fileName <> ""
+        ' Open each workbook
+        Set wb = Workbooks.Open(folderPath & fileName)
+        
+        ' Process each sheet
+        For Each ws In wb.Sheets
+            If IsNumeric(ws.Name) And Len(ws.Name) = 3 Then
+                ' Copy data from numbered sheets
+                lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+                If ws.Name = "301" Then
+                    lastCol = 7 ' Column G
+                Else
+                    lastCol = 4 ' Column D
+                End If
+                ws.Range(ws.Cells(1, 3), ws.Cells(lastRow, lastCol)).Copy
+                criteriaWs.Cells(criteriaWs.Rows.Count, 1).End(xlUp).Offset(1, 0).PasteSpecial xlPasteValues
+            ElseIf ws.Name = "Summary" Then
+                ' Copy data from Summary sheet
+                lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+                ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, 6)).Copy ' Columns A to F
+                summaryWs.Cells(summaryWs.Rows.Count, 1).End(xlUp).Offset(1, 0).PasteSpecial xlPasteValues
+            End If
+        Next ws
+        
+        wb.Close False
+        fileName = Dir
+    Loop
+    
+    ' Save the new workbook
+    summaryWb.SaveAs folderPath & "CombinedReport.xlsx"
+    summaryWb.Close False
+End Sub
