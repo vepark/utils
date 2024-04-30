@@ -49,15 +49,23 @@ def get_prefix(wb):
 
 import pandas as pd
 
+import pandas as pd
+
 def filter_rows(df):
-    # Ensure the columns are strings to avoid issues with non-string data
+    # Convert columns 'C' and 'D' to string to ensure string operations do not fail.
     df['C'] = df['C'].astype(str)
     df['D'] = df['D'].astype(str)
 
-    # Apply filters safely, check for NaN explicitly
-    df = df[~(df['C'].apply(lambda x: x.endswith(':') if pd.notna(x) else False))]
-    df = df[~(df['C'].apply(lambda x: x.startswith('Note:') if pd.notna(x) else False))]
-    df['D'] = df['D'].apply(lambda x: '' if pd.notna(x) and (x.endswith(']') and x.startswith('[') or x in ['YES/NO', 'PASS/NA']) else x)
+    # Safely apply conditions, explicitly handling NaN and data type considerations
+    # The conditions will now explicitly avoid applying bitwise operators on non-boolean types
+    condition_c_end_colon = df['C'].str.endswith(':')
+    condition_c_start_note = df['C'].str.startswith('Note:')
+
+    # Use pd.notna to ensure that the conditions are only applied where the data is not NaN
+    df = df[(~condition_c_end_colon.fillna(False)) & (~condition_c_start_note.fillna(False))]
+
+    # Clean up column 'D' based on specific string patterns
+    df['D'] = df['D'].apply(lambda x: '' if (x.startswith('[') and x.endswith(']')) or x in ['YES/NO', 'PASS/NA'] else x)
 
     return df
 
