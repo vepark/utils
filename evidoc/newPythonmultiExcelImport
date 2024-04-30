@@ -14,17 +14,27 @@ def process_excel_files(directory):
 def process_file(filepath):
     wb = load_workbook(filepath, data_only=True)
     prefix = get_prefix(wb)
-    
+
+    # Initialize DataFrame to collect all combined data
     combined_data = pd.DataFrame()
+
+    # Iterate through all sheet names in the workbook
     for sheet_name in wb.sheetnames:
         if sheet_name.isdigit() and len(sheet_name) == 3:
-            columns_to_keep = ['C', 'D', 'E', 'F', 'G'] if sheet_name == '301' else ['C', 'D']
-            df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols=columns_to_keep)
+            # Determine the columns to extract based on sheet number
+            cols_to_use = "C:G" if sheet_name == '301' else "C:D"
+
+            # Load the sheet into a DataFrame with specific columns
+            df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols=cols_to_use)
             df.dropna(how='all', inplace=True)  # Remove rows with all NaN values
-            df['SheetName'] = sheet_name  # Add column showing where each row came from
-            df['REDA'] = prefix  # Add column with B2 value from Summary
+
+            # Add metadata columns
+            df['SheetName'] = sheet_name  # Column showing where each row came from
+            df['REDA'] = prefix  # Column with B2 value from Summary
+
+            # Append the processed sheet data to the combined DataFrame
             combined_data = pd.concat([combined_data, df], ignore_index=True)
-    
+
     # Save the combined data to a new Excel file
     output_filepath = os.path.join(os.path.dirname(filepath), f'{prefix}_combined.xlsx')
     combined_data.to_excel(output_filepath, index=False)
