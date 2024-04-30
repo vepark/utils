@@ -15,10 +15,14 @@ def process_excel_files(directory, output_file):
 
             for sheet_name in wb.sheetnames:
                 if sheet_name.isdigit() and len(sheet_name) == 3:
-                    # Assume no headers and directly specify column ranges by index
-                    cols_to_use = "C:G" if sheet_name == '301' else "C:D"
+                    if sheet_name == '301':
+                        cols_to_use = "C:G"  # Excel labels for columns C through G
+                    else:
+                        cols_to_use = "C:D"  # Excel labels for columns C and D
+
+                    # Read Excel using column index
                     df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols=cols_to_use, header=None)
-                    df.columns = ['C', 'D', 'E', 'F', 'G'][:len(df.columns)]  # Assign column names based on range
+                    df.columns = ['C', 'D', 'E', 'F', 'G'][:len(df.columns)]  # Set column names
                     df = filter_rows(df)
                     df['REDA'] = prefix
                     df['SheetName'] = sheet_name
@@ -44,9 +48,7 @@ def get_prefix(wb):
         return 'NoSummarySheet'
 
 def filter_rows(df):
-    # Convert columns to string to avoid issues with mixed types
-    df['C'] = df['C'].astype(str)
-    df['D'] = df['D'].astype(str)
+    # Apply filters and transformations
     df = df[~df['C'].str.endswith(':') & ~df['C'].str.startswith('Note:')]
     df['D'] = df['D'].apply(lambda x: '' if x.endswith(']') and x.startswith('[') or x in ['YES/NO', 'PASS/NA'] else x)
     return df
