@@ -1,0 +1,61 @@
+# Define the path to the directory containing the Excel files
+$directoryPath = "C:\path\to\your\excel\files"
+
+# Create a COM object to interact with Excel
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false # Run Excel in the background
+$excel.DisplayAlerts = $false # Disable prompts and alerts
+
+# Function to process each Excel file
+function Process-ExcelFile($filePath) {
+    $workbook = $excel.Workbooks.Open($filePath)
+    $prefix = $workbook.Sheets.Item('Summary').Cells.Item(2, 2).Value # Read value from cell B2
+
+    # Check for valid prefix, if not found, use filename as prefix
+    if ($null -eq $prefix -or $prefix -eq '') {
+        $prefix = [System.IO.Path]::GetFileNameWithoutExtension($filePath)
+    }
+
+    # Array to hold data for combined sheet
+    $combinedData = @()
+
+    # Process each sheet
+    foreach ($sheet in $workbook.Sheets) {
+        if ($sheet.Name -match '^\d{3}$') { # Check if the sheet name is three digits
+            $range = if ($sheet.Name -eq '301') { "C:G" } else { "C:D" }
+            $data = $sheet.Range($range).Value2
+            $newName = "$prefix" + "_" + $sheet.Name
+            $sheet.Name = $newName
+            $combinedData += $data
+        }
+    }
+
+    # Optionally, create a new sheet and write combined data
+    $newSheet = $workbook.Sheets.Add()
+    $newSheet.Name = $prefix + "_combined"
+    $rowIndex = 1
+    foreach ($row in $combinedData) {
+        for ($colIndex = 1; $colIndex -le $row.Length; $colIndex++) {
+            $newSheet.Cells.Item($rowIndex, $colIndex).Value2 = $row[$colIndex-1]
+        }
+        $rowIndex++
+    }
+
+    # Save and close the workbook
+    $workbook.Save()
+    $workbook.Close()
+}
+
+# Process all Excel files in the directory
+Get-ChildItem -Path $directoryPath -Filter "*.xlsx" | ForEach-Object {
+    Process-ExcelFile $_.FullName
+}
+
+# Clean up COM objects
+$excel.Quit()
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+Remove-Variable excel
+
+# Garbage collection to free up the COM resources
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
