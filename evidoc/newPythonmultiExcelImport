@@ -12,32 +12,21 @@ def process_excel_files(directory):
                 print(f"Error processing {filename}: {e}")
 
 def process_file(filepath):
-    wb = load_workbook(filepath)
+    wb = load_workbook(filepath, data_only=True)
     prefix = get_prefix(wb)
     
     combined_data = pd.DataFrame()
     for sheet_name in wb.sheetnames:
         if sheet_name.isdigit() and len(sheet_name) == 3:
-            try:
-                df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl')
-                # Debug print to check the columns in the loaded DataFrame
-                print(f"Columns in {sheet_name}: {df.columns.tolist()}")
-
-                # Define columns based on sheet number
-                columns_to_keep = ['C', 'D', 'E', 'F', 'G'] if sheet_name == '301' else ['C', 'D']
-                # Check if the necessary columns exist in the DataFrame
-                if not set(columns_to_keep).issubset(df.columns):
-                    raise ValueError(f"Required columns {columns_to_keep} are not all present in sheet {sheet_name}")
-
-                df = df[columns_to_keep]
-                df['SheetName'] = prefix + '_' + sheet_name
-                combined_data = pd.concat([combined_data, df], ignore_index=True)
-
-            except Exception as e:
-                print(f"Error processing sheet {sheet_name} in {os.path.basename(filepath)}: {e}")
-
+            columns_to_keep = ['C', 'D', 'E', 'F', 'G'] if sheet_name == '301' else ['C', 'D']
+            df = pd.read_excel(filepath, sheet_name=sheet_name, engine='openpyxl', usecols=columns_to_keep)
+            df.dropna(how='all', inplace=True)  # Remove rows with all NaN values
+            df['SheetName'] = sheet_name  # Add column showing where each row came from
+            df['REDA'] = prefix  # Add column with B2 value from Summary
+            combined_data = pd.concat([combined_data, df], ignore_index=True)
+    
     # Save the combined data to a new Excel file
-    output_filepath = os.path.join(os.path.dirname(filepath), prefix + '_combined.xlsx')
+    output_filepath = os.path.join(os.path.dirname(filepath), f'{prefix}_combined.xlsx')
     combined_data.to_excel(output_filepath, index=False)
     print(f'Combined data saved to {output_filepath}')
 
@@ -45,10 +34,12 @@ def get_prefix(wb):
     try:
         summary_sheet = wb['Summary']
         prefix = summary_sheet['B2'].value
-        return str(prefix) if prefix else 'NoPrefix'
+        if prefix is None:
+            raise ValueError("No valid prefix in Summary B2")
+        return str(prefix)
     except KeyError:
-        return 'NoSummarySheet'
+        raise ValueError("No Summary sheet found")
 
-# Example usage
+# Specify your directory containing Excel files
 directory_path = '/path/to/your/excel/files'
 process_excel_files(directory_path)
