@@ -1,0 +1,17 @@
+%macro check_in_list(last4, list);
+    %let formatted_last4 = %str(%')&last4%str(%');  /* Wrap the value with single quotes */
+    %let list = %str(%')&list%str(%');  /* Ensure the list is evaluated as is */
+
+    %if %index(&list, &formatted_last4) > 0 %then %do;
+        %put &last4 is in the list.;
+        /* Your SAS code here */
+    %end;
+    %else %do;
+        %put &last4 is not in the list.;
+    %end;
+%mend;
+
+/* Example usage */
+%let list = 1234,2345,2355;
+%check_in_list(1234, &list);  /* 1234 is in the list */
+%check_in_list(9999, &list);  /* 9999 is not in the list */
