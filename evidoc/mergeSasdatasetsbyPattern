@@ -1,0 +1,31 @@
+%macro merge_datasets(path=);
+   /* Create a temporary dataset to hold the list of dataset names */
+   proc sql noprint;
+      create table work.datasets_to_merge as
+      select memname 
+      from dictionary.tables
+      where libname = 'YOUR_LIB' and
+            memname like 'REDA%_completion_results';
+   quit;
+
+   /* Create a macro variable to hold the number of datasets found */
+   %let ds_count = &sqlobs;
+
+   /* Merge datasets if any are found */
+   data work.combined_results;
+      length dataset_name $32.;
+      if 0 then set YOUR_LIB..REDA1234_completion_results; /* Just to get the structure */
+      retain dataset_name;
+
+      /* Loop through each dataset and merge */
+      do i = 1 to &ds_count;
+         set work.datasets_to_merge point=i nobs=nobs;
+         dataset_name = memname;
+         set YOUR_LIB..&dataset_name;
+         output;
+      end;
+      stop;
+   run;
+%mend merge_datasets;
+
+%merge_datasets(path=your/path/here);
