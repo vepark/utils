@@ -1,3 +1,31 @@
+%macro combineSheets(last4);
+    %local i dataset_list;
+
+    %* Initialize the list of datasets to be combined;
+    %let dataset_list = ;
+
+    %* Generate the list of dataset names for the set statement;
+    %do i = 301 %to 320;
+        %let dataset_list = &dataset_list REDA&last4._&i;
+    %end;
+
+    %* Remove the leading space from the dataset_list;
+    %let dataset_list = %sysfunc(strip(&dataset_list));
+
+    %* Create a single dataset combining all the specified datasets;
+    data REDA&last4._combined;
+        set &dataset_list;
+    run;
+%mend combineSheets;
+
+%* Example of how to call the macro;
+%combineSheets(1234);
+
+
+
+
+
+
 %let list = '1234','2345','3456';  %* A list of quoted numbers;
 %let value = '1234';  %* A value to find in the list;
 
