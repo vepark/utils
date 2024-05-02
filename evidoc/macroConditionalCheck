@@ -1,4 +1,39 @@
 %macro combineSheets(last4);
+    %local i dataset_list dsid nobs;
+
+    %let dataset_list = ;  %* Initialize the list of datasets to be combined;
+
+    %do i = 301 %to 320;
+        %let dsname = REDA&last4._&i;
+        
+        %* Check if the dataset exists and is not empty;
+        %if %sysfunc(exist(&dsname)) %then %do;
+            %let dsid = %sysfunc(open(&dsname));
+            %let nobs = %sysfunc(attrn(&dsid, NOBS));
+            %if &nobs > 0 %then %do;
+                %let dataset_list = &dataset_list &dsname;
+            %end;
+            %let rc = %sysfunc(close(&dsid));
+        %end;
+    %end;
+
+    %* Check if the dataset list is not empty;
+    %if %length(%str(&dataset_list)) > 0 %then %do;
+        data REDA&last4._combined;
+            set &dataset_list;
+        run;
+    %end;
+    %else %do;
+        %put WARNING: No non-empty datasets found to combine for REDA&last4.;
+    %end;
+%mend combineSheets;
+
+%combineSheets(1234);
+
+
+
+
+%macro combineSheets(last4);
     %local i dataset_list;
 
     %* Initialize the list of datasets to be combined;
