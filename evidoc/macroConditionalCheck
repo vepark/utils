@@ -1,3 +1,17 @@
+%let list = '1234','2345','3456';  %* A list of quoted numbers;
+%let value = '1234';  %* A value to find in the list;
+
+%* The correct use of %INDEX, with only two arguments;
+%let result = %index(&list, &value);
+
+%put Result: &result;  %* This should print the position of '1234' in the list, or 0 if not found;
+
+
+
+
+
+
+
 %let outlist = '1234';  %* Single item to check;
 %let inlist = '1234','2345','3456';  %* List of items;
 
