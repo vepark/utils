@@ -1,0 +1,13 @@
+%let outlist = '1234';  %* Single item to check;
+%let inlist = '1234','2345','3456';  %* List of items;
+
+%* Ensure outlist is surrounded by quotes in the macro check;
+%let formatted_outlist = %bquote('&) &outlist %bquote(');
+
+%* Check if the formatted_outlist is part of inlist;
+%if %index(&inlist, &formatted_outlist) > 0 %then %do;
+    %put &formatted_outlist is in the list.;
+%end;
+%else %do;
+    %put &formatted_outlist is not in the list.;
+%end;
