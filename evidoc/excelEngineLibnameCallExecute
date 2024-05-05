@@ -1,0 +1,41 @@
+data file_paths;
+    input file_path $50.;
+    datalines;
+C:\data\file1.xlsx
+C:\data\file2.xlsx
+C:\data\file3.xlsx
+;
+run;
+
+
+
+%macro assign_libnames;
+    /* Count the number of files */
+    proc sql noprint;
+        select count(*) into :num_files from file_paths;
+    quit;
+
+    /* Loop through each file and assign libname */
+    %do i = 1 %to &num_files;
+        /* Retrieve the ith file path */
+        proc sql noprint;
+            select file_path into :current_path trimmed from file_paths (firstobs=&i obs=&i);
+        quit;
+
+        /* Create a valid SAS name for libname */
+        %let libname = lib%sysfunc(compress(&i, ,-kd)); /* Removes non-digits and non-letters */
+
+        /* Assign libname using the XLSX engine */
+        libname &libname xlsx "&current_path";
+        %put Assigned libname &libname to file &current_path;
+    %end;
+%mend assign_libnames;
+
+%assign_libnames;
+
+
+
+
+data combined;
+    set lib1.'Sheet1$'n lib2.'Sheet1$'n lib3.'Sheet1$'n;
+run;
