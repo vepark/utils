@@ -1,3 +1,42 @@
+%macro gather_sheet_info(libname);
+    /* Dynamically query each sheet to count rows */
+    proc sql;
+        create table work.temp_sheets as
+        select memname as sheet_name
+        from dictionary.tables
+        where libname = upcase("&libname");
+
+        /* Iterate through each sheet and count the rows */
+        create table work.sheet_counts(drop=libname) as
+        select "&libname" as libname, memname, (select count(*) from &libname..&memname) as row_count
+        from work.temp_sheets;
+    quit;
+
+    /* Clear the temporary table and the libname after gathering data */
+    proc datasets lib=work nolist;
+        delete temp_sheets;
+    quit;
+    run;
+
+    %let rc = %sysfunc(libname(&libname, CLEAR));
+%mend;
+
+/* Example usage, assuming you have already assigned libnames and paths dynamically */
+%gather_sheet_info(mylib);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 data file_paths;
     input file_path $50.;
     datalines;
