@@ -1,1 +1,46 @@
+#!/bin/bash
+
+# Starting and ending numbers for the main folders
+start=4400
+end=5000
+
+# Base directory where the structure should start
+base_dir="/path/to/your/base/directory"
+
+# Create each main folder from REDA4400 to REDA5000
+for i in $(seq $start $end); do
+  # Full path for the main folder
+  main_folder="${base_dir}/REDA${i}"
+
+  # Create the main folder
+  mkdir -p "${main_folder}"
+
+  # List of subfolders to create in each main folder
+  subfolders=("Reports" "SAS" "Artifacts")
+
+  for subfolder in "${subfolders[@]}"; do
+    # Full path for the subfolder
+    subfolder_path="${main_folder}/${subfolder}"
+
+    # Create the subfolder
+    mkdir -p "${subfolder_path}"
+
+    # Additional sub-subfolders for the 'SAS' folder
+    if [ "$subfolder" == "SAS" ]; then
+      for sas_subfolder in "ARCHIVE" "EXECT" "EDR"; do
+        # Full path for the SAS sub-subfolder
+        sas_subfolder_path="${subfolder_path}/${sas_subfolder}"
+
+        # Create the SAS sub-subfolder
+        mkdir -p "${sas_subfolder_path}"
+      done
+    fi
+  done
+done
+
+
+chmod +x create_folders.sh
+
+./create_folders.sh
+
 
