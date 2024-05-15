@@ -1,4 +1,8 @@
-/* Step 1: Identify all relevant INPUT directories under RED* folders */
+/* Ensure any prior filename assignments are cleared */
+filename dirlist clear;
+filename filelist clear;
+
+/* Define the pipe to list directories */
 filename dirlist pipe "find /path/to/search/root -type d -name 'INPUT' -print";
 
 data dir_info;
@@ -7,17 +11,15 @@ data dir_info;
     input full_path $char256.;
     retain red_folder_name input_path;
 
-    /* Extract parent RED folder and INPUT path */
-    if index(upcase(full_path), '/RED') and not missing(full_path) then do;
+    if index(upcase(full_path), '/RED') then do;
         red_folder_name = scan(full_path, -3, '/');
         input_path = full_path;
-        
         if upcase(scan(red_folder_name, 1, '/')) =: 'RED' then output;
     end;
 run;
 
-/* Step 2: For each INPUT directory, list and concatenate file names */
-data want(keep=red_folder_name input_subfolder_filenames);
+/* Process each directory and list filenames */
+data want(drop=i rc);
     set dir_info;
     length file_list $32767;
     retain file_list;
@@ -25,18 +27,24 @@ data want(keep=red_folder_name input_subfolder_filenames);
     by red_folder_name;
     if first.red_folder_name then file_list = '';
 
-    rc = filename('filelist', catx(' ', "ls -p", input_path, "| grep -v /"));
-    infile filelist truncover;
-    input fname $char256.;
+    /* Use a data step loop to safely process files */
+    d = dopen('dirlist');
+    do i = 1 to dnum(d);
+        fname = dread(d, i);
 
-    if not missing(fname) then
-        file_list = catx(',', file_list, fname);
+        if not missing(fname) then
+            file_list = catx(',', file_list, fname);
 
-    if last.red_folder_name then do;
-        input_subfolder_filenames = file_list;
-        output;
+        /* Close file loop and output */
+        if last.red_folder_name then do;
+            input_subfolder_filenames = file_list;
+            output;
+        end;
     end;
+    dclose(d);
+
+    filename filelist clear;
 run;
 
-proc print data=want;
+proc print data=want noobs;
 run;
