@@ -1,27 +1,30 @@
 #!/bin/bash
 
-# Directory to search
+# Define the root directory to search
 SEARCH_DIR="/path/to/search/root"
 
-# Output CSV file
-OUTPUT_FILE="/path/to/output/files_list.csv"
+# Define the output CSV file path
+OUTPUT_CSV="/path/to/output/files_list.csv"
 
-# Prepare or clear the output file
-echo "REDFolderName,INPUTsubfolderFileNames" > "$OUTPUT_FILE"
+# Write the CSV header
+echo "REDFolderName,INPUTsubfolderFileNames" > "$OUTPUT_CSV"
 
-# Find directories starting with 'RED' that contain an 'INPUT' subdirectory
+# Find all directories starting with RED and containing an INPUT folder
 find "$SEARCH_DIR" -type d -name 'RED*' | while read -r red_folder; do
   if [ -d "$red_folder/INPUT" ]; then
-    # Capture the RED folder name
+    # Extract just the name of the RED folder
     red_folder_name=$(basename "$red_folder")
 
-    # List files inside the 'INPUT' subfolder and concatenate them into one line
+    # List all files in the INPUT subfolder, join with commas, avoid directories
     input_files=$(find "$red_folder/INPUT" -type f -exec basename {} \; | tr '\n' ',' | sed 's/,$//')
 
-    # Write to the CSV file
-    echo "$red_folder_name,\"$input_files\"" >> "$OUTPUT_FILE"
+    # Only write to CSV if there are actual files
+    if [ ! -z "$input_files" ]; then
+      echo "$red_folder_name,\"$input_files\"" >> "$OUTPUT_CSV"
+    fi
   fi
 done
+
 
 
 
