@@ -44,3 +44,62 @@ run;
 
 /* Example usage */
 %create_macro_vars(mydata, ID1 ID2);
+
+
+
+
+
+
+
+
+
+%macro find_files_with_keywords(input_folder, keywords);
+  %local keyword i file_count main_folder additional_artifacts;
+
+  filename input_dir "&input_folder/*";
+
+  %do i = 1 %to %sysfunc(countw(&keywords));
+    %let keyword = %scan(&keywords, &i);
+
+    data files;
+      did = dopen('input_dir');
+      if did > 0 then do;
+        do while (not eof);
+          infile = dread(did, _n_);
+          if find(lowcase(infile), lowcase("&keyword")) then do;  /* Case-insensitive search */
+            filename = scan(infile, -1, '\/');                   /* Get filename only */
+            output;
+          end;
+        end;
+      end;
+      rc = dclose(did);
+    run;
+
+    %let file_count = &sqlobs; /* Count files found */
+
+    proc sql noprint;
+      select filename into :&keyword  
+      from files;
+
+      %if &file_count > 1 %then %do;
+        select filename into :additional_artifacts separated by ' ' 
+        from files;
+        %let main_folder = %sysfunc(pathname(&input_folder)); 
+      %end;
+    quit;
+
+    %if &file_count = 0 %then %put WARNING: No files found for keyword &keyword;
+    %else %if &file_count = 1 %then %put Macro variable &keyword created with value &&&keyword;
+    %else %do;
+      %put WARNING: Multiple files found for keyword &keyword;
+      %put Additional files stored in macro variable AdditionalArtifacts&keyword;
+      %put Main folder stored in macro variable MainFolder&keyword;
+    %end;
+  %end;
+%mend find_files_with_keywords;
+
+/* Example usage */
+%let input_folder = /path/to/your/input_folder; /* Update this with your actual path */
+%let keywords = abcd efgh ijkl mnop qrst;
+
+%find_files_with_keywords(&input_folder, &keywords);
