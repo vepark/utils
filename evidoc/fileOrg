@@ -9,14 +9,15 @@
     length folder_name $200 file_name $200; /* Adjust lengths if needed */
     stop;
   run;
-    
+
   proc datasets lib=&libref nolist; /* No need to list the contents */
     contents out=work._contents_;
   quit;
-    
+
   data want;
     set work._contents_;
-    where type='DIRECTORY' and upcase(memname) like 'RED%'; /* Filter for RED folders */
+    /* Filter for RED folders and ensure case-insensitive comparison */
+    where upcase(type) = 'DIRECTORY' and upcase(memname) like 'RED%'; 
     call symputx('folder_name', memname);
     call symputx('input_folder_name', "&root_folder/&folder_name/INPUT");
 
