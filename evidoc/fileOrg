@@ -1,50 +1,53 @@
-/* Ensure any prior filename assignments are cleared */
-filename dirlist clear;
-filename filelist clear;
+filename dirlist;
+filename filelist;
 
-/* Define the pipe to list directories */
+/* Set up to find INPUT directories under any RED* folder */
 filename dirlist pipe "find /path/to/search/root -type d -name 'INPUT' -print";
 
 data dir_info;
     length full_path $256;
     infile dirlist truncover;
     input full_path $char256.;
-    retain red_folder_name input_path;
-
-    if index(upcase(full_path), '/RED') then do;
+    
+    /* Extract RED folder name and keep INPUT path */
+    if index(upcase(full_path), '/RED') and index(full_path, '/INPUT') then do;
         red_folder_name = scan(full_path, -3, '/');
         input_path = full_path;
         if upcase(scan(red_folder_name, 1, '/')) =: 'RED' then output;
     end;
 run;
 
-/* Process each directory and list filenames */
-data want(drop=i rc);
+%let max_file_list_len = 32000;
+
+data want(drop=i rc did);
     set dir_info;
-    length file_list $32767;
+    length file_list $&max_file_list_len.;
     retain file_list;
-    
-    by red_folder_name;
-    if first.red_folder_name then file_list = '';
 
-    /* Use a data step loop to safely process files */
-    d = dopen('dirlist');
-    do i = 1 to dnum(d);
-        fname = dread(d, i);
-
-        if not missing(fname) then
-            file_list = catx(',', file_list, fname);
-
-        /* Close file loop and output */
-        if last.red_folder_name then do;
-            input_subfolder_filenames = file_list;
-            output;
+    /* Open each INPUT directory and read file names */
+    did = dopen(input_path);
+    if did then do;
+        do i = 1 to dnum(did);
+            fname = dread(did, i);
+            if not prxmatch("/\/$/", fname) then
+                file_list = catx(',', file_list, fname);
         end;
+        rc = dclose(did);
     end;
-    dclose(d);
-
-    filename filelist clear;
+    
+    /* Output the findings to the final dataset */
+    if not missing(file_list) then do;
+        red_folder_name = red_folder_name;
+        input_subfolder_filenames = file_list;
+        output;
+    end;
+    else do;
+        red_folder_name = red_folder_name;
+        input_subfolder_filenames = "No files found";
+        output;
+    end;
 run;
 
-proc print data=want noobs;
+proc print data=want;
+    title "Contents of INPUT Directories Under RED Folders";
 run;
