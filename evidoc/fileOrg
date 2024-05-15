@@ -67,25 +67,26 @@ data processed;
                                        '.*ghi.*789.*', '.*jkl.*012.*', '.*mno.*345.*');
     array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
 
+    Multiple_Files = "No";
+
     * Split the INPUTsubfolderFileNames into individual filenames;
     do i = 1 to countw(INPUTsubfolderFileNames, ',');
         filename = scan(INPUTsubfolderFileNames, i, ',');
-        filename_no_ext = prxchange('s/\.[^\.]*$/', -1, filename);
+        filename_no_ext = prxchange('s/\.[^\.]*$/', -1, filename); * Remove the file extension;
 
         * Determine which keyword pattern the filename matches;
         do j = 1 to dim(patterns);
             if prxmatch(patterns[j], filename_no_ext) > 0 then do;
                 file_counts[j] + 1;
                 if file_counts[j] = 1 then files[j] = filename_no_ext;
-                else Multiple_Files = "Yes";
+                else do;
+                    Multiple_Files = "Yes";
+                    leave;
+                end;
             end;
         end;
     end;
 
-    * Mark 'Multiple_Files' as 'No' if no column has multiple files;
-    if not (Multiple_Files = "Yes") then Multiple_Files = "No";
-
-    * Drop temporary iterating variables;
     drop i j filename filename_no_ext;
 run;
 
