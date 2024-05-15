@@ -1,42 +1,106 @@
-filename filelist pipe "ls /path/to/input/directory/*";
-/* Define a temporary dataset to hold file names */
-data filenames;
-    length file_path $256;
-    infile filelist length=reclen;
-    input file_path $varying256. reclen;
-    /* Extract the file name from the path */
-    file_name = scan(file_path, -1, '/');
-run;
-/* Keywords and their macro variable names */
-%let keywords = abcd efg hijk lmnop qrst;
-%let macro_vars = var_abcd var_efg var_hijk var_lmnop var_qrst;
+/* Macro variables for keywords and expected matches */
+%let keywords = abc bgh*klm def ghi jkl;
+%let num_keywords = 5;
 
+/* Directory to start the search */
+%let start_path = /path/to/start/directory;
+
+/* Initialize a dataset to hold the report of directories with issues */
+data Report;
+    length MainFolder $256 AdditionalInputs $1000;
+    format MainFolder $256. AdditionalInputs $1000.;
+run;
+
+/* Initialize macro variables for filenames */
+%macro initialize_filenames;
+    %let abcfile = ;
+    %let bghklmfile = ;
+    %let deffile = ;
+    %let ghifile = ;
+    %let jklfile = ;
+%mend initialize_filenames;
+
+/* Main processing data step */
 data _null_;
-    set filenames;
-    
-    /* Array for keywords and corresponding macro variable names */
-    array keys[5] $10 _temporary_ ('*abcd*' '*efg*' '*hijk*' '*lmnop*' '*qrst*');
-    array macro_vars[5] $20 _temporary_ ('var_abcd', 'var_efg', 'var_hijk', 'var_lmnop', 'var_qrst');
-    
-    /* Check each file against each keyword pattern */
-    do i = 1 to 5;
-        if index(file_name, keys[i]) then do;
-            /* Assign the file name without extension to the macro variable */
-            name_without_ext = prxchange('s/(\.[^\.]*)$//', -1, file_name); /* Remove the extension */
-            call symputx(macro_vars[i], name_without_ext);
-            
-            /* If there's a second file for the same keyword */
-            if symexist(cats('count_', macro_vars[i])) then do;
-                count = symgetn(cats('count_', macro_vars[i])) + 1;
-                call symputx(cats('count_', macro_vars[i]), count);
-                
-                /* Additional handling for multiple files */
-                main_folder = scan(file_path, -2, '/');
-                call symputx(cats('AdditionalArtifacts', main_folder), file_path);
+    length folder_path $256 fname $256;
+    retain count_abc count_bghklm count_def count_ghi count_jkl 0;
+
+    /* Use pipe to list all subdirectories containing an 'INPUT' subfolder */
+    rc = filename('dirlist', "find &start_path. -type d -name 'INPUT' -print");
+    infile dirlist truncover end=eof;
+
+    input folder_path $char256.;
+
+    /* Extract the main folder from the path */
+    MainFolder = scan(folder_path, -2, '/');
+
+    /* Reset the keyword file counts for this folder */
+    call execute('%initialize_filenames;');
+    count_abc = 0;
+    count_bghklm = 0;
+    count_def = 0;
+    count_ghi = 0;
+    count_jkl = 0;
+
+    /* List all files within the 'INPUT' directory */
+    d = dopen('dirlist');
+    do i = 1 to dnum(d);
+        fname = dread(d, i);
+
+        /* Check for each keyword */
+        select;
+            when (index(fname, 'abc') > 0) then do;
+                count_abc + 1;
+                if count_abc = 1 then call symput('abcfile', scan(fname, 1, '.'));
             end;
-            else call symputx(cats('count_', macro_vars[i]), 1);
+            when (index(fname, 'bgh') > 0 and index(fname, 'klm') > 0) then do;
+                count_bghklm + 1;
+                if count_bghklm = 1 then call symput('bghklmfile', scan(fname, 1, '.'));
+            end;
+            when (index(fname, 'def') > 0) then do;
+                count_def + 1;
+                if count_def = 1 then call symput('deffile', scan(fname, 1, '.'));
+            end;
+            when (index(fname, 'ghi') > 0) then do;
+                count_ghi + 1;
+                if count_ghi = 1 then call symput('ghifile', scan(fname, 1, '.'));
+            end;
+            when (index(fname, 'jkl') > 0) then do;
+                count_jkl + 1;
+                if count_jkl = 1 then call symput('jklfile', scan(fname, 1, '.'));
+            end;
         end;
     end;
+    dclose(d);
+
+    /* Check for any keyword with more than 1 matching file */
+    if count_abc > 1 or count_bghklm > 1 or count_def > 1 or count_ghi > 1 or count_jkl > 1 then do;
+        /* Report issue */
+        AdditionalInputs = catx(', ',
+                                ifn(count_abc > 1, 'abc', ''),
+                                ifn(count_bghklm > 1, 'bgh*klm', ''),
+                                ifn(count_def > 1, 'def', ''),
+                                ifn(count_ghi > 1, 'ghi', ''),
+                                ifn(count_jkl > 1, 'jkl', ''));
+        output Report;
+    end;
+    else if count_abc + count_bghklm + count_def + count_ghi + count_jkl = &num_keywords then do;
+        /* If exactly one match for each keyword */
+        call symput('abcfile', abcfile);
+        call symput('bghklmfile', bghklmfile);
+        call symput('deffile', deffile);
+        call symput('ghifile', ghifile);
+        call symput('jklfile', jklfile);
+    end;
+
+    if eof then do;
+        /* Finalize the report dataset */
+        stop;
+    end;
+run;
+
+/* Output the report dataset */
+proc print data=Report;
 run;
 
 
