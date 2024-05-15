@@ -1,0 +1,21 @@
+proc import datafile="mydata.xlsx"
+    out=excel_data
+    dbms=xlsx
+    replace;
+    sheet="Sheet1";
+run;
+
+proc transpose data=excel_data out=reshaped_data;
+    var _all_;
+run;
+
+data _null_;
+    set reshaped_data;
+    if not missing(col1) then do;
+        length clean_value $200;
+        clean_value = compress(upcase(col1), , "kad");
+        if clean_value ne "" then do;
+            call symputx(clean_value, clean_value);
+        end;
+    end;
+run;
