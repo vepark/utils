@@ -1,49 +1,42 @@
-%macro find_input_files(root_folder);
-  %local dsid rc libref memname folder_name input_folder_name file_name;
+/* Step 1: Identify all relevant INPUT directories under RED* folders */
+filename dirlist pipe "find /path/to/search/root -type d -name 'INPUT' -print";
 
-  libname mylib "&root_folder"; /* Assign a libref to the root folder */
-  %let libref = mylib;
+data dir_info;
+    length full_path $256;
+    infile dirlist truncover;
+    input full_path $char256.;
+    retain red_folder_name input_path;
 
-  /* Create empty output dataset */
-  data want;
-    length folder_name $200 file_name $200; /* Adjust lengths if needed */
-    stop;
-  run;
-
-  proc datasets lib=&libref nolist; /* No need to list the contents */
-    contents out=work._contents_;
-  quit;
-
-  data want;
-    set work._contents_;
-    /* Filter for RED folders and ensure case-insensitive comparison */
-    where upcase(type) = 'DIRECTORY' and upcase(memname) like 'RED%'; 
-    call symputx('folder_name', memname);
-    call symputx('input_folder_name', "&root_folder/&folder_name/INPUT");
-
-    filename input_dir "&input_folder_name";
-    
-    rc = dopen('input_dir'); /* Open the INPUT subfolder */
-    if rc > 0 then do;
-      do while (not eof);
-        infile = dread(rc, _n_);
-        file_name = scan(infile, -1, '\/');
-        if file_name ne '' then output;
-      end;
-      rc = dclose(rc);
+    /* Extract parent RED folder and INPUT path */
+    if index(upcase(full_path), '/RED') and not missing(full_path) then do;
+        red_folder_name = scan(full_path, -3, '/');
+        input_path = full_path;
+        
+        if upcase(scan(red_folder_name, 1, '/')) =: 'RED' then output;
     end;
-    keep folder_name file_name;
-  run;
+run;
 
-  proc sql;
-    create table want_agg as
-      select folder_name, 
-             catx(',', of file_name) as INPUTsubfolderFileNames
-      from want
-      group by folder_name;
-  quit;
-%mend find_input_files;
+/* Step 2: For each INPUT directory, list and concatenate file names */
+data want(keep=red_folder_name input_subfolder_filenames);
+    set dir_info;
+    length file_list $32767;
+    retain file_list;
+    
+    by red_folder_name;
+    if first.red_folder_name then file_list = '';
 
-/* Example usage */
-%let root_folder = /path/to/your/sasgrid_folder;  /* Update with your actual path */
-%find_input_files(&root_folder);
+    rc = filename('filelist', catx(' ', "ls -p", input_path, "| grep -v /"));
+    infile filelist truncover;
+    input fname $char256.;
+
+    if not missing(fname) then
+        file_list = catx(',', file_list, fname);
+
+    if last.red_folder_name then do;
+        input_subfolder_filenames = file_list;
+        output;
+    end;
+run;
+
+proc print data=want;
+run;
