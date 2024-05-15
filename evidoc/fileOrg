@@ -53,6 +53,81 @@ run;
 
 
 
+
+
+
+
+
+
+* Assume we have the initial dataset 'want' with columns 'REDFolderName' and 'INPUTsubfolderFileNames';
+data processed;
+    set want;
+    
+    * Split the INPUTsubfolderFileNames into individual filenames;
+    array files[100] $256 _temporary_; * Adjust size based on expected number of files;
+    do i = 1 to countw(INPUTsubfolderFileNames, ',');
+        files[i] = scan(INPUTsubfolderFileNames, i, ',');
+    end;
+    
+    * Initialize the columns for each file based on keywords;
+    length file1-file5 $256 Multiple_Files $3;
+    file1 = "";
+    file2 = "";
+    file3 = "";
+    file4 = "";
+    file5 = "";
+    Multiple_Files = "No";
+
+    * Arrays to hold counts to detect multiples;
+    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
+
+    * Iterate over each file to classify it based on keywords;
+    do j = 1 to dim(files);
+        select;
+            * Check and assign file based on keyword;
+            when (index(files[j], 'keyword1') > 0) do;
+                file_counts[1] + 1;
+                if file_counts[1] = 1 then file1 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+            end;
+            when (index(files[j], 'keyword2') > 0) do;
+                file_counts[2] + 1;
+                if file_counts[2] = 1 then file2 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+            end;
+            when (index(files[j], 'keyword3') > 0) do;
+                file_counts[3] + 1;
+                if file_counts[3] = 1 then file3 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+            end;
+            when (index(files[j], 'keyword4') > 0) do;
+                file_counts[4] + 1;
+                if file_counts[4] = 1 then file4 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+            end;
+            when (index(files[j], 'keyword5') > 0) do;
+                file_counts[5] + 1;
+                if file_counts[5] = 1 then file5 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+            end;
+        end;
+    end;
+
+    * Check for multiple files matching the same keyword;
+    do k = 1 to 5;
+        if file_counts[k] > 1 then Multiple_Files = "Yes";
+    end;
+
+    drop i j k;
+run;
+
+* Display the final processed dataset;
+proc print data=processed;
+    title "Processed Dataset with Files Categorized";
+run;
+
+
+
+
+
+
+
+
 * Ensure noxcmd is not set if running in a restricted environment;
 options xcmd;
 
