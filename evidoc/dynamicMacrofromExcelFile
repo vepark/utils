@@ -1,3 +1,54 @@
+filename filelist pipe "ls /path/to/input/directory/*";
+/* Define a temporary dataset to hold file names */
+data filenames;
+    length file_path $256;
+    infile filelist length=reclen;
+    input file_path $varying256. reclen;
+    /* Extract the file name from the path */
+    file_name = scan(file_path, -1, '/');
+run;
+/* Keywords and their macro variable names */
+%let keywords = abcd efg hijk lmnop qrst;
+%let macro_vars = var_abcd var_efg var_hijk var_lmnop var_qrst;
+
+data _null_;
+    set filenames;
+    
+    /* Array for keywords and corresponding macro variable names */
+    array keys[5] $10 _temporary_ ('*abcd*' '*efg*' '*hijk*' '*lmnop*' '*qrst*');
+    array macro_vars[5] $20 _temporary_ ('var_abcd', 'var_efg', 'var_hijk', 'var_lmnop', 'var_qrst');
+    
+    /* Check each file against each keyword pattern */
+    do i = 1 to 5;
+        if index(file_name, keys[i]) then do;
+            /* Assign the file name without extension to the macro variable */
+            name_without_ext = prxchange('s/(\.[^\.]*)$//', -1, file_name); /* Remove the extension */
+            call symputx(macro_vars[i], name_without_ext);
+            
+            /* If there's a second file for the same keyword */
+            if symexist(cats('count_', macro_vars[i])) then do;
+                count = symgetn(cats('count_', macro_vars[i])) + 1;
+                call symputx(cats('count_', macro_vars[i]), count);
+                
+                /* Additional handling for multiple files */
+                main_folder = scan(file_path, -2, '/');
+                call symputx(cats('AdditionalArtifacts', main_folder), file_path);
+            end;
+            else call symputx(cats('count_', macro_vars[i]), 1);
+        end;
+    end;
+run;
+
+
+
+
+
+
+
+
+
+
+
 proc import datafile="mydata.xlsx"
     out=excel_data
     dbms=xlsx
