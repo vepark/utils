@@ -57,22 +57,29 @@ run;
 
 
 
-
 data processed;
     set want;
     
     length file1-file5 $256 Multiple_Files $3;
     array files[5] $256 file1-file5;
-    array patterns[5] $50 _temporary_ ('.*abc.*123.*', '.*def.*456.*', 
-                                       '.*ghi.*789.*', '.*jkl.*012.*', '.*mno.*345.*');
+    
+    * Define patterns for each of the 5 file types, case-insensitive;
+    array patterns[5] $50 _temporary_ (
+        '(?i).*final.*pop.*',   /* Example pattern for file1 */
+        '(?i).*def.*456.*',     /* Example pattern for file2 */
+        '(?i).*ghi.*789.*',     /* Example pattern for file3 */
+        '(?i).*jkl.*012.*',     /* Example pattern for file4 */
+        '(?i).*mno.*345.*'      /* Example pattern for file5 */
+    );
+    
     array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
 
     Multiple_Files = "No";
 
-    * Split the INPUTsubfolderFileNames into individual filenames;
+    * Iterate over each filename in the INPUTsubfolderFileNames;
     do i = 1 to countw(INPUTsubfolderFileNames, ',');
         filename = scan(INPUTsubfolderFileNames, i, ',');
-        filename_no_ext = prxchange('s/\.[^\.]*$/', -1, filename); * Remove the file extension;
+        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
 
         * Determine which keyword pattern the filename matches;
         do j = 1 to dim(patterns);
