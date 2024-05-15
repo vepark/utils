@@ -1,0 +1,42 @@
+%macro find_input_files(root_folder);
+  %local dsid rc libref memname folder_name input_folder_name file_name;
+
+  libname mylib "&root_folder"; /* Assign a libref to the root folder */
+  %let libref = mylib;
+
+  proc datasets lib=&libref nolist; /* No need to list the contents */
+    contents data=work.folders out=work.folders details;
+  quit;
+
+  data want;
+    set work.folders;
+    where type='DIRECTORY' and upcase(memname) like 'RED%'; /* Filter for RED folders */
+    call symputx('folder_name', memname);
+    call symputx('input_folder_name', "&root_folder/&folder_name/INPUT");
+
+    filename input_dir "&input_folder_name";
+
+    rc = dopen('input_dir'); /* Open the INPUT subfolder */
+    if rc > 0 then do;
+      do while (not eof);
+        infile = dread(rc, _n_);
+        file_name = scan(infile, -1, '\/');
+        if file_name ne '' then output;
+      end;
+      rc = dclose(rc);
+    end;
+    keep folder_name file_name;
+  run;
+
+  proc sql;
+    create table want_agg as 
+    select folder_name, 
+           catx(',', of file_name) as INPUTsubfolderFileNames
+    from want
+    group by folder_name;
+  quit;
+%mend find_input_files;
+
+/* Example usage */
+%let root_folder = /path/to/your/sasgrid_folder;  /* Update with your actual path */
+%find_input_files(&root_folder);
