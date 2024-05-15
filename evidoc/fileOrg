@@ -111,41 +111,38 @@ run;
 
 
 
-data processed;
+data processed1;
     set want;
     
     length file1-file5 $256 Multiple_Files $3;
     array files[5] $256 file1-file5;
     
-    * Define patterns in lower case using patterns array;
-    array patterns[5] $256 _temporary_ (
-        ".*final.*pop.*",   /* Pattern for file1 */
-        ".*def.*456.*",     /* Pattern for file2 */
-        ".*ghi.*789.*",     /* Pattern for file3 */
-        ".*jkl.*012.*",     /* Pattern for file4 */
-        ".*mno.*345.*"      /* Pattern for file5 */
-    );
+    * Initialize the variables for patterns;
+    retain pat1 pat2 pat3 pat4 pat5;
     
-    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
-    
-    * Compile regex patterns for case-insensitive match;
+    * Define and compile patterns for case-insensitive match using PRXPARSE;
     if _N_ = 1 then do;
-        do i = 1 to dim(patterns);
-            call symputx(cats('pat', i), prxparse(cats('/(?i)', patterns[i], '/')));
-        end;
+        pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for file1 */
+        pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for file2 */
+        pat3 = prxparse("/.*ghi.*789.*/i");     /* Pattern for file3 */
+        pat4 = prxparse("/.*jkl.*012.*/i");     /* Pattern for file4 */
+        pat5 = prxparse("/.*mno.*345.*/i");     /* Pattern for file5 */
     end;
+    
+    array patterns[5] _temporary_ (pat1, pat2, pat3, pat4, pat5);
+    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
 
     Multiple_Files = "No";
     
     * Iterate over each filename in the INPUTsubfolderFileNames;
     do i = 1 to countw(INPUTsubfolderFileNames, ',');
         filename = scan(INPUTsubfolderFileNames, i, ',');
-        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
+        * Remove the file extension;
+        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename);
 
-        * Determine which keyword pattern the filename matches using compiled patterns;
+        * Determine which keyword pattern the filename matches;
         do j = 1 to dim(files);
-            patternId = symget(cats('pat', j));
-            if prxmatch(patternId, filename_no_ext) > 0 then do;
+            if prxmatch(patterns[j], filename_no_ext) > 0 then do;
                 file_counts[j] + 1;
                 if file_counts[j] = 1 then files[j] = filename_no_ext;
                 else do;
@@ -156,7 +153,7 @@ data processed;
         end;
     end;
 
-    drop i j filename filename_no_ext patternId;
+    drop i j filename filename_no_ext;
 run;
 
 proc print data=processed;
