@@ -19,3 +19,28 @@ data _null_;
         end;
     end;
 run;
+
+
+
+
+
+%macro create_macro_vars(dataset, vars);
+  %local var i count;
+
+  proc sql noprint;
+    %do i = 1 %to %sysfunc(countw(&vars));
+      %let var = %scan(&vars, &i);
+      select distinct &var 
+        into :&var._1 - :&var._&sqlobs 
+        from &dataset;
+      %let count = &sqlobs;
+
+      %do j = 1 %to &count;
+        %put Macro variable &var._&j created with value &&&var._&j;
+      %end;
+    %end;
+  quit;
+%mend create_macro_vars;
+
+/* Example usage */
+%create_macro_vars(mydata, ID1 ID2);
