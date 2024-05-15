@@ -58,106 +58,37 @@ run;
 
 
 
-
-* Assume we have the initial dataset 'want' with columns 'REDFolderName' and 'INPUTsubfolderFileNames';
 data processed;
     set want;
     
-    * Split the INPUTsubfolderFileNames into individual filenames;
-    array files[100] $256 _temporary_; * Adjust size based on expected number of files;
-    do i = 1 to countw(INPUTsubfolderFileNames, ',');
-        files[i] = scan(INPUTsubfolderFileNames, i, ',');
-    end;
-    
-    * Initialize the columns for each file based on keywords;
     length file1-file5 $256 Multiple_Files $3;
-    file1 = "";
-    file2 = "";
-    file3 = "";
-    file4 = "";
-    file5 = "";
-    Multiple_Files = "No";
-
-    * Arrays to hold counts to detect multiples;
+    array files[5] $256 file1-file5;
+    array patterns[5] $50 _temporary_ ('.*abc.*123.*', '.*def.*456.*', 
+                                       '.*ghi.*789.*', '.*jkl.*012.*', '.*mno.*345.*');
     array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
 
-    * Iterate over each file to classify it based on keywords;
-    do j = 1 to dim(files);
-        select;
-            * Check and assign file based on keyword;
-            when (index(files[j], 'keyword1') > 0) do;
-                file_counts[1] + 1;
-                if file_counts[1] = 1 then file1 = prxchange('s/\.[^\.]*$/', -1, files[j]);
-            end;
-            when (index(files[j], 'keyword2') > 0) do;
-                file_counts[2] + 1;
-                if file_counts[2] = 1 then file2 = prxchange('s/\.[^\.]*$/', -1, files[j]);
-            end;
-            when (index(files[j], 'keyword3') > 0) do;
-                file_counts[3] + 1;
-                if file_counts[3] = 1 then file3 = prxchange('s/\.[^\.]*$/', -1, files[j]);
-            end;
-            when (index(files[j], 'keyword4') > 0) do;
-                file_counts[4] + 1;
-                if file_counts[4] = 1 then file4 = prxchange('s/\.[^\.]*$/', -1, files[j]);
-            end;
-            when (index(files[j], 'keyword5') > 0) do;
-                file_counts[5] + 1;
-                if file_counts[5] = 1 then file5 = prxchange('s/\.[^\.]*$/', -1, files[j]);
+    * Split the INPUTsubfolderFileNames into individual filenames;
+    do i = 1 to countw(INPUTsubfolderFileNames, ',');
+        filename = scan(INPUTsubfolderFileNames, i, ',');
+        filename_no_ext = prxchange('s/\.[^\.]*$/', -1, filename);
+
+        * Determine which keyword pattern the filename matches;
+        do j = 1 to dim(patterns);
+            if prxmatch(patterns[j], filename_no_ext) > 0 then do;
+                file_counts[j] + 1;
+                if file_counts[j] = 1 then files[j] = filename_no_ext;
+                else Multiple_Files = "Yes";
             end;
         end;
     end;
 
-    * Check for multiple files matching the same keyword;
-    do k = 1 to 5;
-        if file_counts[k] > 1 then Multiple_Files = "Yes";
-    end;
+    * Mark 'Multiple_Files' as 'No' if no column has multiple files;
+    if not (Multiple_Files = "Yes") then Multiple_Files = "No";
 
-    drop i j k;
+    * Drop temporary iterating variables;
+    drop i j filename filename_no_ext;
 run;
 
-* Display the final processed dataset;
 proc print data=processed;
-    title "Processed Dataset with Files Categorized";
-run;
-
-
-
-
-
-
-
-
-* Ensure noxcmd is not set if running in a restricted environment;
-options xcmd;
-
-* File path for the output CSV;
-%let output_csv = /path/to/output/files_list.csv;
-
-* Directory to start the search;
-%let start_dir = /path/to/search/root;
-
-* Clear the output file to avoid appending to old results;
-x "echo 'REDFolderName,INPUTsubfolderFileNames' > &output_csv.";
-
-* Construct and execute the shell command to list the files;
-x "find &start_dir. -type d -name 'RED*' | while read -r red_folder; do \
-    if [ -d ""$red_folder/INPUT"" ]; then \
-        red_folder_name=$(basename ""$red_folder""); \
-        input_files=$(find ""$red_folder/INPUT"" -type f -exec basename {} \; | tr '\n' ',' | sed 's/,$//'); \
-        echo ""$red_folder_name,\"$input_files\""" >> &output_csv.; \
-    fi; \
-done";
-
-* Import the resulting CSV into a SAS dataset;
-proc import datafile="&output_csv."
-    out=want
-    dbms=csv
-    replace;
-    getnames=yes;
-run;
-
-* Display the dataset;
-proc print data=want;
-    title "List of Files in INPUT Directories Under RED Folders";
+    title "Processed Dataset with Files Categorized by Pattern";
 run;
