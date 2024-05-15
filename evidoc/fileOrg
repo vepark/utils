@@ -1,53 +1,85 @@
-filename dirlist;
-filename filelist;
+#!/bin/bash
 
-/* Set up to find INPUT directories under any RED* folder */
-filename dirlist pipe "find /path/to/search/root -type d -name 'INPUT' -print";
+# Directory to search
+SEARCH_DIR="/path/to/search/root"
 
-data dir_info;
-    length full_path $256;
-    infile dirlist truncover;
-    input full_path $char256.;
-    
-    /* Extract RED folder name and keep INPUT path */
-    if index(upcase(full_path), '/RED') and index(full_path, '/INPUT') then do;
-        red_folder_name = scan(full_path, -3, '/');
-        input_path = full_path;
-        if upcase(scan(red_folder_name, 1, '/')) =: 'RED' then output;
-    end;
+# Output CSV file
+OUTPUT_FILE="/path/to/output/files_list.csv"
+
+# Prepare or clear the output file
+echo "REDFolderName,INPUTsubfolderFileNames" > "$OUTPUT_FILE"
+
+# Find directories starting with 'RED' that contain an 'INPUT' subdirectory
+find "$SEARCH_DIR" -type d -name 'RED*' | while read -r red_folder; do
+  if [ -d "$red_folder/INPUT" ]; then
+    # Capture the RED folder name
+    red_folder_name=$(basename "$red_folder")
+
+    # List files inside the 'INPUT' subfolder and concatenate them into one line
+    input_files=$(find "$red_folder/INPUT" -type f -exec basename {} \; | tr '\n' ',' | sed 's/,$//')
+
+    # Write to the CSV file
+    echo "$red_folder_name,\"$input_files\"" >> "$OUTPUT_FILE"
+  fi
+done
+
+
+
+
+chmod +x list_files.sh
+./list_files.sh
+
+
+/* Import the CSV file created by the shell script */
+proc import datafile="/path/to/output/files_list.csv"
+    out=want
+    dbms=csv
+    replace;
+    getnames=yes;
 run;
 
-%let max_file_list_len = 32000;
-
-data want(drop=i rc did);
-    set dir_info;
-    length file_list $&max_file_list_len.;
-    retain file_list;
-
-    /* Open each INPUT directory and read file names */
-    did = dopen(input_path);
-    if did then do;
-        do i = 1 to dnum(did);
-            fname = dread(did, i);
-            if not prxmatch("/\/$/", fname) then
-                file_list = catx(',', file_list, fname);
-        end;
-        rc = dclose(did);
-    end;
-    
-    /* Output the findings to the final dataset */
-    if not missing(file_list) then do;
-        red_folder_name = red_folder_name;
-        input_subfolder_filenames = file_list;
-        output;
-    end;
-    else do;
-        red_folder_name = red_folder_name;
-        input_subfolder_filenames = "No files found";
-        output;
-    end;
-run;
-
+/* Display the dataset */
 proc print data=want;
-    title "Contents of INPUT Directories Under RED Folders";
+run;
+
+
+
+
+
+
+
+
+
+* Ensure noxcmd is not set if running in a restricted environment;
+options xcmd;
+
+* File path for the output CSV;
+%let output_csv = /path/to/output/files_list.csv;
+
+* Directory to start the search;
+%let start_dir = /path/to/search/root;
+
+* Clear the output file to avoid appending to old results;
+x "echo 'REDFolderName,INPUTsubfolderFileNames' > &output_csv.";
+
+* Construct and execute the shell command to list the files;
+x "find &start_dir. -type d -name 'RED*' | while read -r red_folder; do \
+    if [ -d ""$red_folder/INPUT"" ]; then \
+        red_folder_name=$(basename ""$red_folder""); \
+        input_files=$(find ""$red_folder/INPUT"" -type f -exec basename {} \; | tr '\n' ',' | sed 's/,$//'); \
+        echo ""$red_folder_name,\"$input_files\""" >> &output_csv.; \
+    fi; \
+done";
+
+* Import the resulting CSV into a SAS dataset;
+proc import datafile="&output_csv."
+    out=want
+    dbms=csv
+    replace;
+    getnames=yes;
+run;
+
+* Display the dataset;
+proc print data=want;
+    title "List of Files in INPUT Directories Under RED Folders";
 run;
