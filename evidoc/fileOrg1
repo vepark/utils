@@ -1,16 +1,15 @@
 data processed;
     set want;
     
-    * Define the lengths of the specific columns;
     length Report1 Analysis2 Summary3 Details4 Overview5 $256 Multiple_Files $3;
     
-    * Use an array to access these columns easily in loops;
+    * Use arrays to handle the column assignments more systematically;
     array cols[5] $256 Report1 Analysis2 Summary3 Details4 Overview5;
-
-    * Retain the compiled pattern IDs across the data step iterations;
-    retain pat1 pat2 pat3 pat4 pat5 0;
     
-    * Compile the regex patterns once using PRXPARSE;
+    * Temporary variables to hold compiled patterns;
+    retain pat1 pat2 pat3 pat4 pat5;
+    
+    * Compile the regex patterns once for all using PRXPARSE;
     if _N_ = 1 then do;
         pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for Report1 */
         pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for Analysis2 */
@@ -20,8 +19,8 @@ data processed;
     end;
     
     array patterns[5] pat1 pat2 pat3 pat4 pat5;
-    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
-
+    
+    * Initialize Multiple_Files to "No";
     Multiple_Files = "No";
     
     * Iterate over each filename in the INPUTsubfolderFileNames;
@@ -29,21 +28,23 @@ data processed;
         filename = scan(INPUTsubfolderFileNames, i, ',');
         filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
 
+        * Initialize a flag to check if any file is categorized for the current row;
+        call missing(of cols[*]);
+
         * Determine which keyword pattern the filename matches;
         do j = 1 to dim(cols);
             if prxmatch(patterns[j], filename_no_ext) > 0 then do;
-                file_counts[j] + 1;
-                if file_counts[j] = 1 then cols[j] = filename_no_ext;
-                else do;
-                    Multiple_Files = "Yes";
-                end;
+                if missing(cols[j]) then cols[j] = filename_no_ext;
+                else Multiple_Files = "Yes";  * Set to "Yes" if any column gets more than one match;
             end;
         end;
     end;
 
-    drop i j filename filename_no_ext;
+    drop i j filename filename_no_ext pat1 pat2 pat3 pat4 pat5;
 run;
 
 proc print data=processed;
     title "Processed Dataset with Files Categorized by Pattern";
 run;
+
+#this is updated
