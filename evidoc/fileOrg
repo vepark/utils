@@ -157,3 +157,62 @@ run;
 proc print data=processed;
     title "Processed Dataset with Files Categorized by Pattern";
 run;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+data processed;
+    set want;
+    
+    length col1-col5 $256 Multiple_Files $3;
+    array cols[5] $256 col1-col5;
+    
+    * Define keyword patterns and compile them for case-insensitive match;
+    if _N_ = 1 then do;
+        pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for col1 */
+        pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for col2 */
+        pat3 = prxparse("/.*ghi.*789.*/i");     /* Pattern for col3 */
+        pat4 = prxparse("/.*jkl.*012.*/i");     /* Pattern for col4 */
+        pat5 = prxparse("/.*mno.*345.*/i");     /* Pattern for col5 */
+    end;
+    
+    array patterns[5] pat1-pat2-pat3-pat4-pat5;
+    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
+
+    Multiple_Files = "No";
+    
+    * Iterate over each filename in the INPUTsubfolderFileNames;
+    do i = 1 to countw(INPUTsubfolderFileNames, ',');
+        filename = scan(INPUTsubfolderFileNames, i, ',');
+        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
+
+        * Determine which keyword pattern the filename matches;
+        do j = 1 to dim(cols);
+            if prxmatch(patterns[j], filename_no_ext) > 0 then do;
+                file_counts[j] + 1;
+                if file_counts[j] = 1 then cols[j] = filename_no_ext;
+                else do;
+                    Multiple_Files = "Yes";
+                end;
+            end;
+        end;
+    end;
+
+    drop i j filename filename_no_ext pat1 pat2 pat3 pat4 pat5;
+run;
+
+proc print data=processed;
+    title "Processed Dataset with Files Categorized by Pattern";
+run;
