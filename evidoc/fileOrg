@@ -110,35 +110,33 @@ run;
 
 
 
-
-data processed1;
+data processed;
     set want;
     
     length file1-file5 $256 Multiple_Files $3;
     array files[5] $256 file1-file5;
     
-    * Initialize the variables for patterns;
+    * Initialize pattern IDs and counts;
     retain pat1 pat2 pat3 pat4 pat5;
     
-    * Define and compile patterns for case-insensitive match using PRXPARSE;
+    * Compile the regex patterns once for all using PRXPARSE;
     if _N_ = 1 then do;
-        pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for file1 */
-        pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for file2 */
-        pat3 = prxparse("/.*ghi.*789.*/i");     /* Pattern for file3 */
-        pat4 = prxparse("/.*jkl.*012.*/i");     /* Pattern for file4 */
-        pat5 = prxparse("/.*mno.*345.*/i");     /* Pattern for file5 */
+        pat1 = prxparse("/.*final.*pop.*/i");
+        pat2 = prxparse("/.*def.*456.*/i");
+        pat3 = prxparse("/.*ghi.*789.*/i");
+        pat4 = prxparse("/.*jkl.*012.*/i");
+        pat5 = prxparse("/.*mno.*345.*/i");
     end;
     
-    array patterns[5] _temporary_ (pat1, pat2, pat3, pat4, pat5);
+    array patterns[5] (pat1, pat2, pat3, pat4, pat5);
     array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
-
+    
     Multiple_Files = "No";
     
     * Iterate over each filename in the INPUTsubfolderFileNames;
     do i = 1 to countw(INPUTsubfolderFileNames, ',');
         filename = scan(INPUTsubfolderFileNames, i, ',');
-        * Remove the file extension;
-        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename);
+        filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
 
         * Determine which keyword pattern the filename matches;
         do j = 1 to dim(files);
@@ -153,10 +151,9 @@ data processed1;
         end;
     end;
 
-    drop i j filename filename_no_ext;
+    drop i j filename filename_no_ext pat1 pat2 pat3 pat4 pat5;
 run;
 
 proc print data=processed;
     title "Processed Dataset with Files Categorized by Pattern";
 run;
-
