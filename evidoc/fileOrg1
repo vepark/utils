@@ -40,3 +40,55 @@ run;
 proc print data=processed;
     title "Processed Dataset with Files Categorized by Keyword";
 run;
+
+
+
+
+
+
+
+
+
+
+data _null_;
+    set processed;
+    
+    * Example actual file column names;
+    array files[5] $256 FileA FileB FileC FileD FileE;
+    
+    * Prepare to pass ID1 and ID2 to the macro, not as parameters but available in the environment;
+    call symputx('ID1', ID1);
+    call symputx('ID2', ID2);
+    
+    * Dynamically assign file1 to file5 based on the non-missing values in FileA to FileE;
+    do i = 1 to dim(files);
+        call symputx(cats('file', i), files[i]);
+    end;
+    
+    * Example of setting a global macro variable that might be used in your macros;
+    %let idmacrovalue1 = some_value;  * This should be set based on your earlier logic or data;
+    
+    * Construct macro calls dynamically based on the files available;
+    length macro_call $200;
+    macro_call = '';
+    
+    * Adjust the logic to use your real file column names and macros;
+    if not missing(FileA) and not missing(FileD) then do;
+        macro_call = cats('%cr300(', "&file1", ', ', "&file4", ');');
+        call execute(macro_call);
+    end;
+    else if not missing(FileA) and not missing(FileB) and not missing(FileC) and not missing(FileD) then do;
+        macro_call = cats('%cr301(', "&file1", ', ', "&file2", ', ', "&file3", ', ', "&file4", ');');
+        call execute(macro_call);
+    end;
+    else if not missing(FileD) then do;
+        * Example where a global macro variable and specific file are passed;
+        macro_call = cats('%cr302(', "&idmacrovalue1", ', ', "&file4", ');');
+        call execute(macro_call);
+    end;
+    
+    * Ensure IDs are used within macros without being direct parameters;
+    put "ID1=" ID1 " ID2=" ID2;  * Example of how you might check or use ID1, ID2 values in logs or further processing;
+    
+    drop i;
+run;
