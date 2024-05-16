@@ -85,3 +85,59 @@ data _null_;
     if not missing(macro_call) then call execute(macro_call);
     
 run;
+
+
+
+
+
+
+
+
+
+
+data processed;
+    set want;
+    
+    length file1-file5 $256 Multiple_Files $3;
+    array files[5] $256 file1-file5;
+
+    * Temporary variables to hold compiled patterns;
+    retain pat1 pat2 pat3 pat4 pat5 0;
+    
+    * Compile the regex patterns once for all using PRXPARSE;
+    if _N_ = 1 then do;
+        pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for file1 */
+        pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for file2 */
+        pat3 = prxparse("/.*ghi.*789.*/i");     /* Pattern for file3 */
+        pat4 = prxparse("/.*jkl.*012.*/i");     /* Pattern for file4 */
+        pat5 = prxparse("/.*mno.*345.*/i");     /* Pattern for file5 */
+    end;
+    
+    array patterns[5] pat1 pat2 pat3 pat4 pat5;
+    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
+
+    Multiple_Files = "No";
+    
+    * Iterate over each filename in the INPUTsubfolderFileNames;
+    do i = 1 to countw(INPUTsubfolderFileNames, ',');
+        filename = scan(INPUTsubfolderFileNames, i, ',');
+        * Determine which keyword pattern the filename matches;
+        do j = 1 to dim(files);
+            if prxmatch(patterns[j], filename) > 0 then do;
+                file_counts[j] + 1;
+                if file_counts[j] = 1 then files[j] = filename;
+                else do;
+                    Multiple_Files = "Yes";
+                    leave;
+                end;
+            end;
+        end;
+    end;
+
+    drop i j filename;
+run;
+
+proc print data=processed;
+    title "Processed Dataset with Files Categorized by Pattern";
+run;
+
