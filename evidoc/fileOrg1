@@ -49,46 +49,39 @@ run;
 
 
 
-
 data _null_;
     set processed;
     
-    * Example actual file column names;
-    array files[5] $256 FileA FileB FileC FileD FileE;
-    
-    * Prepare to pass ID1 and ID2 to the macro, not as parameters but available in the environment;
+    * Assign ID1 and ID2 for usage within macros;
     call symputx('ID1', ID1);
     call symputx('ID2', ID2);
     
-    * Dynamically assign file1 to file5 based on the non-missing values in FileA to FileE;
+    * Determine the non-missing files and create a list of file parameters;
+    array files{*} FileA FileB FileC FileD FileE;  * Array to loop over file columns;
+    length file_list $200 macro_call $200;
+    file_list = "";
     do i = 1 to dim(files);
-        call symputx(cats('file', i), files[i]);
+        if not missing(files{i}) then do;
+            * Assign each non-missing file to a macro variable file1, file2,...;
+            call symputx(cats('file', i), files{i});
+            * Append the parameter to the file list;
+            file_list = catx(', ', file_list, cats("file", i, "=&file", i));
+        end;
     end;
     
-    * Example of setting a global macro variable that might be used in your macros;
-    %let idmacrovalue1 = some_value;  * This should be set based on your earlier logic or data;
-    
-    * Construct macro calls dynamically based on the files available;
-    length macro_call $200;
-    macro_call = '';
-    
-    * Adjust the logic to use your real file column names and macros;
-    if not missing(FileA) and not missing(FileD) then do;
-        macro_call = cats('%cr300(', "&file1", ', ', "&file4", ');');
-        call execute(macro_call);
+    * Decide which macro to call based on the number of non-missing files;
+    * This is just an example. You should adjust the logic based on your macros;
+    if countw(file_list, ',') = 2 then do;
+        macro_call = cats('%cr300(', file_list, ');');
     end;
-    else if not missing(FileA) and not missing(FileB) and not missing(FileC) and not missing(FileD) then do;
-        macro_call = cats('%cr301(', "&file1", ', ', "&file2", ', ', "&file3", ', ', "&file4", ');');
-        call execute(macro_call);
+    else if countw(file_list, ',') = 4 then do;
+        macro_call = cats('%cr301(', file_list, ');');
     end;
-    else if not missing(FileD) then do;
-        * Example where a global macro variable and specific file are passed;
-        macro_call = cats('%cr302(', "&idmacrovalue1", ', ', "&file4", ');');
-        call execute(macro_call);
+    else if countw(file_list, ',') = 1 then do;
+        macro_call = cats('%cr302(', file_list, ');');
     end;
+
+    * Execute the constructed macro call;
+    if not missing(macro_call) then call execute(macro_call);
     
-    * Ensure IDs are used within macros without being direct parameters;
-    put "ID1=" ID1 " ID2=" ID2;  * Example of how you might check or use ID1, ID2 values in logs or further processing;
-    
-    drop i;
 run;
