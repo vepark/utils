@@ -1,41 +1,35 @@
 data processed;
     set want;
     
-    length Report1 Analysis2 Summary3 Details4 Overview5 $256 Multiple_Files $3;
-    
-    * Use arrays to handle the column assignments more systematically;
+    length Report1 Analysis2 Summary3 Details4 Overview5 $256;
     array cols[5] $256 Report1 Analysis2 Summary3 Details4 Overview5;
+
+    retain pat1 pat2 pat3 pat4 pat5 Multiple_Files;
     
-    * Temporary variables to hold compiled patterns;
-    retain pat1 pat2 pat3 pat4 pat5;
-    
-    * Compile the regex patterns once for all using PRXPARSE;
     if _N_ = 1 then do;
-        pat1 = prxparse("/.*final.*pop.*/i");   /* Pattern for Report1 */
-        pat2 = prxparse("/.*def.*456.*/i");     /* Pattern for Analysis2 */
-        pat3 = prxparse("/.*ghi.*789.*/i");     /* Pattern for Summary3 */
-        pat4 = prxparse("/.*jkl.*012.*/i");     /* Pattern for Details4 */
-        pat5 = prxparse("/.*mno.*345.*/i");     /* Pattern for Overview5 */
+        pat1 = prxparse("/pop/i");     /* Pattern for Report1 - looking for "pop" */
+        pat2 = prxparse("/all/i");     /* Pattern for Analysis2 - looking for "all" */
+        pat3 = prxparse("/abc/i");     /* Pattern for Summary3 - looking for "ABC" */
+        pat4 = prxparse("/exe/i");     /* Pattern for Details4 - looking for "exe" */
+        pat5 = prxparse("/cddvd/i");   /* Pattern for Overview5 - looking for "cddvd" */
     end;
     
     array patterns[5] pat1 pat2 pat3 pat4 pat5;
-    
-    * Initialize Multiple_Files to "No";
+    array file_counts[5] _temporary_ (0, 0, 0, 0, 0);
+
     Multiple_Files = "No";
-    
+    call missing(of Report1, Analysis2, Summary3, Details4, Overview5);
+
     * Iterate over each filename in the INPUTsubfolderFileNames;
     do i = 1 to countw(INPUTsubfolderFileNames, ',');
         filename = scan(INPUTsubfolderFileNames, i, ',');
         filename_no_ext = prxchange('s/\.[^\.]*$//', -1, filename); * Remove the file extension;
 
-        * Initialize a flag to check if any file is categorized for the current row;
-        call missing(of cols[*]);
-
         * Determine which keyword pattern the filename matches;
         do j = 1 to dim(cols);
             if prxmatch(patterns[j], filename_no_ext) > 0 then do;
                 if missing(cols[j]) then cols[j] = filename_no_ext;
-                else Multiple_Files = "Yes";  * Set to "Yes" if any column gets more than one match;
+                else Multiple_Files = "Yes";
             end;
         end;
     end;
@@ -44,7 +38,5 @@ data processed;
 run;
 
 proc print data=processed;
-    title "Processed Dataset with Files Categorized by Pattern";
+    title "Processed Dataset with Files Categorized by Keyword";
 run;
-
-#this is updated
