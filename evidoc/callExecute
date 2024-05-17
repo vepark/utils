@@ -1,14 +1,37 @@
-%macro process_data(dataset);
-  data _null_;
-    set &dataset;
+%global ID1_macro ID2_macro;
 
-    /* Dynamically build the macro call with resolved macro variables */
-    call execute(cats(
-        '%nrstr(%ar101(', 
-        file1, ',',  
-        file2, '))', 
-        /* Optional: Pass ID1 and ID2 */
-        '%nrstr(%let ID1=' || strip(ID1) || '; %let ID2=' || strip(ID2) || ';)'
-    ));
-  run;
-%mend process_data;
+%macro assign_ids(id1, id2);
+    %let ID1_macro = &id1;
+    %let ID2_macro = &id2;
+%mend;
+
+%macro set_base_path;
+    /* Assuming the base path logic needs ID1 and ID2 */
+    libname mylib "path/&ID1_macro/&ID2_macro";
+    %put libname mylib "path/&ID1_macro/&ID2_macro";
+%mend;
+
+%macro process_data(param1, param2);
+    %put ID1_macro = &ID1_macro;
+    %put ID2_macro = &ID2_macro;
+    %put param1 = &param1;
+    %put param2 = &param2;
+    /* Your processing logic here */
+%mend;
+
+
+
+data _null_;
+    set sample_data;
+    do i = 1 to numobs;
+        set sample_data point=i nobs=numobs;
+
+        /* Assign values to the macros */
+        call execute(cats('%nrstr(%assign_ids(', ID1, ',', ID2, '))'));
+        /* Call the macro to set the base path */
+        call execute('%nrstr(%set_base_path)');
+        /* Call the processing macro with parameters */
+        call execute(cats('%nrstr(%process_data(', param1, ',', param2, '))'));
+    end;
+    stop;
+run;
