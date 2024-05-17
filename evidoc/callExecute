@@ -1,0 +1,14 @@
+%macro process_data(dataset);
+  data _null_;
+    set &dataset;
+
+    /* Dynamically build the macro call with resolved macro variables */
+    call execute(cats(
+        '%nrstr(%ar101(', 
+        file1, ',',  
+        file2, '))', 
+        /* Optional: Pass ID1 and ID2 */
+        '%nrstr(%let ID1=' || strip(ID1) || '; %let ID2=' || strip(ID2) || ';)'
+    ));
+  run;
+%mend process_data;
