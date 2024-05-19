@@ -30,7 +30,7 @@ for reda_dir in "$base_path"/REDA*; do
           filename=$(basename "$file")
           
           # Append the filename to the all_files variable
-          all_files="$all_files $filename"
+          all_files="$all_files $filename,"
           
           # Check the file extension
           if [[ "$filename" == *.pdf ]]; then
@@ -40,10 +40,18 @@ for reda_dir in "$base_path"/REDA*; do
           fi
         fi
       done
+
+      # Remove the trailing comma from all_files
+      all_files=$(echo "$all_files" | sed 's/,$//')
     fi
+
+    # Get the base name of the REDA directory
+    reda_basename=$(basename "$reda_dir")
     
-    # Write the results to the CSV file
-    echo "$reda_dir,\"$all_files\",$num_pdf_files,$num_other_files" >> "$output_file"
+    # Write the results to the CSV file only if either count is more than 0
+    if [ $num_pdf_files -gt 0 ] || [ $num_other_files -gt 0 ]; then
+      echo "$reda_basename,\"$all_files\",$num_pdf_files,$num_other_files" >> "$output_file"
+    fi
   fi
 done
 
