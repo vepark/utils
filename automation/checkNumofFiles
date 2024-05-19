@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define the base path where REDA* folders are located
+base_path="/path/to/your/REDA_folders"
+
 # Define the output CSV file
 output_file="report_files.csv"
 
@@ -7,7 +10,7 @@ output_file="report_files.csv"
 echo "REDA_Folder,Files,Num_PDF_Files,Num_Other_Files" > "$output_file"
 
 # Iterate through each REDA* folder
-for reda_dir in REDA*; do
+for reda_dir in "$base_path"/REDA*; do
   # Check if it is a directory
   if [ -d "$reda_dir" ]; then
     # Define the Reports directory
