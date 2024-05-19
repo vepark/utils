@@ -1,0 +1,41 @@
+%macro check_pdf_files(libname_path, result_var);
+    %local fileref rc did num_files;
+    %let fileref = mydir;
+    
+    /* Assign fileref to the directory */
+    %let rc = %sysfunc(filename(fileref, &libname_path));
+    
+    /* Open the directory */
+    %let did = %sysfunc(dopen(&fileref));
+    
+    %if &did > 0 %then %do;
+        /* Get the number of files in the directory */
+        %let num_files = %sysfunc(dnum(&did));
+        
+        %let &result_var = No; /* Default value */
+        
+        /* Loop through files to check for .pdf files */
+        %do i = 1 %to &num_files;
+            %if %upcase(%substr(%qsysfunc(dread(&did, &i)), -4)) = .PDF %then %do;
+                %let &result_var = Yes;
+                %goto exit_loop; /* Exit loop if a .pdf file is found */
+            %end;
+        %end;
+        
+        %exit_loop:
+        %let rc = %sysfunc(dclose(&did)); /* Close the directory */
+    %end;
+    %else %do;
+        %let &result_var = No; /* Directory could not be opened */
+    %end;
+    
+    %let rc = %sysfunc(filename(fileref)); /* Clear the fileref */
+%mend check_pdf_files;
+
+data mydata;
+    set mydata;
+    length ContainsFiles $ 3;
+    
+    /* Call the macro for each row */
+    %check_pdf_files(libname_path, result_var=ContainsFiles);
+run;
