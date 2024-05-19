@@ -1,0 +1,37 @@
+%let excel_file = /path/to/your/key_artifacts.xlsx; /* Path to your Excel file */
+
+proc import datafile="&excel_file"
+    out=key_artifacts
+    dbms=xlsx
+    replace;
+    sheet="Sheet1";
+    getnames=yes;
+run;
+
+
+data reda_artifacts;
+    set key_artifacts;
+
+    length REDA_Folder $50 Files $1000 Num_PDF_Files 8 Num_Other_Files 8 Criteria $10;
+    retain REDA_Folder Files Num_PDF_Files Num_Other_Files Criteria;
+
+    if _n_ = 1 then do;
+        SORID = artifact_unique_ID;
+        secondaryID = artifact_unique_ID2;
+        initialamt = amount;
+    end;
+    if _n_ = 3 then do;
+        AcctNum = artifact_unique_ID;
+        Lamount = amount;
+    end;
+    if _n_ = 4 then do;
+        IDnumber = artifact_unique_ID;
+        clientno = artifact_unique_ID2;
+        refundamt = amount;
+    end;
+    if _n_ = 5 then do;
+        actid = artifact_unique_ID;
+    end;
+
+    drop artifactname filename artifact_unique_ID artifact_unique_ID2 amount;
+run;
