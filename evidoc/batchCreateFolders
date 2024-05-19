@@ -1,0 +1,41 @@
+@echo off
+setlocal enabledelayedexpansion
+
+REM Starting and ending numbers for the main folders
+set start=4400
+set end=5000
+
+REM Base directory where the structure should start
+set base_dir=C:\path\to\your\base\directory
+
+REM Create each main folder from REDA4400 to REDA5000
+for /L %%i in (%start%, 1, %end%) do (
+    REM Full path for the main folder
+    set main_folder=%base_dir%\REDA%%i
+
+    REM Create the main folder
+    mkdir "!main_folder!"
+
+    REM List of subfolders to create in each main folder
+    for %%s in ("Reports" "SAS" "Artifacts") do (
+        REM Full path for the subfolder
+        set subfolder_path=!main_folder!\%%s
+
+        REM Create the subfolder
+        mkdir "!subfolder_path!"
+
+        REM Additional sub-subfolders for the 'SAS' folder
+        if "%%s"=="SAS" (
+            for %%t in ("ARCHIVE" "EXECT" "EDR") do (
+                REM Full path for the SAS sub-subfolder
+                set sas_subfolder_path=!subfolder_path!\%%t
+
+                REM Create the SAS sub-subfolder
+                mkdir "!sas_subfolder_path!"
+            )
+        )
+    )
+)
+
+echo Directory structure created successfully.
+endlocal
