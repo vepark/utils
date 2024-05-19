@@ -48,6 +48,11 @@ for reda_dir in "$base_path"/REDA*; do
     # Get the base name of the REDA directory
     reda_basename=$(basename "$reda_dir")
     
+    # Debugging output to check values
+    echo "Processing: $reda_basename"
+    echo "PDF Files: $num_pdf_files, Other Files: $num_other_files"
+    echo "Files: $all_files"
+
     # Write the results to the CSV file only if either count is more than 0
     if [ $num_pdf_files -gt 0 ] || [ $num_other_files -gt 0 ]; then
       echo "$reda_basename,\"$all_files\",$num_pdf_files,$num_other_files" >> "$output_file"
