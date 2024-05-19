@@ -7,6 +7,64 @@ SEARCH_DIR="/path/to/search/root"
 OUTPUT_CSV="/path/to/output/files_list.csv"
 
 # Write the CSV header
+echo "REDFolderName,INPUTsubfolderFileNames,Col3Row1,Col3Rows3to5,Col4Row1,Col4Row4,Col5Row1,Col5Row3,Col5Row4" > "$OUTPUT_CSV"
+
+# Find all directories starting with RED and containing an INPUT folder
+find "$SEARCH_DIR" -type d -name 'RED*' | while read -r red_folder; do
+  if [ -d "$red_folder/INPUT" ]; then
+    # Extract just the name of the RED folder
+    red_folder_name=$(basename "$red_folder")
+
+    # List all files in the INPUT subfolder, join with commas, avoid directories
+    input_files=$(find "$red_folder/INPUT" -type f -exec basename {} \; | tr '\n' ',' | sed 's/,$//')
+
+    # Check if the key_template.xlsx exists in the INPUT folder
+    if [ -f "$red_folder/INPUT/key_template.xlsx" ]; then
+      # Convert the Excel file to CSV
+      xlsx2csv "$red_folder/INPUT/key_template.xlsx" "$red_folder/INPUT/key_template.csv"
+
+      # Read the required values from the CSV
+      # Using awk to extract specific cell values
+      col3_row1=$(awk -F, 'NR==1 {print $3}' "$red_folder/INPUT/key_template.csv")
+      col3_rows3to5=$(awk -F, 'NR>=3 && NR<=5 {printf "%s ", $3}' "$red_folder/INPUT/key_template.csv" | sed 's/ $//')
+      col4_row1=$(awk -F, 'NR==1 {print $4}' "$red_folder/INPUT/key_template.csv")
+      col4_row4=$(awk -F, 'NR==4 {print $4}' "$red_folder/INPUT/key_template.csv")
+      col5_row1=$(awk -F, 'NR==1 {print $5}' "$red_folder/INPUT/key_template.csv")
+      col5_row3=$(awk -F, 'NR==3 {print $5}' "$red_folder/INPUT/key_template.csv")
+      col5_row4=$(awk -F, 'NR==4 {print $5}' "$red_folder/INPUT/key_template.csv")
+
+      # Combine all the extracted values
+      excel_values="\"$col3_row1\",\"$col3_rows3to5\",\"$col4_row1\",\"$col4_row4\",\"$col5_row1\",\"$col5_row3\",\"$col5_row4\""
+    else
+      # Default values if the Excel file is not found
+      excel_values='""','""','""','""','""','""','""'
+    fi
+
+    # Only write to CSV if there are actual files
+    if [ ! -z "$input_files" ]; then
+      echo "$red_folder_name,\"$input_files\",$excel_values" >> "$OUTPUT_CSV"
+    fi
+  fi
+done
+
+
+
+
+
+
+
+
+
+
+#!/bin/bash
+
+# Define the root directory to search
+SEARCH_DIR="/path/to/search/root"
+
+# Define the output CSV file path
+OUTPUT_CSV="/path/to/output/files_list.csv"
+
+# Write the CSV header
 echo "REDFolderName,INPUTsubfolderFileNames" > "$OUTPUT_CSV"
 
 # Find all directories starting with RED and containing an INPUT folder
