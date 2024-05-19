@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Define the output CSV file
+output_file="report_files.csv"
+
+# Write the header to the CSV file
+echo "REDA_Folder,Files,Num_PDF_Files,Num_Other_Files" > "$output_file"
+
+# Iterate through each REDA* folder
+for reda_dir in REDA*; do
+  # Check if it is a directory
+  if [ -d "$reda_dir" ]; then
+    # Define the Reports directory
+    reports_dir="$reda_dir/Reports"
+    
+    # Initialize counters
+    num_pdf_files=0
+    num_other_files=0
+    all_files=""
+
+    # Check if the Reports directory exists
+    if [ -d "$reports_dir" ]; then
+      # Iterate through files in the Reports directory
+      for file in "$reports_dir"/*; do
+        if [ -f "$file" ]; then
+          # Get the filename without the path
+          filename=$(basename "$file")
+          
+          # Append the filename to the all_files variable
+          all_files="$all_files $filename"
+          
+          # Check the file extension
+          if [[ "$filename" == *.pdf ]]; then
+            num_pdf_files=$((num_pdf_files + 1))
+          else
+            num_other_files=$((num_other_files + 1))
+          fi
+        fi
+      done
+    fi
+    
+    # Write the results to the CSV file
+    echo "$reda_dir,\"$all_files\",$num_pdf_files,$num_other_files" >> "$output_file"
+  fi
+done
+
+echo "Report has been generated: $output_file"
