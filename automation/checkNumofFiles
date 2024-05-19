@@ -7,7 +7,7 @@ base_path="/path/to/your/REDA_folders"
 output_file="report_files.csv"
 
 # Write the header to the CSV file
-echo "REDA_Folder,Files,Num_PDF_Files,Num_Other_Files" > "$output_file"
+echo "REDA_Folder,Files,Num_PDF_Files,Num_Other_Files,Criteria" > "$output_file"
 
 # Iterate through each REDA* folder
 for reda_dir in "$base_path"/REDA*; do
@@ -20,6 +20,7 @@ for reda_dir in "$base_path"/REDA*; do
     num_pdf_files=0
     num_other_files=0
     all_files=""
+    criteria=""
 
     # Check if the Reports directory exists
     if [ -d "$reports_dir" ]; then
@@ -32,6 +33,11 @@ for reda_dir in "$base_path"/REDA*; do
           # Append the filename to the all_files variable
           all_files="$all_files $filename,"
           
+          # Extract CR and 3 digits if present
+          if [[ "$filename" =~ (CR[0-9]{3}) ]]; then
+            criteria="${BASH_REMATCH[1]}"
+          fi
+
           # Check the file extension
           if [[ "$filename" == *.pdf ]]; then
             num_pdf_files=$((num_pdf_files + 1))
@@ -52,10 +58,11 @@ for reda_dir in "$base_path"/REDA*; do
     echo "Processing: $reda_basename"
     echo "PDF Files: $num_pdf_files, Other Files: $num_other_files"
     echo "Files: $all_files"
+    echo "Criteria: $criteria"
 
     # Write the results to the CSV file only if either count is more than 0
     if [ $num_pdf_files -gt 0 ] || [ $num_other_files -gt 0 ]; then
-      echo "$reda_basename,\"$all_files\",$num_pdf_files,$num_other_files" >> "$output_file"
+      echo "$reda_basename,\"$all_files\",$num_pdf_files,$num_other_files,$criteria" >> "$output_file"
     fi
   fi
 done
