@@ -1,0 +1,30 @@
+%macro check_missing_values(data=, var_list=);
+
+%local i;
+
+data missing_report;
+    set &data;
+    array vars_to_check[*] &var_list;
+    length Missing_Columns $200;
+    
+    retain Missing_Columns;
+    if _N_ = 1 then Missing_Columns = '';
+
+    do i = 1 to dim(vars_to_check);
+        if missing(vars_to_check[i]) then do;
+            if not (index(Missing_Columns, vname(vars_to_check[i])) > 0) then
+                Missing_Columns = catx(', ', Missing_Columns, vname(vars_to_check[i]));
+        end;
+    end;
+
+    if last then output;
+    keep Missing_Columns;
+run;
+
+%mend check_missing_values;
+
+
+%let data_set = work.example_data;
+%let variables_to_check = Income Height;
+
+%check_missing_values(data=&data_set, var_list=&variables_to_check);
