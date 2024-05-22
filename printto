@@ -1,0 +1,39 @@
+%macro redirect_log(macro_name);
+    %let timestamp = %sysfunc(putn(%sysfunc(datetime()), datetime20.));
+    %let timestamp = %sysfunc(tranwrd(&timestamp, :, ));
+    %let timestamp = %sysfunc(tranwrd(&timestamp, -, ));
+
+    %let log_file = C:\Logs\&macro_name._&sysdate9._&timestamp..log;
+
+    /* Redirect log output to the dynamically created file */
+    proc printto log="&log_file" new;
+    run;
+%mend redirect_log;
+
+%macro reset_log;
+    /* Reset log output to default destination */
+    proc printto;
+    run;
+%mend reset_log;
+
+%macro macro1;
+    %redirect_log(macro1);
+
+    /* Your macro code here */
+    data _null_;
+        put 'Running macro1';
+    run;
+
+    %reset_log;
+%mend macro1;
+
+%macro macro2;
+    %redirect_log(macro2);
+
+    /* Your macro code here */
+    data _null_;
+        put 'Running macro2';
+    run;
+
+    %reset_log;
+%mend macro2;
