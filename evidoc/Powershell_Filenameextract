@@ -1,6 +1,6 @@
-# Define the folder paths
-$sourceFolder = "path_to_your_folder"
-$outputFolder = "path_to_output_folder"
+#new- Define the folder paths
+$sourceFolder = "C:\path_to_your_folder"
+$outputFolder = "C:\path_to_output_folder"
 $outputCsv = Join-Path $sourceFolder "file_info.csv"
 
 # Regular expression to match a 4-digit number
@@ -33,21 +33,21 @@ foreach ($file in $files) {
     }
 }
 
-# Convert the array to a DataTable for easier processing
-$dataTable = $fileInfo | Group-Object -Property JiraTicket | ForEach-Object {
-    $group = $_
+# Create a DataTable to store processed file information
+$dataTable = @()
+
+foreach ($group in $fileInfo | Group-Object -Property JiraTicket) {
     $latestFile = $group.Group | Sort-Object -Property ModifiedDatetime -Descending | Select-Object -First 1
     $latestDatetime = $group.Group | Measure-Object -Property ModifiedDatetime -Maximum | Select-Object -ExpandProperty Maximum
 
-    $group.Group | ForEach-Object {
-        [pscustomobject]@{
-            Filename = $_.Filename
-            FilePath = $_.FilePath
-            JiraTicket = $_.JiraTicket
-            ModifiedDatetime = $_.ModifiedDatetime
-            SizeKB = $_.SizeKB
-            Extension = $_.Extension
-            LatestDatetime = if ($_.Filename -eq $latestFile.Filename) { $latestDatetime } else { $null }
+    foreach ($file in $group.Group) {
+        $dataTable += [pscustomobject]@{
+            Filename = $file.Filename
+            JiraTicket = $file.JiraTicket
+            ModifiedDatetime = $file.ModifiedDatetime
+            SizeKB = $file.SizeKB
+            Extension = $file.Extension
+            LatestDatetime = if ($file.Filename -eq $latestFile.Filename) { $latestDatetime } else { $null }
         }
     }
 }
@@ -56,8 +56,8 @@ $dataTable = $fileInfo | Group-Object -Property JiraTicket | ForEach-Object {
 $dataTable | Export-Csv -Path $outputCsv -NoTypeInformation
 
 # Move the latest files to the output folder
-foreach ($group in $dataTable | Group-Object -Property JiraTicket) {
-    $latestFile = $group.Group | Where-Object { $_.LatestDatetime -ne $null }
+foreach ($group in $fileInfo | Group-Object -Property JiraTicket) {
+    $latestFile = $group.Group | Sort-Object -Property ModifiedDatetime -Descending | Select-Object -First 1
     $destination = Join-Path $outputFolder $latestFile.Filename
 
     # Ensure the output folder exists
