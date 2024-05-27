@@ -2,30 +2,33 @@ data have;
   input filenames $200.;
   datalines;
 filename.xlsx;filename1.xlsx;filename.xlsx
-file1.xlsx;file2.xlsx;file1.xlsx;file3.xlsx
+file1.xlsx; file2.xlsx; file1.xlsx;file3.xlsx
 document.xlsx;
-file1.xlsx;file2.xlsx;file1.xlsx;file3.xlsx;
+file 1.xlsx;file2.xlsx;file 1.xlsx; file3.xlsx;
 ;
 
 data want;
   set have;
   length unique_filenames $200.;
 
-  /* Remove all semicolons */
-  filenames = tranwrd(filenames, ';', ' ');
-
   /* Initialize variables */
   unique_filenames = '';
-  do i = 1 to countw(filenames, ' ');
-    filename = scan(filenames, i, ' ');
-    /* Check if filename is already in unique_filenames */
-    if indexw(unique_filenames, filename) = 0 then do; 
+
+  /* Remove trailing semicolon */
+  if substr(filenames, length(filenames), 1) = ';' then
+    filenames = substr(filenames, 1, length(filenames) - 1);
+
+  do i = 1 to countw(filenames, ';');
+    filename = scan(filenames, i, ';');
+    /* Check if filename is already in unique_filenames, ignoring case and surrounding spaces */
+    if indexw(unique_filenames, compress(filename, , 'ts')) = 0 then do; 
       /* If not, add it with a semicolon */
       if unique_filenames ne '' then unique_filenames = catx(';', unique_filenames, filename);
       else unique_filenames = filename; /* First filename, no need for semicolon */
     end;
   end;
 run;
+
 
 
 
