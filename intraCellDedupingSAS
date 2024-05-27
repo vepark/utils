@@ -2,7 +2,7 @@
 data have;
     input id $ values $50.;
     datalines;
-1 a,b,c,a,b
+1 doc1.xlsx, ABC doc1.xlsx
 2 x;y;z;x;y
 3 p,q,r,p,q,r
 ;
@@ -21,14 +21,15 @@ data split (drop=values i);
 run;
 
 /* Step 2: Remove duplicates */
-proc sort data=split nodupkey;
+proc sort data=split noduprecs;
     by id value;
 run;
 
 /* Step 3: Recombine the unique values back into a single cell */
 data want;
     length values $200; /* Adjust length as needed */
-    retain values;
+    retain id values;
+    format values $200.;
     do until (last.id);
         set split;
         by id;
