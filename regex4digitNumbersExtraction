@@ -1,0 +1,17 @@
+data want;
+    set have;
+    
+    /* Define the regular expression to match a 4-digit number */
+    retain re /regex/prxparse("/\b\d{4}\b/");
+    
+    /* Find the position of the 4-digit number */
+    if prxmatch(re, your_column) then do;
+        /* Extract the 4-digit number */
+        call prxposn(re, 1, start, length);
+        ID = substr(your_column, start, length);
+    end;
+    else ID = .; /* Set ID to missing if no 4-digit number is found */
+
+    /* Drop intermediate variables */
+    drop re start length;
+run;
