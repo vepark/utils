@@ -1,9 +1,10 @@
 import os
 import re
+import shutil
 import pandas as pd
 from datetime import datetime
 
-def extract_file_info(folder_path):
+def extract_file_info(folder_path, output_folder):
     data = []
 
     # Regular expression to match a 4-digit number
@@ -14,8 +15,7 @@ def extract_file_info(folder_path):
             file_path = os.path.join(root, file)
             modified_time = os.path.getmtime(file_path)
             modified_dt = datetime.fromtimestamp(modified_time)
-            size = os.path.getsize(file_path)
-            extension = os.path.splitext(file)[1]
+            size_kb = os.path.getsize(file_path) / 1024
 
             # Extract 4-digit number from the filename
             match = pattern.search(file)
@@ -23,30 +23,47 @@ def extract_file_info(folder_path):
 
             data.append({
                 "Filename": file,
+                "FilePath": file_path,
                 "JiraTicket": jira_ticket,
                 "ModifiedDatetime": modified_dt,
-                "Size": size,
-                "Extension": extension
+                "SizeKB": f"{size_kb:,.2f}",
+                "Extension": os.path.splitext(file)[1]
             })
 
     df = pd.DataFrame(data)
 
-    # Group by JiraTicket and find the latest file for each ticket
+    # Find the latest file for each JiraTicket
     latest_files = df.sort_values('ModifiedDatetime').groupby('JiraTicket').tail(1)
 
     # Get the latest datetime for each JiraTicket
     latest_datetimes = df.groupby('JiraTicket')['ModifiedDatetime'].max().reset_index()
     latest_datetimes.rename(columns={'ModifiedDatetime': 'LatestDatetime'}, inplace=True)
 
-    # Merge to get the latest datetime for each file
+    # Merge to get the latest datetime for each JiraTicket
     final_df = pd.merge(df, latest_datetimes, on='JiraTicket', how='left')
+
+    # Ensure LatestDatetime is only printed once per group
+    final_df['LatestDatetime'] = final_df.apply(lambda row: row['LatestDatetime'] if row['ModifiedDatetime'] == row['LatestDatetime'] else '', axis=1)
+
+    # Move the latest files to the new folder
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    for _, row in latest_files.iterrows():
+        destination = os.path.join(output_folder, row['Filename'])
+        shutil.copy2(row['FilePath'], destination)
+
+    # Drop the FilePath column for the final output
+    final_df.drop(columns=['FilePath'], inplace=True)
 
     # Export to Excel or CSV
     output_path = os.path.join(folder_path, 'file_info.xlsx')
     final_df.to_excel(output_path, index=False)
 
     print(f"File information has been saved to {output_path}")
+    print(f"Latest files have been copied to {output_folder}")
 
-# Provide the folder path here
+# Provide the folder path and the output folder path here
 folder_path = 'path_to_your_folder'
-extract_file_info(folder_path)
+output_folder = 'path_to_output_folder'
+extract_file_info(folder_path, output_folder)
