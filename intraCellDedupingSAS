@@ -3,17 +3,21 @@ data have;
   datalines;
 filename.xlsx;filename1.xlsx;filename.xlsx
 file1.xlsx;file2.xlsx;file1.xlsx;file3.xlsx
-document.xlsx
+document.xlsx;
+file1.xlsx;file2.xlsx;file1.xlsx;file3.xlsx;
 ;
 
 data want;
   set have;
   length unique_filenames $200.;
 
+  /* Remove all semicolons */
+  filenames = tranwrd(filenames, ';', ' ');
+
   /* Initialize variables */
   unique_filenames = '';
-  do i = 1 to countw(filenames, ';');
-    filename = scan(filenames, i, ';');
+  do i = 1 to countw(filenames, ' ');
+    filename = scan(filenames, i, ' ');
     /* Check if filename is already in unique_filenames */
     if indexw(unique_filenames, filename) = 0 then do; 
       /* If not, add it with a semicolon */
@@ -22,6 +26,7 @@ data want;
     end;
   end;
 run;
+
 
 
 
