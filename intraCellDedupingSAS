@@ -1,0 +1,37 @@
+/* Sample data */
+data have;
+    input id $ values $50.;
+    datalines;
+1 a,b,c,a,b
+2 x;y;z;x;y
+3 p,q,r,p,q,r
+;
+run;
+
+/* Step 1: Split the values into separate observations */
+data split (drop=values i);
+    set have;
+    length value $50;
+    do i = 1 to countw(values, ',;');
+        value = scan(values, i, ',;');
+        output;
+    end;
+run;
+
+/* Step 2: Remove duplicates */
+proc sort data=split nodupkey;
+    by id value;
+run;
+
+/* Step 3: Recombine the unique values back into a single cell */
+proc sql;
+    create table want as
+    select id, 
+           catx(',', of value) as values
+    from split
+    group by id;
+quit;
+
+/* View the final dataset */
+proc print data=want noobs;
+run;
