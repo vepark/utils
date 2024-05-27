@@ -1,0 +1,21 @@
+data want;
+    set have;
+    length filename1 filename2 filename3 $100; /* Adjust the length as needed */
+    /* Initialize variables */
+    filename1 = "";
+    filename2 = "";
+    filename3 = "";
+
+    /* Extract each value from the semicolon-separated list */
+    do i = 1 to countw(your_column, ';');
+        filename_value = scan(your_column, i, ';');
+        
+        /* Check for keywords and assign values to new variables */
+        if index(filename_value, "keyword1") then filename1 = filename_value;
+        else if index(filename_value, "keyword2") then filename2 = filename_value;
+        else if index(filename_value, "keyword3") then filename3 = filename_value;
+    end;
+
+    /* Drop intermediate variables */
+    drop i filename_value;
+run;
