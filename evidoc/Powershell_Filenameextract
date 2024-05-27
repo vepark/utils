@@ -1,0 +1,73 @@
+# Define the folder paths
+$sourceFolder = "path_to_your_folder"
+$outputFolder = "path_to_output_folder"
+$outputCsv = Join-Path $sourceFolder "file_info.csv"
+
+# Regular expression to match a 4-digit number
+$pattern = '\d{4}'
+
+# Create an array to store file information
+$fileInfo = @()
+
+# Get all files in the source folder
+$files = Get-ChildItem -Path $sourceFolder -File -Recurse
+
+# Iterate over each file
+foreach ($file in $files) {
+    # Get the file's modification date, size in KB, and extension
+    $modifiedDate = $file.LastWriteTime
+    $sizeKB = [math]::Round($file.Length / 1KB, 2)
+    $extension = $file.Extension
+
+    # Extract the 4-digit number from the filename
+    $jiraTicket = [regex]::Match($file.Name, $pattern).Value
+
+    # Create an object with file information
+    $fileInfo += [pscustomobject]@{
+        Filename = $file.Name
+        FilePath = $file.FullName
+        JiraTicket = $jiraTicket
+        ModifiedDatetime = $modifiedDate
+        SizeKB = "{0:N2}" -f $sizeKB
+        Extension = $extension
+    }
+}
+
+# Convert the array to a DataTable for easier processing
+$dataTable = $fileInfo | Group-Object -Property JiraTicket | ForEach-Object {
+    $group = $_
+    $latestFile = $group.Group | Sort-Object -Property ModifiedDatetime -Descending | Select-Object -First 1
+    $latestDatetime = $group.Group | Measure-Object -Property ModifiedDatetime -Maximum | Select-Object -ExpandProperty Maximum
+
+    $group.Group | ForEach-Object {
+        [pscustomobject]@{
+            Filename = $_.Filename
+            FilePath = $_.FilePath
+            JiraTicket = $_.JiraTicket
+            ModifiedDatetime = $_.ModifiedDatetime
+            SizeKB = $_.SizeKB
+            Extension = $_.Extension
+            LatestDatetime = if ($_.Filename -eq $latestFile.Filename) { $latestDatetime } else { $null }
+        }
+    }
+}
+
+# Export the DataTable to a CSV file
+$dataTable | Export-Csv -Path $outputCsv -NoTypeInformation
+
+# Move the latest files to the output folder
+foreach ($group in $dataTable | Group-Object -Property JiraTicket) {
+    $latestFile = $group.Group | Where-Object { $_.LatestDatetime }
+    $destination = Join-Path $outputFolder $latestFile.Filename
+
+    # Ensure the output folder exists
+    if (-not (Test-Path -Path $outputFolder)) {
+        New-Item -Path $outputFolder -ItemType Directory
+    }
+
+    # Copy the latest file to the output folder
+    Copy-Item -Path $latestFile.FilePath -Destination $destination
+}
+
+Write-Output "File information has been saved to $outputCsv"
+Write-Output "Latest files have been copied to $outputFolder"
