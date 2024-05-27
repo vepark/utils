@@ -1,0 +1,52 @@
+import os
+import re
+import pandas as pd
+from datetime import datetime
+
+def extract_file_info(folder_path):
+    data = []
+
+    # Regular expression to match a 4-digit number
+    pattern = re.compile(r'\b\d{4}\b')
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            modified_time = os.path.getmtime(file_path)
+            modified_dt = datetime.fromtimestamp(modified_time)
+            size = os.path.getsize(file_path)
+            extension = os.path.splitext(file)[1]
+
+            # Extract 4-digit number from the filename
+            match = pattern.search(file)
+            jira_ticket = match.group(0) if match else None
+
+            data.append({
+                "Filename": file,
+                "JiraTicket": jira_ticket,
+                "ModifiedDatetime": modified_dt,
+                "Size": size,
+                "Extension": extension
+            })
+
+    df = pd.DataFrame(data)
+
+    # Group by JiraTicket and find the latest file for each ticket
+    latest_files = df.sort_values('ModifiedDatetime').groupby('JiraTicket').tail(1)
+
+    # Get the latest datetime for each JiraTicket
+    latest_datetimes = df.groupby('JiraTicket')['ModifiedDatetime'].max().reset_index()
+    latest_datetimes.rename(columns={'ModifiedDatetime': 'LatestDatetime'}, inplace=True)
+
+    # Merge to get the latest datetime for each file
+    final_df = pd.merge(df, latest_datetimes, on='JiraTicket', how='left')
+
+    # Export to Excel or CSV
+    output_path = os.path.join(folder_path, 'file_info.xlsx')
+    final_df.to_excel(output_path, index=False)
+
+    print(f"File information has been saved to {output_path}")
+
+# Provide the folder path here
+folder_path = 'path_to_your_folder'
+extract_file_info(folder_path)
