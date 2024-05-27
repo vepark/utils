@@ -12,9 +12,11 @@ run;
 data split (drop=values i);
     set have;
     length value $50;
+    /* Loop through each value in the cell, separated by comma or semicolon */
     do i = 1 to countw(values, ',;');
-        value = scan(values, i, ',;');
-        output;
+        value = strip(scan(values, i, ',;'));
+        /* Exclude missing values */
+        if value ne '' then output;
     end;
 run;
 
@@ -24,13 +26,18 @@ proc sort data=split nodupkey;
 run;
 
 /* Step 3: Recombine the unique values back into a single cell */
-proc sql;
-    create table want as
-    select id, 
-           catx(',', of value) as values
-    from split
-    group by id;
-quit;
+data want;
+    length values $200; /* Adjust length as needed */
+    retain values;
+    do until (last.id);
+        set split;
+        by id;
+        if values = '' then values = value;
+        else values = catx(',', values, value);
+    end;
+    output;
+    keep id values;
+run;
 
 /* View the final dataset */
 proc print data=want noobs;
