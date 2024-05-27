@@ -57,7 +57,7 @@ $dataTable | Export-Csv -Path $outputCsv -NoTypeInformation
 
 # Move the latest files to the output folder
 foreach ($group in $dataTable | Group-Object -Property JiraTicket) {
-    $latestFile = $group.Group | Where-Object { $_.LatestDatetime }
+    $latestFile = $group.Group | Where-Object { $_.LatestDatetime -ne $null }
     $destination = Join-Path $outputFolder $latestFile.Filename
 
     # Ensure the output folder exists
