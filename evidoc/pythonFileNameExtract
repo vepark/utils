@@ -7,7 +7,7 @@ from datetime import datetime
 def extract_file_info(folder_path, output_folder):
     data = []
 
-    # Regular expression to match a 4-digit number
+    # Regular expression to match a 4-digit number anywhere in the filename
     pattern = re.compile(r'\b\d{4}\b')
 
     for root, _, files in os.walk(folder_path):
@@ -33,7 +33,7 @@ def extract_file_info(folder_path, output_folder):
     df = pd.DataFrame(data)
 
     # Find the latest file for each JiraTicket
-    latest_files = df.sort_values('ModifiedDatetime').groupby('JiraTicket').tail(1)
+    latest_files = df.loc[df.groupby('JiraTicket')['ModifiedDatetime'].idxmax()]
 
     # Get the latest datetime for each JiraTicket
     latest_datetimes = df.groupby('JiraTicket')['ModifiedDatetime'].max().reset_index()
