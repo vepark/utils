@@ -57,6 +57,13 @@ def copy_file_to_destination(source_path, destination_folder):
     os.makedirs(destination_folder, exist_ok=True)
     shutil.copy2(source_path, destination_folder)
 
+def find_all_files(path):
+    all_files = []
+    for root, _, files in os.walk(path):
+        for file in files:
+            all_files.append(os.path.join(root, file))
+    return all_files
+
 def process_folder(main_folder):
     main_folder_path = os.path.join(base_path, main_folder)
     log_message(f"Processing main folder: {main_folder_path}")
@@ -65,7 +72,7 @@ def process_folder(main_folder):
         log_message(f"Main folder path does not exist: {main_folder_path}")
         return
 
-    for root, dirs, files in os.walk(main_folder_path):
+    for root, dirs, _ in os.walk(main_folder_path):
         for sub_folder in dirs:
             if any(pattern in sub_folder for pattern in id2_list):
                 sub_folder_path = os.path.join(root, sub_folder)
@@ -73,12 +80,11 @@ def process_folder(main_folder):
 
                 latest_file = None
                 latest_file_mtime = 0
-                for file in os.listdir(sub_folder_path):
+                for file in find_all_files(sub_folder_path):
                     if "EvidenceDocument" in file and file.endswith(".xlsx"):
-                        file_path = os.path.join(sub_folder_path, file)
-                        file_mtime = os.path.getmtime(file_path)
+                        file_mtime = os.path.getmtime(file)
                         if file_mtime > latest_file_mtime:
-                            latest_file = file_path
+                            latest_file = file
                             latest_file_mtime = file_mtime
 
                 if latest_file:
@@ -88,8 +94,7 @@ def process_folder(main_folder):
                         "FileName": os.path.basename(latest_file),
                         "ModifiedDate": pd.to_datetime(latest_file_mtime, unit='s'),
                         "SizeKB": os.path.getsize(latest_file) / 1024,
-                        "SheetNames": get_excel_sheet_names(latest_file),
-                        "ALLfilenames": "; ".join(os.listdir(sub_folder_path))
+                        "SheetNames": get_excel_sheet_names(latest_file)
                     }
 
                     sheet_names = record["SheetNames"].split(", ")
@@ -115,7 +120,7 @@ def process_folder(main_folder):
                     summary_data = pd.read_excel(latest_file, sheet_name="Summary")
                     dms_files = summary_data['DMS file name'].dropna().tolist()
                     for dms_file in dms_files:
-                        dms_presence = "Yes" if dms_file in os.listdir(sub_folder_path) else "No"
+                        dms_presence = "Yes" if any(dms_file in f for f in find_all_files(sub_folder_path)) else "No"
                         combined_summary.append({
                             "MainFolder": main_folder,
                             "SubFolder": sub_folder,
@@ -132,15 +137,14 @@ def process_folder(main_folder):
                         "FileName": "No ED file",
                         "ModifiedDate": None,
                         "SizeKB": None,
-                        "SheetNames": None,
-                        "ALLfilenames": "; ".join(os.listdir(sub_folder_path))
+                        "SheetNames": None
                     }
 
-                clearance_email = next((file for file in os.listdir(sub_folder_path) if "clear" in file and file.endswith(".msg")), None)
-                evidence_workbook = next((file for file in os.listdir(sub_folder_path) if "Evidenceworkbook" in file and file.endswith(".xlsx")), None)
-                peer_review_workbook = next((file for file in os.listdir(sub_folder_path) if "PeerReviewworkbook" in file and file.endswith(".xlsx")), None)
-                prescreen_workbook = next((file for file in os.listdir(sub_folder_path) if "prescreenworkbook" in file and file.endswith(".xlsx")), None)
-                daq_workbook = next((file for file in os.listdir(sub_folder_path) if "DAQworkbook" in file and file.endswith(".xlsx")), None)
+                clearance_email = next((file for file in find_all_files(sub_folder_path) if "clear" in file and file.endswith(".msg")), None)
+                evidence_workbook = next((file for file in find_all_files(sub_folder_path) if "Evidenceworkbook" in file and file.endswith(".xlsx")), None)
+                peer_review_workbook = next((file for file in find_all_files(sub_folder_path) if "PeerReviewworkbook" in file and file.endswith(".xlsx")), None)
+                prescreen_workbook = next((file for file in find_all_files(sub_folder_path) if "prescreenworkbook" in file and file.endswith(".xlsx")), None)
+                daq_workbook = next((file for file in find_all_files(sub_folder_path) if "DAQworkbook" in file and file.endswith(".xlsx")), None)
 
                 file_info.append({
                     "MainFolder": main_folder,
@@ -151,7 +155,7 @@ def process_folder(main_folder):
                     "PeerReviewWorkbook": f"Yes ({peer_review_workbook})" if peer_review_workbook else "No",
                     "PreScreenWorkbook": f"Yes ({prescreen_workbook})" if prescreen_workbook else "No",
                     "DAQworkbook": f"Yes ({daq_workbook})" if daq_workbook else "No",
-                    "AllFileNames": "; ".join(os.listdir(sub_folder_path))
+                    "AllFileNames": "; ".join(find_all_files(sub_folder_path))
                 })
 
                 results.append(record)
@@ -160,7 +164,6 @@ with ThreadPoolExecutor(max_workers=5) as executor:
     executor.map(process_folder, id1_list)
 
 # Convert the results to DataFrames
-df_results = pd.DataFrame(results)
 df_summary_sheet_stats = pd.DataFrame(summary_sheet_stats)
 df_combined_sheet_data = pd.DataFrame(combined_sheet_data)
 df_missed_entries = pd.DataFrame(missed_entries)
@@ -169,7 +172,6 @@ df_file_info = pd.DataFrame(file_info)
 
 # Save the DataFrames to Excel
 with pd.ExcelWriter(os.path.join(destination_path, "FullReport.xlsx"), engine='openpyxl') as writer:
-    df_results.to_excel(writer, sheet_name="Evidence Document Summary", index=False)
     df_summary_sheet_stats.to_excel(writer, sheet_name="EDSummary", index=False)
     df_combined_sheet_data.to_excel(writer, sheet_name="CombinedSheets", index=False)
     df_missed_entries.to_excel(writer, sheet_name="MissedEntries", index=False)
