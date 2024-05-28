@@ -1,9 +1,13 @@
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
     [string]$DestinationPath = "\\server.com\folder1\folder2",
-    [string[]]$ID1 = "12345", "23456",
-    [string[]]$ID2 = "2345", "3456"
+    [string]$ID1 = "12345,23456",
+    [string]$ID2 = "2345,3456"
 )
+
+# Convert comma-separated strings to arrays
+$ID1Array = $ID1 -split ","
+$ID2Array = $ID2 -split ","
 
 # Ensure the destination path exists
 if (-not (Test-Path -Path $DestinationPath)) {
@@ -119,7 +123,7 @@ function Process-Folder {
 
     Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
         $subFolder = $_
-        if ($ID2 -contains $subFolder.Name) {
+        if ($ID2Array -contains $subFolder.Name) {
             $subFolderPath = $subFolder.FullName
             Log-Message "Processing subfolder: $subFolderPath"
 
@@ -209,16 +213,18 @@ function Process-Folder {
     }
 }
 
-foreach ($mainFolder in $ID1) {
+foreach ($mainFolder in $ID1Array) {
     Process-Folder -mainFolder $mainFolder
 }
 
-# Export results to CSV
-$results | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "EDSummary.csv") -NoTypeInformation -Encoding UTF8
-$summarySheetStats | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "SummarySheetStats.csv") -NoTypeInformation -Encoding UTF8
-$combinedSheetData | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "CombinedSheets.csv") -NoTypeInformation -Encoding UTF8
-$missedEntries | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "MissedEntries.csv") -NoTypeInformation -Encoding UTF8
-$combinedSummary | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "CombinedSummary.csv") -NoTypeInformation -Encoding UTF8
-$fileInfo | Export-Csv -Path (Join-Path -Path $DestinationPath -ChildPath "FileInfo.csv") -NoTypeInformation -Encoding UTF8
+# Export results to Excel
+$excelPath = Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"
 
-Log-Message "CSV files have been created successfully."
+$results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -Show
+$summarySheetStats | Export-Excel -Path $excelPath -WorksheetName "SummarySheetStats" -Append
+$combinedSheetData | Export-Excel -Path $excelPath -WorksheetName "CombinedSheets" -Append
+$missedEntries | Export-Excel -Path $excelPath -WorksheetName "MissedEntries" -Append
+$combinedSummary | Export-Excel -Path $excelPath -WorksheetName "CombinedSummary" -Append
+$fileInfo | Export-Excel -Path $excelPath -WorksheetName "FileInfo" -Append
+
+Log-Message "Excel file has been created successfully."
