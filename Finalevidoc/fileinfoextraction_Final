@@ -9,8 +9,12 @@ $subFolderPatterns = $ID2 -split ","
 
 # Define the base path where main folders are located and specify the destination path
 $basePath = "C:\Your\BasePath"  # Update with your actual base path
-$destinationPath = "C:\Your\DestinationPath"  # Update with your actual destination path
-$filePattern = "*evidence*document*.xlsx"
+$destinationPath = "\\server.com\folder1\folder2"  # Update with your actual destination path
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $destinationPath)) {
+    New-Item -ItemType Directory -Path $destinationPath | Out-Null
+}
 
 # Prepare arrays to collect results
 $results = @()
@@ -19,6 +23,13 @@ $combinedSheetData = @()
 $missedEntries = @()
 $combinedSummary = @()
 $fileInfo = @()
+
+function Log-Message {
+    param (
+        [string]$message
+    )
+    Write-Host $message
+}
 
 function Get-ExcelSheetNames {
     param (
@@ -69,6 +80,13 @@ function Get-SheetContent {
 
 foreach ($mainFolder in $mainFolders) {
     $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
+    Log-Message "Processing main folder: $mainFolderPath"
+    
+    if (-not (Test-Path -Path $mainFolderPath)) {
+        Log-Message "Main folder path does not exist: $mainFolderPath"
+        continue
+    }
+
     Get-ChildItem -Path $mainFolderPath -Directory | ForEach-Object {
         $subFolder = $_
         $subFolderName = $subFolder.Name
@@ -81,8 +99,16 @@ foreach ($mainFolder in $mainFolders) {
             }
         }
         if ($matchFound) {
+            $subFolderPath = $subFolder.FullName
+            Log-Message "Processing subfolder: $subFolderPath"
+            
+            if (-not (Test-Path -Path $subFolderPath)) {
+                Log-Message "Subfolder path does not exist: $subFolderPath"
+                continue
+            }
+
             # Find the latest file matching the pattern
-            $latestFile = Get-ChildItem -Path $subFolder.FullName -Filter $filePattern -File | 
+            $latestFile = Get-ChildItem -Path $subFolderPath -Filter $filePattern -File | 
                           Sort-Object LastWriteTime -Descending | Select-Object -First 1
             
             # Initialize object to hold folder and file information
@@ -103,7 +129,7 @@ foreach ($mainFolder in $mainFolders) {
                 $record.SheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
                 
                 # Get all filenames in the subfolder
-                $allFiles = Get-ChildItem -Path $subFolder.FullName -File -Recurse
+                $allFiles = Get-ChildItem -Path $subFolderPath -File -Recurse
                 $record.ALLfilenames = ($allFiles | Select-Object -ExpandProperty Name) -join "; "
                 
                 # Extract and process content from specified sheets
@@ -164,14 +190,14 @@ foreach ($mainFolder in $mainFolders) {
     }
 }
 
-# Export results to CSV (if needed)
-$results | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "output.csv") -NoTypeInformation -Encoding UTF8
-$summaryResults | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "Summary.csv") -NoTypeInformation -Encoding UTF8
-$combinedSheetData | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSheets.csv") -NoTypeInformation -Encoding UTF8
-$missedEntries | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "MissedEntries.csv") -NoTypeInformation -Encoding UTF8
-$combinedSummary | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSummary.csv") -NoTypeInformation -Encoding UTF8
-$fileInfo | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "FileInfo.csv") -NoTypeInformation -Encoding UTF8
-$summarySheetStats | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "EDSummary.csv") -NoTypeInformation -Encoding UTF8
+# Commented out CSV exports
+# $results | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "output.csv") -NoTypeInformation -Encoding UTF8
+# $summaryResults | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "Summary.csv") -NoTypeInformation -Encoding UTF8
+# $combinedSheetData | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSheets.csv") -NoTypeInformation -Encoding UTF8
+# $missedEntries | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "MissedEntries.csv") -NoTypeInformation -Encoding UTF8
+# $combinedSummary | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSummary.csv") -NoTypeInformation -Encoding UTF8
+# $fileInfo | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "FileInfo.csv") -NoTypeInformation -Encoding UTF8
+# $summarySheetStats | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "EDSummary.csv") -NoTypeInformation -Encoding UTF8
 
 # Export results to Excel
 $results | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "Output.xlsx") -WorksheetName "Output"
@@ -190,4 +216,4 @@ $missedEntries | Export-Excel -Path $excelFilePath -WorksheetName "MissedEntries
 $combinedSummary | Export-Excel -Path $excelFilePath -WorksheetName "CombinedSummary" -Append -AutoSize
 $fileInfo | Export-Excel -Path $excelFilePath -WorksheetName "File_Info" -Append -AutoSize
 
-Write-Host "CSV and Excel files have been created successfully."
+Write-Host "Excel files have been created successfully."
