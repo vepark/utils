@@ -3,20 +3,9 @@ param(
     [string[]]$ID2
 )
 
-
-
-# Define the values for ID1 and ID2 for testing
-$ID1 = "12345,23456"
-$ID2 = "2345,3456"
-
 # Split the comma-separated values into arrays
 $mainFolders = $ID1 -split ","
 $subFolderPatterns = $ID2 -split ","
-
-
-
-
-
 
 # Define the base path where main folders are located and specify the destination path
 $basePath = "C:\Your\BasePath"  # Update with your actual base path
@@ -78,14 +67,14 @@ function Get-SheetContent {
     return $filteredData
 }
 
-foreach ($mainFolder in $ID1) {
+foreach ($mainFolder in $mainFolders) {
     $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
     Get-ChildItem -Path $mainFolderPath -Directory | ForEach-Object {
         $subFolder = $_
         $subFolderName = $subFolder.Name
         # Check if subFolder matches any pattern
         $matchFound = $false
-        foreach ($pattern in $ID2) {
+        foreach ($pattern in $subFolderPatterns) {
             if ($subFolderName -like "*$pattern*") {
                 $matchFound = $true
                 break
@@ -126,7 +115,7 @@ foreach ($mainFolder in $ID1) {
                 $summaryData = Import-Excel -Path $latestFile.FullName -WorksheetName "Summary" -StartRow 2
                 $dmsFiles = $summaryData | Where-Object { $_.'DMS file name' -match '.*' } | Select-Object -ExpandProperty 'DMS file name'
                 foreach ($dmsFile in $dmsFiles) {
-                    $dmsPresence = ($allFiles | Where-Object { $_.Name -eq $dmsFile }) ? "Yes" : "No"
+                    $dmsPresence = if ($allFiles | Where-Object { $_.Name -eq $dmsFile }) { "Yes" } else { "No" }
                     $summaryRecord = [PSCustomObject][ordered]@{
                         MainFolder = $mainFolder
                         SubFolder = $subFolderName
