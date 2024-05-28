@@ -36,7 +36,7 @@ function Get-ExcelSheetNames {
         $sheetNames = (Import-Excel -Path $filePath -NoHeader | Get-Member -MemberType NoteProperty).Name
         return -join ($sheetNames -join ", ")
     } catch {
-        Log-Message "Error reading sheet names from $filePath: $_"
+        Log-Message "Error reading sheet names from $($filePath): $($_)"
         return ""
     }
 }
@@ -73,7 +73,7 @@ function Get-SheetContent {
             }
         }
     } catch {
-        Log-Message "Error reading sheet content from $filePath: $_"
+        Log-Message "Error reading sheet content from $($filePath): $($_)"
     }
     return @($filteredData, $missedEntriesLocal)
 }
@@ -89,7 +89,7 @@ function Copy-FileToDestination {
         }
         Copy-Item -Path $sourcePath -Destination $destinationFolder
     } catch {
-        Log-Message "Error copying file $sourcePath to $destinationFolder: $_"
+        Log-Message "Error copying file $($sourcePath) to $($destinationFolder): $($_)"
     }
 }
 
@@ -125,7 +125,7 @@ function Process-Folder {
                     MainFolder = $mainFolder
                     SubFolder  = $subFolder.Name
                     FileName   = $latestFile.Name
-                    ModifiedDate = [datetime]::FromFileTime($latestFile.LastWriteTime)
+                    ModifiedDate = $latestFile.LastWriteTime
                     SizeKB     = [math]::Round($latestFile.Length / 1KB, 2)
                     SheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
                 }
@@ -166,7 +166,7 @@ function Process-Folder {
                         }
                     }
                 } catch {
-                    Log-Message "Error reading summary sheet from $latestFile: $_"
+                    Log-Message "Error reading summary sheet from $($latestFile.FullName): $($_)"
                 }
 
                 Copy-FileToDestination -sourcePath $latestFile.FullName -destinationFolder $DestinationPath
