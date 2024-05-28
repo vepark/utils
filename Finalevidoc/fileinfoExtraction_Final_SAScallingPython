@@ -1,50 +1,14 @@
-%let base_path = C:\Your\BasePath;
-%let destination_path = \\server.com\folder1\folder2;
-%let id1_list = 12345,23456;
-%let id2_list = 2345,3456;
-
-
-/* Define the Python executable path and the script path */
-%let python_exe = C:\Path\To\python.exe;
-%let python_script = C:\Path\To\process_folders.py;
-
-/* Call the Python script with macro variables */
-systask command "&python_exe &python_script --base_path &base_path --destination_path &destination_path --id1 &id1_list --id2 &id2_list"
-   taskname=process_folders
-   status=process_status;
-
-/* Wait for the task to complete */
-waitfor _all_ process_folders;
-
-/* Check the status of the task */
-%if &process_status ne 0 %then %do;
-   %put ERROR: The Python script failed.;
-%end;
-%else %do;
-   %put The Python script completed successfully.;
-%end;
-
-
-
 import os
 import shutil
 import pandas as pd
 from openpyxl import load_workbook
 from concurrent.futures import ThreadPoolExecutor
-import argparse
 
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description='Process folders.')
-parser.add_argument('--base_path', required=True, help='Base path where main folders are located')
-parser.add_argument('--destination_path', required=True, help='Destination path to copy files')
-parser.add_argument('--id1', required=True, help='Comma-separated list of ID1 values')
-parser.add_argument('--id2', required=True, help='Comma-separated list of ID2 values')
-args = parser.parse_args()
-
-base_path = args.base_path
-destination_path = args.destination_path
-id1_list = args.id1.split(",")
-id2_list = args.id2.split(",")
+# Define your paths and lists here
+base_path = "C:\\Your\\Base Path With Spaces"
+destination_path = "\\\\server.com\\folder1\\folder2"
+id1_list = ["12345", "23456"]
+id2_list = ["2345", "3456"]
 
 # Ensure the destination path exists
 os.makedirs(destination_path, exist_ok=True)
