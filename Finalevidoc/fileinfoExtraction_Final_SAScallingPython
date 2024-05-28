@@ -38,7 +38,7 @@ def get_sheet_content(file_path, sheet_names):
            any(sheet_name.startswith(str(num)) for num in range(301, 321)):
             df = pd.read_excel(file_path, sheet_name=sheet_name)
             for _, row in df.iterrows():
-                if isinstance(row['C'], str) and row['C'].endswith(":") and \
+                if isinstance(row['C'], str) and row['C'].endswith(":") and not row['C'].startswith("Note:") and \
                    isinstance(row['D'], str) and row['D'] not in ["PASS", "NA", "YES", "NO"]:
                     filtered_row = {
                         "MainFolder": file_path.split(os.sep)[-3],
@@ -61,7 +61,7 @@ def find_all_files(path):
     all_files = []
     for root, _, files in os.walk(path):
         for file in files:
-            all_files.append(os.path.join(root, file))
+            all_files.append(file)
     return all_files
 
 def process_folder(main_folder):
@@ -80,12 +80,14 @@ def process_folder(main_folder):
 
                 latest_file = None
                 latest_file_mtime = 0
-                for file in find_all_files(sub_folder_path):
-                    if "EvidenceDocument" in file and file.endswith(".xlsx"):
-                        file_mtime = os.path.getmtime(file)
-                        if file_mtime > latest_file_mtime:
-                            latest_file = file
-                            latest_file_mtime = file_mtime
+                for root, _, files in os.walk(sub_folder_path):
+                    for file in files:
+                        if "EvidenceDocument" in file and file.lower().endswith(".xlsx"):
+                            file_path = os.path.join(root, file)
+                            file_mtime = os.path.getmtime(file_path)
+                            if file_mtime > latest_file_mtime:
+                                latest_file = file_path
+                                latest_file_mtime = file_mtime
 
                 if latest_file:
                     record = {
@@ -120,7 +122,7 @@ def process_folder(main_folder):
                     summary_data = pd.read_excel(latest_file, sheet_name="Summary")
                     dms_files = summary_data['DMS file name'].dropna().tolist()
                     for dms_file in dms_files:
-                        dms_presence = "Yes" if any(dms_file in f for f in find_all_files(sub_folder_path)) else "No"
+                        dms_presence = "Yes" if any(dms_file == f for f in find_all_files(sub_folder_path)) else "No"
                         combined_summary.append({
                             "MainFolder": main_folder,
                             "SubFolder": sub_folder,
@@ -140,11 +142,11 @@ def process_folder(main_folder):
                         "SheetNames": None
                     }
 
-                clearance_email = next((file for file in find_all_files(sub_folder_path) if "clear" in file and file.endswith(".msg")), None)
-                evidence_workbook = next((file for file in find_all_files(sub_folder_path) if "Evidenceworkbook" in file and file.endswith(".xlsx")), None)
-                peer_review_workbook = next((file for file in find_all_files(sub_folder_path) if "PeerReviewworkbook" in file and file.endswith(".xlsx")), None)
-                prescreen_workbook = next((file for file in find_all_files(sub_folder_path) if "prescreenworkbook" in file and file.endswith(".xlsx")), None)
-                daq_workbook = next((file for file in find_all_files(sub_folder_path) if "DAQworkbook" in file and file.endswith(".xlsx")), None)
+                clearance_email = next((file for file in find_all_files(sub_folder_path) if file.lower().endswith("clear.msg")), None)
+                evidence_workbook = next((file for file in find_all_files(sub_folder_path) if "evidenceworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
+                peer_review_workbook = next((file for file in find_all_files(sub_folder_path) if "peerworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
+                prescreen_workbook = next((file for file in find_all_files(sub_folder_path) if "prescreenworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
+                daq_workbook = next((file for file in find_all_files(sub_folder_path) if "daqworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
 
                 file_info.append({
                     "MainFolder": main_folder,
@@ -155,7 +157,7 @@ def process_folder(main_folder):
                     "PeerReviewWorkbook": f"Yes ({peer_review_workbook})" if peer_review_workbook else "No",
                     "PreScreenWorkbook": f"Yes ({prescreen_workbook})" if prescreen_workbook else "No",
                     "DAQworkbook": f"Yes ({daq_workbook})" if daq_workbook else "No",
-                    "AllFileNames": "; ".join(find_all_files(sub_folder_path))
+                    "AllFileNames": "; ".join([os.path.basename(f) for f in find_all_files(sub_folder_path)])
                 })
 
                 results.append(record)
