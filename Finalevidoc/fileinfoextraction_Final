@@ -87,10 +87,10 @@ foreach ($mainFolder in $mainFolders) {
         continue
     }
 
-    Get-ChildItem -Path $mainFolderPath -Directory | ForEach-Object {
+    Get-ChildItem -Path $mainFolderPath -Directory -Recurse | ForEach-Object {
         $subFolder = $_
         $subFolderName = $subFolder.Name
-        # Check if subFolder matches any pattern
+        # Check if subFolder contains any pattern
         $matchFound = $false
         foreach ($pattern in $subFolderPatterns) {
             if ($subFolderName -like "*$pattern*") {
