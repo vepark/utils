@@ -17,12 +17,12 @@ if (-not (Test-Path -Path $destinationPath)) {
 }
 
 # Prepare arrays to collect results
-$results = @()
-$summaryResults = @()
-$combinedSheetData = @()
-$missedEntries = @()
-$combinedSummary = @()
-$fileInfo = @()
+$results = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
+$summarySheetStats = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
+$combinedSheetData = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
+$missedEntries = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
+$combinedSummary = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
+$fileInfo = [System.Collections.Concurrent.ConcurrentBag[PSCustomObject]]::new()
 
 function Log-Message {
     param (
@@ -69,7 +69,7 @@ function Get-SheetContent {
                     }
                     $filteredData += $filteredRow
                     if ($row.D -eq $null) {
-                        $missedEntries += $filteredRow
+                        $missedEntries.Add($filteredRow)
                     }
                 }
             }
@@ -78,135 +78,131 @@ function Get-SheetContent {
     return $filteredData
 }
 
-foreach ($mainFolder in $mainFolders) {
+function Copy-FileToDestination {
+    param (
+        [string]$sourcePath,
+        [string]$destinationFolder
+    )
+    if (-not (Test-Path -Path $destinationFolder)) {
+        New-Item -ItemType Directory -Path $destinationFolder | Out-Null
+    }
+    Copy-Item -Path $sourcePath -Destination $destinationFolder
+}
+
+$mainFolders | ForEach-Object -Parallel {
+    param (
+        $mainFolder, $basePath, $subFolderPatterns, $results, $summarySheetStats, 
+        $combinedSheetData, $missedEntries, $combinedSummary, $fileInfo, $destinationPath
+    )
+
     $mainFolderPath = Join-Path -Path $basePath -ChildPath $mainFolder
-    Log-Message "Processing main folder: $mainFolderPath"
+    Write-Host "Processing main folder: $mainFolderPath"
     
     if (-not (Test-Path -Path $mainFolderPath)) {
-        Log-Message "Main folder path does not exist: $mainFolderPath"
-        continue
+        Write-Host "Main folder path does not exist: $mainFolderPath"
+        return
     }
 
-    Get-ChildItem -Path $mainFolderPath -Directory -Recurse | ForEach-Object {
-        $subFolder = $_
-        $subFolderName = $subFolder.Name
-        # Check if subFolder contains any pattern
-        $matchFound = $false
-        foreach ($pattern in $subFolderPatterns) {
-            if ($subFolderName -like "*$pattern*") {
-                $matchFound = $true
-                break
-            }
-        }
-        if ($matchFound) {
-            $subFolderPath = $subFolder.FullName
-            Log-Message "Processing subfolder: $subFolderPath"
-            
-            if (-not (Test-Path -Path $subFolderPath)) {
-                Log-Message "Subfolder path does not exist: $subFolderPath"
-                continue
-            }
+    $subFolders = Get-ChildItem -Path $mainFolderPath -Directory -Recurse | Where-Object {
+        $folder = $_
+        $folder.Name -match ($subFolderPatterns -join '|')
+    }
 
-            # Find the latest file matching the pattern
-            $latestFile = Get-ChildItem -Path $subFolderPath -Filter $filePattern -File | 
-                          Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            
-            # Initialize object to hold folder and file information
+    foreach ($subFolder in $subFolders) {
+        $subFolderPath = $subFolder.FullName
+        Write-Host "Processing subfolder: $subFolderPath"
+
+        # Find the latest Evidence Document file
+        $latestFile = Get-ChildItem -Path $subFolderPath -Filter "*Evidence*Document*.xlsx" -File |
+                      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+        if ($latestFile) {
             $record = [PSCustomObject][ordered]@{
                 MainFolder = $mainFolder
-                SubFolder = $subFolderName
-                FileName = $null
+                SubFolder = $subFolder.Name
+                FileName = $latestFile.Name
+                ModifiedDate = $latestFile.LastWriteTime
+                SizeKB = [math]::Round($latestFile.Length / 1KB, 2)
+                SheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
+                ALLfilenames = ($subFolder | Get-ChildItem -File -Recurse | Select-Object -ExpandProperty Name) -join "; "
+            }
+
+            $sheetNames = $record.SheetNames -split ", "
+            $sheetData = Get-SheetContent -filePath $latestFile.FullName -sheetNames $sheetNames
+            $combinedSheetData.AddRange($sheetData)
+
+            $totalEntries = $sheetData.Count
+            $totalMissedEntries = ($sheetData | Where-Object { $_.Answer -eq $null }).Count
+            $percentCompletion = if ($totalEntries -ne 0) { [math]::Round((($totalEntries - $totalMissedEntries) / $totalEntries) * 100, 2) } else { 0 }
+
+            $summarySheetStats.Add([PSCustomObject][ordered]@{
+                MainFolder = $mainFolder
+                SubFolder = $subFolder.Name
+                FileName = $latestFile.Name
+                TemplateUsed = "Yes"
+                SheetNames = $record.SheetNames
+                TotalEntries = $totalEntries
+                TotalMissedEntries = $totalMissedEntries
+                PercentCompletion = $percentCompletion
+            })
+
+            $summaryData = Import-Excel -Path $latestFile.FullName -WorksheetName "Summary" -StartRow 2
+            $dmsFiles = $summaryData | Where-Object { $_.'DMS file name' -match '.*' } | Select-Object -ExpandProperty 'DMS file name'
+            foreach ($dmsFile in $dmsFiles) {
+                $dmsPresence = if ($subFolder | Get-ChildItem -File -Recurse | Where-Object { $_.Name -eq $dmsFile }) { "Yes" } else { "No" }
+                $combinedSummary.Add([PSCustomObject][ordered]@{
+                    MainFolder = $mainFolder
+                    SubFolder = $subFolder.Name
+                    FileName = $latestFile.Name
+                    DMSFileName = $dmsFile
+                    DMSPresence = $dmsPresence
+                })
+            }
+
+            Copy-FileToDestination -sourcePath $latestFile.FullName -destinationFolder $destinationPath
+        }
+        else {
+            $record = [PSCustomObject][ordered]@{
+                MainFolder = $mainFolder
+                SubFolder = $subFolder.Name
+                FileName = "No ED file"
                 ModifiedDate = $null
                 SizeKB = $null
                 SheetNames = $null
-                ALLfilenames = $null
+                ALLfilenames = ($subFolder | Get-ChildItem -File -Recurse | Select-Object -ExpandProperty Name) -join "; "
             }
-            
-            if ($latestFile) {
-                $record.FileName = $latestFile.Name
-                $record.ModifiedDate = $latestFile.LastWriteTime
-                $record.SizeKB = [math]::Round($latestFile.Length / 1KB, 2)
-                $record.SheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
-                
-                # Get all filenames in the subfolder
-                $allFiles = Get-ChildItem -Path $subFolderPath -File -Recurse
-                $record.ALLfilenames = ($allFiles | Select-Object -ExpandProperty Name) -join "; "
-                
-                # Extract and process content from specified sheets
-                $sheetNames = $record.SheetNames -split ", "
-                $sheetData = Get-SheetContent -filePath $latestFile.FullName -sheetNames $sheetNames
-                $combinedSheetData += $sheetData
-
-                # Extract DMS file names from the summary sheet
-                $summaryData = Import-Excel -Path $latestFile.FullName -WorksheetName "Summary" -StartRow 2
-                $dmsFiles = $summaryData | Where-Object { $_.'DMS file name' -match '.*' } | Select-Object -ExpandProperty 'DMS file name'
-                foreach ($dmsFile in $dmsFiles) {
-                    $dmsPresence = if ($allFiles | Where-Object { $_.Name -eq $dmsFile }) { "Yes" } else { "No" }
-                    $summaryRecord = [PSCustomObject][ordered]@{
-                        MainFolder = $mainFolder
-                        SubFolder = $subFolderName
-                        DMSFileName = $dmsFile
-                        DMSPresence = $dmsPresence
-                    }
-                    $combinedSummary += $summaryRecord
-                }
-                
-                # Collect sheet statistics for EDSummary
-                $totalEntries = $sheetData.Count
-                $totalMissedEntries = ($sheetData | Where-Object { $_.Answer -eq $null }).Count
-                $percentCompletion = if ($totalEntries -ne 0) { [math]::Round((($totalEntries - $totalMissedEntries) / $totalEntries) * 100, 2) } else { 0 }
-                
-                $templateUsed = if ($sheetNames -match '^(101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120|201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230|231|232|301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320)$') { "Yes" } else { "No" }
-
-                $summarySheetStats += [PSCustomObject][ordered]@{
-                    MainFolder = $mainFolder
-                    SubFolder = $subFolderName
-                    FileName = $latestFile.Name
-                    TemplateUsed = $templateUsed
-                    SheetNames = $record.SheetNames
-                    TotalEntries = $totalEntries
-                    TotalMissedEntries = $totalMissedEntries
-                    PercentCompletion = $percentCompletion
-                }
-            }
-            
-            # Add the record to results
-            $results += $record
-
-            # Collect file information for File_Info sheet
-            $fileInfoRecord = [PSCustomObject][ordered]@{
-                MainFolder = $mainFolder
-                SubFolder = $subFolderName
-                EDPresence = if ($latestFile) { "Yes ($($latestFile.Name))" } else { "No" }
-                ClearanceEmail = if ($allFiles | Where-Object { $_.Name -like "*clear*.msg" }) { "Yes ($($_.Name))" } else { "No" }
-                EvidenceWorkbook = if ($allFiles | Where-Object { $_.Name -like "*Evidence*workbook*.xlsx" }) { "Yes ($($_.Name))" } else { "No" }
-                PeerReviewWorkbook = if ($allFiles | Where-Object { $_.Name -like "*Peerreview*workbook*.xlsx" }) { "Yes ($($_.Name))" } else { "No" }
-                PreScreenWorkbook = if ($allFiles | Where-Object { $_.Name -like "*prescreen*workbook*.xlsx" }) { "Yes ($($_.Name))" } else { "No" }
-                DAQworkbook = if ($allFiles | Where-Object { $_.Name -like "*DAQ*workbook*.xlsx" }) { "Yes ($($_.Name))" } else { "No" }
-                AllFileNames = $record.ALLfilenames
-            }
-            $fileInfo += $fileInfoRecord
         }
-    }
-}
 
-# Commented out CSV exports
-# $results | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "output.csv") -NoTypeInformation -Encoding UTF8
-# $summaryResults | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "Summary.csv") -NoTypeInformation -Encoding UTF8
-# $combinedSheetData | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSheets.csv") -NoTypeInformation -Encoding UTF8
-# $missedEntries | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "MissedEntries.csv") -NoTypeInformation -Encoding UTF8
-# $combinedSummary | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSummary.csv") -NoTypeInformation -Encoding UTF8
-# $fileInfo | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "FileInfo.csv") -NoTypeInformation -Encoding UTF8
-# $summarySheetStats | Export-Csv -Path (Join-Path -Path $destinationPath -ChildPath "EDSummary.csv") -NoTypeInformation -Encoding UTF8
+        # Gather information about other files for File_Info
+        $clearanceEmail = Get-ChildItem -Path $subFolderPath -Filter "*clear*.msg" -File | Select-Object -First 1
+        $evidenceWorkbook = Get-ChildItem -Path $subFolderPath -Filter "*Evidence*workbook*.xlsx" -File | Select-Object -First 1
+        $peerReviewWorkbook = Get-ChildItem -Path $subFolderPath -Filter "*PeerReview*workbook*.xlsx" -File | Select-Object -First 1
+        $preScreenWorkbook = Get-ChildItem -Path $subFolderPath -Filter "*prescreen*workbook*.xlsx" -File | Select-Object -First 1
+        $daqWorkbook = Get-ChildItem -Path $subFolderPath -Filter "*DAQ*workbook*.xlsx" -File | Select-Object -First 1
+
+        $fileInfo.Add([PSCustomObject][ordered]@{
+            MainFolder = $mainFolder
+            SubFolder = $subFolder.Name
+            EDPresence = if ($latestFile) { "Yes ($($latestFile.Name))" } else { "No" }
+            ClearanceEmail = if ($clearanceEmail) { "Yes ($($clearanceEmail.Name))" } else { "No" }
+            EvidenceWorkbook = if ($evidenceWorkbook) { "Yes ($($evidenceWorkbook.Name))" } else { "No" }
+            PeerReviewWorkbook = if ($peerReviewWorkbook) { "Yes ($($peerReviewWorkbook.Name))" } else { "No" }
+            PreScreenWorkbook = if ($preScreenWorkbook) { "Yes ($($preScreenWorkbook.Name))" } else { "No" }
+            DAQworkbook = if ($daqWorkbook) { "Yes ($($daqWorkbook.Name))" } else { "No" }
+            AllFileNames = ($subFolder | Get-ChildItem -File -Recurse | Select-Object -ExpandProperty Name) -join "; "
+        })
+
+        $results.Add($record)
+    }
+} -ThrottleLimit 5 -ArgumentList $basePath, $subFolderPatterns, $results, $summarySheetStats, $combinedSheetData, $missedEntries, $combinedSummary, $fileInfo, $destinationPath
 
 # Export results to Excel
 $results | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "Output.xlsx") -WorksheetName "Output"
-$summaryResults | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "Summary.xlsx") -WorksheetName "Summary"
+$summarySheetStats | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "EDSummary.xlsx") -WorksheetName "EDSummary"
 $combinedSheetData | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSheets.xlsx") -WorksheetName "CombinedSheets"
 $missedEntries | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "MissedEntries.xlsx") -WorksheetName "MissedEntries"
 $combinedSummary | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "CombinedSummary.xlsx") -WorksheetName "CombinedSummary"
 $fileInfo | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "FileInfo.xlsx") -WorksheetName "FileInfo"
-$summarySheetStats | Export-Excel -Path (Join-Path -Path $destinationPath -ChildPath "EDSummary.xlsx") -WorksheetName "EDSummary"
 
 # Export all sheets into a single Excel file
 $excelFilePath = Join-Path -Path $destinationPath -ChildPath "FullReport.xlsx"
