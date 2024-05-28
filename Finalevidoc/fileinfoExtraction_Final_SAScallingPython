@@ -3,6 +3,7 @@ import shutil
 import pandas as pd
 from openpyxl import load_workbook
 from concurrent.futures import ThreadPoolExecutor
+import argparse
 
 # Define your paths and lists here
 base_path = "C:\\Your\\Base Path With Spaces"
@@ -24,44 +25,54 @@ def log_message(message):
     print(message)
 
 def get_excel_sheet_names(file_path):
-    workbook = load_workbook(file_path, read_only=True)
-    sheet_names = workbook.sheetnames
-    workbook.close()
-    return ", ".join(sheet_names)
+    try:
+        workbook = load_workbook(file_path, read_only=True)
+        sheet_names = workbook.sheetnames
+        workbook.close()
+        return ", ".join(sheet_names)
+    except Exception as e:
+        log_message(f"Error reading sheet names from {file_path}: {e}")
+        return ""
 
 def get_sheet_content(file_path, sheet_names):
     filtered_data = []
     missed_entries_local = []
-    for sheet_name in sheet_names:
-        if any(sheet_name.startswith(str(num)) for num in range(101, 121)) or \
-           any(sheet_name.startswith(str(num)) for num in range(201, 233)) or \
-           any(sheet_name.startswith(str(num)) for num in range(301, 321)):
-            df = pd.read_excel(file_path, sheet_name=sheet_name)
-            for _, row in df.iterrows():
-                if isinstance(row['C'], str) and row['C'].endswith(":") and not row['C'].startswith("Note:") and \
-                   isinstance(row['D'], str) and row['D'] not in ["PASS", "NA", "YES", "NO"]:
-                    filtered_row = {
-                        "MainFolder": file_path.split(os.sep)[-3],
-                        "SubFolder": file_path.split(os.sep)[-2],
-                        "FileName": os.path.basename(file_path),
-                        "SheetName": sheet_name,
-                        "Question": row['C'],
-                        "Answer": row['D']
-                    }
-                    filtered_data.append(filtered_row)
-                    if pd.isnull(row['D']):
-                        missed_entries_local.append(filtered_row)
+    try:
+        for sheet_name in sheet_names:
+            if any(sheet_name.startswith(str(num)) for num in range(101, 121)) or \
+               any(sheet_name.startswith(str(num)) for num in range(201, 233)) or \
+               any(sheet_name.startswith(str(num)) for num in range(301, 321)):
+                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                for _, row in df.iterrows():
+                    if isinstance(row['C'], str) and row['C'].endswith(":") and not row['C'].startswith("Note:") and \
+                       isinstance(row['D'], str) and row['D'] not in ["PASS", "NA", "YES", "NO"]:
+                        filtered_row = {
+                            "MainFolder": file_path.split(os.sep)[-3],
+                            "SubFolder": file_path.split(os.sep)[-2],
+                            "FileName": os.path.basename(file_path),
+                            "SheetName": sheet_name,
+                            "Question": row['C'],
+                            "Answer": row['D']
+                        }
+                        filtered_data.append(filtered_row)
+                        if pd.isnull(row['D']):
+                            missed_entries_local.append(filtered_row)
+    except Exception as e:
+        log_message(f"Error reading sheet content from {file_path}: {e}")
     return filtered_data, missed_entries_local
 
 def copy_file_to_destination(source_path, destination_folder):
-    os.makedirs(destination_folder, exist_ok=True)
-    shutil.copy2(source_path, destination_folder)
+    try:
+        os.makedirs(destination_folder, exist_ok=True)
+        shutil.copy2(source_path, destination_folder)
+    except Exception as e:
+        log_message(f"Error copying file {source_path} to {destination_folder}: {e}")
 
 def find_all_files(path):
     all_files = []
     for root, _, files in os.walk(path):
         for file in files:
-            all_files.append(file)
+            all_files.append(os.path.join(root, file))
     return all_files
 
 def process_folder(main_folder):
@@ -82,7 +93,7 @@ def process_folder(main_folder):
                 latest_file_mtime = 0
                 for root, _, files in os.walk(sub_folder_path):
                     for file in files:
-                        if "EvidenceDocument" in file and file.lower().endswith(".xlsx"):
+                        if "evidencedocument" in file.lower() and file.lower().endswith(".xlsx"):
                             file_path = os.path.join(root, file)
                             file_mtime = os.path.getmtime(file_path)
                             if file_mtime > latest_file_mtime:
@@ -119,17 +130,20 @@ def process_folder(main_folder):
                         "PercentCompletion": percent_completion
                     })
 
-                    summary_data = pd.read_excel(latest_file, sheet_name="Summary")
-                    dms_files = summary_data['DMS file name'].dropna().tolist()
-                    for dms_file in dms_files:
-                        dms_presence = "Yes" if any(dms_file == f for f in find_all_files(sub_folder_path)) else "No"
-                        combined_summary.append({
-                            "MainFolder": main_folder,
-                            "SubFolder": sub_folder,
-                            "FileName": os.path.basename(latest_file),
-                            "DMSFileName": dms_file,
-                            "DMSPresence": dms_presence
-                        })
+                    try:
+                        summary_data = pd.read_excel(latest_file, sheet_name="Summary")
+                        dms_files = summary_data['DMS file name'].dropna().tolist()
+                        for dms_file in dms_files:
+                            dms_presence = "Yes" if any(dms_file in f for f in find_all_files(sub_folder_path)) else "No"
+                            combined_summary.append({
+                                "MainFolder": main_folder,
+                                "SubFolder": sub_folder,
+                                "FileName": os.path.basename(latest_file),
+                                "DMSFileName": dms_file,
+                                "DMSPresence": dms_presence
+                            })
+                    except Exception as e:
+                        log_message(f"Error reading summary sheet from {latest_file}: {e}")
 
                     copy_file_to_destination(latest_file, destination_path)
                 else:
@@ -142,7 +156,7 @@ def process_folder(main_folder):
                         "SheetNames": None
                     }
 
-                clearance_email = next((file for file in find_all_files(sub_folder_path) if file.lower().endswith("clear.msg")), None)
+                clearance_email = next((file for file in find_all_files(sub_folder_path) if "clear" in file.lower() and file.lower().endswith(".msg")), None)
                 evidence_workbook = next((file for file in find_all_files(sub_folder_path) if "evidenceworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
                 peer_review_workbook = next((file for file in find_all_files(sub_folder_path) if "peerworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
                 prescreen_workbook = next((file for file in find_all_files(sub_folder_path) if "prescreenworkbook" in file.lower() and file.lower().endswith(".xlsx")), None)
