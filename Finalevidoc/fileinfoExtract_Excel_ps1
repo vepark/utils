@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 17:30
+# PowerShell Script updated on 2024-05-28 at 18:00
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -120,18 +120,17 @@ function Process-SummarySheet {
         [string]$filePath,
         [string]$mainFolder,
         [string]$subFolder,
-        [string]$remda
+        [string]$remda,
+        [string]$allFileNames
     )
     $excel = Open-ExcelPackage -Path $filePath
     $worksheet = $excel.Workbook.Worksheets["Summary"]
     $dmsFileNames = @()
-    $allFileNames = @()
 
     if ($worksheet -ne $null) {
-        $lastRow = $worksheet.Dimension.End.Row
-        $startRow = ($worksheet.Cells | Where-Object { $_.Text -eq "DMS file name" }).Row
-
+        $startRow = ($worksheet.Cells["B5:B20"] | Where-Object { $_.Text -eq "DMS file name" }).Row
         if ($startRow -ne $null) {
+            $lastRow = $worksheet.Dimension.End.Row
             for ($row = $startRow + 1; $row -le $lastRow; $row++) {
                 $dmsFileName = $worksheet.Cells[$row, 2].Text
                 if ($dmsFileName -eq "") { break }
@@ -142,8 +141,16 @@ function Process-SummarySheet {
 
     $excel.Dispose()
 
-    return @{
-        DMSFileNames = $dmsFileNames
+    foreach ($dmsFileName in $dmsFileNames) {
+        $dmsPresence = if ($allFileNames -match "\b$dmsFileName(\.\w+)?\b") { "Yes" } else { "No" }
+        $global:combinedSummary += [PSCustomObject][ordered]@{
+            MainFolder   = $mainFolder
+            SubFolder    = $subFolder
+            REMDA        = $remda
+            DMSFileName  = $dmsFileName
+            AllFileNames = $allFileNames
+            DMSPresence  = $dmsPresence
+        }
     }
 }
 
@@ -223,18 +230,7 @@ function Process-Folder {
                     $record.MissedEntries = $sheetData.MissedEntries
                     $record.PercentCompletion = $sheetData.PercentCompletion
 
-                    $summaryData = Process-SummarySheet -filePath $latestFile.FullName -mainFolder $mainFolder -subFolder $subFolder.Name -remda $remda
-                    foreach ($dmsFileName in $summaryData.DMSFileNames) {
-                        $dmsPresence = if ($allFileNames -match "\b$dmsFileName(\.\w+)?\b") { "Yes" } else { "No" }
-                        $global:combinedSummary += [PSCustomObject][ordered]@{
-                            MainFolder   = $mainFolder
-                            SubFolder    = $subFolder.Name
-                            REMDA        = $remda
-                            DMSFileName  = $dmsFileName
-                            AllFileNames = $allFileNames
-                            DMSPresence  = $dmsPresence
-                        }
-                    }
+                    Process-SummarySheet -filePath $latestFile.FullName -mainFolder $mainFolder -subFolder $subFolder.Name -remda $remda -allFileNames $allFileNames
                 } else {
                     $record.SheetNames = ""
                     $record.NumOfSheets = 0
@@ -243,15 +239,16 @@ function Process-Folder {
             }
 
             $global:fileInfo += [PSCustomObject][ordered]@{
-                MainFolder      = $mainFolder
-                SubFolder       = $subFolder.Name
-                REMDA           = $remda
-                AllFileNames    = $allFileNames
-                ClearanceEmail  = if ($allFileNames -match "\bclear.*\.msg\b") { "Yes (" + ($allFileNames -match "\bclear.*\.msg\b").Matches[0].Value + ")" } else { "No" }
-                EvidenceWorkbook = if ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b") { "Yes (" + ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b").Matches[0].Value + ")" } else { "No" }
-                PeerReviewWorkbook = if ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b") { "Yes (" + ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b").Matches[0].Value + ")" } else { "No" }
-                PreScreenWorkbook = if ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b") { "Yes (" + ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b").Matches[0].Value + ")" } else { "No" }
-                DAQCWorkbook = if ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b") { "Yes (" + ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b").Matches[0].Value + ")" } else { "No" }
+                MainFolder        = $mainFolder
+                SubFolder         = $subFolder.Name
+                REMDA             = $remda
+                AllFileNames      = $allFileNames
+                EDPresent         = if ($allFileNames -match "\bEvidence.*Document.*\.xlsx\b") { ($allFileNames -match "\bEvidence.*Document.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                ClearanceEmail    = if ($allFileNames -match "\bclear.*\.msg\b") { ($allFileNames -match "\bclear.*\.msg\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                EvidenceWorkbook  = if ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                PeerReviewWorkbook = if ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                PreScreenWorkbook = if ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                DAQCWorkbook      = if ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
             }
 
             Log-Message "Adding record: $($record | Out-String)"
@@ -291,6 +288,11 @@ if ($global:results.Count -gt 0) {
     foreach ($worksheet in $sheet.Workbook.Worksheets["CombinedSheets", "MissedEntries"]) {
         $worksheet.Cells.Style.WrapText = $true
     }
+
+    # Adjust column width for AllFileNames in FileInfo
+    $fileInfoSheet = $sheet.Workbook.Worksheets["FileInfo"]
+    $fileInfoSheet.Column(4).Width = 100
+
     $sheet.Save()
     $sheet.Dispose()
 } else {
