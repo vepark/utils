@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 21:00
+# PowerShell Script updated on 2024-05-28 at 21:30
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -247,17 +247,24 @@ function Process-Folder {
                 }
             }
 
+            $edPresentMatches = $allFileNames -match "\bEvidence.*Document.*\.xlsx\b"
+            $clearanceEmailMatches = $allFileNames -match "\bclear.*\.msg\b"
+            $evidenceWorkbookMatches = $allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b"
+            $peerReviewWorkbookMatches = $allFileNames -match "\bPeer.*Workbook.*\.xlsx\b"
+            $preScreenWorkbookMatches = $allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b"
+            $daqcWorkbookMatches = $allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b"
+
             $global:fileInfo += [PSCustomObject][ordered]@{
                 MainFolder        = $mainFolder
                 SubFolder         = $subFolder.Name
                 REMDA             = $remda
                 AllFileNames      = $allFileNames
-                EDPresent         = if ($allFileNames -match "\bEvidence.*Document.*\.xlsx\b") { ($allFileNames -match "\bEvidence.*Document.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
-                ClearanceEmail    = if ($allFileNames -match "\bclear.*\.msg\b") { ($allFileNames -match "\bclear.*\.msg\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
-                EvidenceWorkbook  = if ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
-                PeerReviewWorkbook = if ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
-                PreScreenWorkbook = if ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
-                DAQCWorkbook      = if ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b") { ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b").Matches | ForEach-Object { $_.Value } -join "; " } else { "No" }
+                EDPresent         = if ($edPresentMatches) { ($edPresentMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
+                ClearanceEmail    = if ($clearanceEmailMatches) { ($clearanceEmailMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
+                EvidenceWorkbook  = if ($evidenceWorkbookMatches) { ($evidenceWorkbookMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
+                PeerReviewWorkbook = if ($peerReviewWorkbookMatches) { ($peerReviewWorkbookMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
+                PreScreenWorkbook = if ($preScreenWorkbookMatches) { ($preScreenWorkbookMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
+                DAQCWorkbook      = if ($daqcWorkbookMatches) { ($daqcWorkbookMatches.Matches | ForEach-Object { $_.Value }) -join "; " } else { "No" }
             }
 
             Log-Message "Adding record: $($record | Out-String)"
