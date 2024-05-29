@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 15:15
+# PowerShell Script updated on 2024-05-28 at 16:00
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -56,7 +56,6 @@ function Process-Sheets {
     $excel = Open-ExcelPackage -Path $filePath
     $entryCount = 0
     $totalCount = 0
-    $questionCount = 0
 
     foreach ($sheet in $requiredSheets) {
         $worksheet = $excel.Workbook.Worksheets[$sheet]
@@ -65,9 +64,12 @@ function Process-Sheets {
         for ($row = 1; $row -le $lastRow; $row++) {
             $question = $worksheet.Cells[$row, 3].Text
             $answer = $worksheet.Cells[$row, 4].Text
+            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 5].Text }
+            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 6].Text }
+            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 7].Text }
 
             if ($question -match ":$" -and -not $question.StartsWith("Note:")) {
-                $questionCount++
+                $totalCount++
                 if ($answer -notmatch "^(YES|NO|PASS|NA)/(YES|NO|PASS|NA)$") {
                     if ($answer -match "^(YES|NO|PASS|NA)$") {
                         $entryCount++
@@ -79,6 +81,7 @@ function Process-Sheets {
                         MainFolder = $mainFolder
                         SubFolder  = $subFolder
                         REMDA      = $remda
+                        SheetName  = $sheet
                         Question   = $question
                         Answer     = $answer
                     }
@@ -88,6 +91,7 @@ function Process-Sheets {
                             MainFolder = $mainFolder
                             SubFolder  = $subFolder
                             REMDA      = $remda
+                            SheetName  = $sheet
                             Question   = $question
                             Answer     = $answer
                         }
@@ -101,8 +105,8 @@ function Process-Sheets {
 
     return @{
         TotalEntries = $entryCount
-        TotalCounts  = $questionCount
-        PercentCompletion = if ($questionCount -gt 0) { [math]::Round(($entryCount / $questionCount) * 100, 2) } else { 0 }
+        TotalCounts  = $totalCount
+        PercentCompletion = if ($totalCount -gt 0) { [math]::Round(($entryCount / $totalCount) * 100, 2) } else { 0 }
     }
 }
 
@@ -153,7 +157,7 @@ function Process-Folder {
                 TemplateUsed    = "NO"
                 TotalEntries    = 0
                 TotalCounts     = 0
-                PercentCompletion = 0
+                PercentCompletion = "0%"
             }
 
             if ($latestFile) {
@@ -164,18 +168,18 @@ function Process-Folder {
                     $requiredSheets = $sheetNames | Where-Object { $_ -match "^(101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120|201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230|231|232|301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320|Summary)$" }
                     Log-Message "Required sheets: $($requiredSheets -join ', ')"
                     $record.SheetNames = ($requiredSheets -join ", ")
-                    $record.NumOfSheets = $sheetNames.Count
+                    $record.NumOfSheets = $requiredSheets.Count
 
-                    if (($requiredSheets -match "^101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120$" -and $sheetNames.Count -eq 21) -or
-                        ($requiredSheets -match "^201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230$" -and $sheetNames.Count -ge 31) -or
-                        ($requiredSheets -match "^301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320$" -and $sheetNames.Count -eq 21)) {
+                    if (($requiredSheets -match "^101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120$" -and $requiredSheets.Count -eq 21) -or
+                        ($requiredSheets -match "^201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230$" -and $requiredSheets.Count -ge 31) -or
+                        ($requiredSheets -match "^301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320$" -and $requiredSheets.Count -eq 21)) {
                         $record.TemplateUsed = "YES"
                     }
 
                     $sheetData = Process-Sheets -filePath $latestFile.FullName -requiredSheets $requiredSheets -mainFolder $mainFolder -subFolder $subFolder.Name -remda $remda
                     $record.TotalEntries = $sheetData.TotalEntries
                     $record.TotalCounts = $sheetData.TotalCounts
-                    $record.PercentCompletion = $sheetData.PercentCompletion
+                    $record.PercentCompletion = $sheetData.PercentCompletion + "%"
                 } else {
                     $record.SheetNames = ""
                     $record.NumOfSheets = 0
@@ -209,9 +213,21 @@ if ($global:results.Count -gt 0) {
     $global:missedEntries | Export-Excel -Path $excelPath -WorksheetName "MissedEntries" -AutoSize -AutoFilter -Append
     Log-Message "Excel file has been created successfully at $excelPath."
 
-    # Wrap text in all columns
+    # Adjust column width and wrap text in specific columns
     $sheet = Open-ExcelPackage -Path $excelPath
-    foreach ($worksheet in $sheet.Workbook.Worksheets) {
+    $edSummarySheet = $sheet.Workbook.Worksheets["EDSummary"]
+    $edSummarySheet.Column(4).Style.WrapText = $true  # Wrap text for SheetNames column
+    $edSummarySheet.Column(1).AutoFit()
+    $edSummarySheet.Column(2).AutoFit()
+    $edSummarySheet.Column(3).AutoFit()
+    $edSummarySheet.Column(5).AutoFit()
+    $edSummarySheet.Column(6).AutoFit()
+    $edSummarySheet.Column(7).AutoFit()
+    $edSummarySheet.Column(8).AutoFit()
+    $edSummarySheet.Column(9).AutoFit()
+
+    # Wrap text in CombinedSheets and MissedEntries
+    foreach ($worksheet in $sheet.Workbook.Worksheets["CombinedSheets", "MissedEntries"]) {
         $worksheet.Cells.Style.WrapText = $true
     }
     $sheet.Save()
