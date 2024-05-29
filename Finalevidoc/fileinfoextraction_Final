@@ -15,7 +15,6 @@ if (-not (Test-Path -Path $DestinationPath)) {
 }
 
 $results = @()
-$summarySheetStats = @()
 $combinedSheetData = @()
 $missedEntries = @()
 $combinedSummary = @()
@@ -141,12 +140,10 @@ function Process-Folder {
                 $totalMissedEntries = $missedData.Count
                 $percentCompletion = if ($totalEntries -ne 0) { [math]::Round((($totalEntries - $totalMissedEntries) / $totalEntries) * 100, 2) } else { 0 }
 
-                $summarySheetStats += [PSCustomObject]@{
+                $results += [PSCustomObject]@{
                     MainFolder = $mainFolder
                     SubFolder  = $subFolder.Name
                     FileName   = $latestFile.Name
-                    TemplateUsed = "Yes"
-                    SheetNames = $record.SheetNames
                     TotalEntries = $totalEntries
                     TotalMissedEntries = $totalMissedEntries
                     PercentCompletion = $percentCompletion
@@ -171,13 +168,13 @@ function Process-Folder {
 
                 Copy-FileToDestination -sourcePath $latestFile.FullName -destinationFolder $DestinationPath
             } else {
-                $record = [PSCustomObject]@{
+                $results += [PSCustomObject]@{
                     MainFolder = $mainFolder
                     SubFolder  = $subFolder.Name
                     FileName   = "No ED file"
-                    ModifiedDate = $null
-                    SizeKB     = $null
-                    SheetNames = $null
+                    TotalEntries = 0
+                    TotalMissedEntries = 0
+                    PercentCompletion = 0
                 }
             }
 
@@ -198,8 +195,6 @@ function Process-Folder {
                 DAQworkbook = if ($daqWorkbook) { "Yes ($($daqWorkbook.Name))" } else { "No" }
                 AllFileNames = (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
             }
-
-            $results += $record
         }
     }
 }
@@ -212,7 +207,6 @@ foreach ($mainFolder in $ID1Array) {
 $excelPath = Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"
 
 $results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -Show
-$summarySheetStats | Export-Excel -Path $excelPath -WorksheetName "SummarySheetStats" -Append
 $combinedSheetData | Export-Excel -Path $excelPath -WorksheetName "CombinedSheets" -Append
 $missedEntries | Export-Excel -Path $excelPath -WorksheetName "MissedEntries" -Append
 $combinedSummary | Export-Excel -Path $excelPath -WorksheetName "CombinedSummary" -Append
