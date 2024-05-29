@@ -52,7 +52,14 @@ function Process-Folder {
 
     Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
         $subFolder = $_
-        if ($ID2Array -some { $subFolder.Name -like "*$_*" }) {
+        $matchesID2 = $false
+        foreach ($id2 in $ID2Array) {
+            if ($subFolder.Name -like "*$id2*") {
+                $matchesID2 = $true
+                break
+            }
+        }
+        if ($matchesID2) {
             $subFolderPath = $subFolder.FullName
             Log-Message "Processing subfolder: $subFolderPath"
 
