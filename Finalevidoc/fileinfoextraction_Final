@@ -1,4 +1,4 @@
-#update 9pm
+#904pm
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
     [string]$DestinationPath = "\\server.com\folder1\folder2",
@@ -105,10 +105,10 @@ foreach ($mainFolder in $ID1Array) {
 # Verify the results array before exporting
 Log-Message "Results array contains $($results.Count) items"
 
-# Export results to Excel
-$excelPath = Join-Path -Path $DestinationPath -ChildPath "EDSummary.xlsx"
+# Export results to CSV
+$csvPath = Join-Path -Path $DestinationPath -ChildPath "EDSummary.csv"
 
-Log-Message "Exporting results to Excel"
-$results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -Show
+Log-Message "Exporting results to CSV"
+$results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
 
-Log-Message "Excel file has been created successfully."
+Log-Message "CSV file has been created successfully at $csvPath."
