@@ -1,8 +1,8 @@
-# PowerShell Script updated on 2024-05-28 at 21:45
+# PowerShell Script updated on 2024-05-28 at 23:00
 
 param (
-    [string]$BasePath = "C:\Your\Base Path With Spaces",
-    [string]$DestinationPath = "\\server.com\folder1\folder2",
+    [string]$BasePath = "\\server.com\folder1\folder2",
+    [string]$DestinationPath = "\\server.com\folder1\folder2\output",
     [string]$ID1 = "12345,23456",
     [string]$ID2 = "2345,3456"
 )
@@ -145,7 +145,7 @@ function Process-SummarySheet {
         $excel.Dispose()
 
         foreach ($dmsFileName in $dmsFileNames) {
-            $dmsPresence = if ($allFileNames -match "\b$dmsFileName(\.\w+)?\b") { "Yes" } else { "No" }
+            $dmsPresence = if ($allFileNames -contains $dmsFileName) { "Yes" } else { "No" }
             $global:combinedSummary += [PSCustomObject][ordered]@{
                 MainFolder   = $mainFolder
                 SubFolder    = $subFolder
