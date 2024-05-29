@@ -63,7 +63,13 @@ function Process-Folder {
             $subFolderPath = $subFolder.FullName
             Log-Message "Processing subfolder: $subFolderPath"
 
-            $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            $latestFile = $null
+            foreach ($id2 in $ID2Array) {
+                $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*$id2*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                if ($latestFile) {
+                    break
+                }
+            }
 
             $record = [PSCustomObject]@{
                 MainFolder = $mainFolder
@@ -78,6 +84,7 @@ function Process-Folder {
                 $record.SheetNames = ($requiredSheets -join ", ")
             }
 
+            Log-Message "Adding record: $($record | Out-String)"
             $results += $record
         }
     }
@@ -86,6 +93,9 @@ function Process-Folder {
 foreach ($mainFolder in $ID1Array) {
     Process-Folder -mainFolder $mainFolder
 }
+
+# Verify the results array before exporting
+Log-Message "Results array contains $($results.Count) items"
 
 # Export results to Excel
 $excelPath = Join-Path -Path $DestinationPath -ChildPath "EDSummary.xlsx"
