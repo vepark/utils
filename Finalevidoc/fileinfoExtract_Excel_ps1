@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 05:00
+# PowerShell Script updated on 2024-05-29 at 05:15
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -121,7 +121,7 @@ function Process-Sheets {
 function Process-Folder {
     param (
         [string]$mainFolder,
-        [array]$ID2Array
+        [string[]]$ID2Array
     )
     $mainFolderPath = Join-Path -Path $BasePath -ChildPath $mainFolder
     Log-Message "Processing main folder: $mainFolderPath"
@@ -252,7 +252,7 @@ function Process-Folder {
 function Process-MainFolder {
     param (
         [string]$mainFolder,
-        [array]$ID2Array
+        [string[]]$ID2Array
     )
     Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
 }
