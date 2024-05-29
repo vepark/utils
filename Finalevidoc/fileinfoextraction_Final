@@ -1,4 +1,3 @@
-#904pm
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
     [string]$DestinationPath = "\\server.com\folder1\folder2",
@@ -30,7 +29,9 @@ function Get-ExcelSheetNames {
     )
     try {
         Log-Message "Reading sheet names from $filePath"
-        $sheetNames = (Import-Excel -Path $filePath -NoHeader | Get-Member -MemberType NoteProperty).Name
+        $excel = Open-ExcelPackage -Path $filePath
+        $sheetNames = $excel.Workbook.Worksheets | Select-Object -ExpandProperty Name
+        $excel.Dispose()
         Log-Message "Found sheets: $sheetNames"
         return $sheetNames
     } catch {
