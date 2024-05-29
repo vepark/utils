@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 14:00
+# PowerShell Script updated on 2024-05-28 at 14:30
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -16,7 +16,8 @@ if (-not (Test-Path -Path $DestinationPath)) {
     New-Item -ItemType Directory -Path $DestinationPath | Out-Null
 }
 
-$results = @()
+# Define the global results array
+$global:results = @()
 
 function Log-Message {
     param (
@@ -96,10 +97,10 @@ function Process-Folder {
             }
 
             Log-Message "Adding record: $($record | Out-String)"
-            $results += $record
+            $global:results += $record
 
             # Verify each addition to the results array
-            Log-Message "Current results count: $($results.Count)"
+            Log-Message "Current results count: $($global:results.Count)"
         }
     }
 }
@@ -109,14 +110,14 @@ foreach ($mainFolder in $ID1Array) {
 }
 
 # Verify the results array before exporting
-Log-Message "Final results array contains $($results.Count) items"
+Log-Message "Final results array contains $($global:results.Count) items"
 
 # Export results to CSV
 $csvPath = Join-Path -Path $DestinationPath -ChildPath "EDSummary.csv"
 
 Log-Message "Exporting results to CSV"
-if ($results.Count -gt 0) {
-    $results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+if ($global:results.Count -gt 0) {
+    $global:results | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
     Log-Message "CSV file has been created successfully at $csvPath."
 } else {
     Log-Message "No data to export."
