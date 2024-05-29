@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 01:30
+# PowerShell Script updated on 2024-05-29 at 01:45
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -27,6 +27,18 @@ function Log-Message {
         [string]$message
     )
     Write-Host $message
+}
+
+function Clean-Path {
+    param (
+        [string]$path
+    )
+    # Remove illegal characters from the path
+    $illegalChars = [System.IO.Path]::GetInvalidPathChars()
+    foreach ($char in $illegalChars) {
+        $path = $path -replace [regex]::Escape($char), ""
+    }
+    return $path
 }
 
 function Get-ExcelSheetNames {
@@ -134,6 +146,7 @@ function Process-Folder {
     }
 
     foreach ($subFolderPath in $subFolders) {
+        $subFolderPath = Clean-Path -path $subFolderPath
         $subFolder = Get-Item -Path $subFolderPath
         $matchesID2 = $false
         $remda = ""
