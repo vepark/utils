@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 23:45
+# PowerShell Script updated on 2024-05-28 at 23:47
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
