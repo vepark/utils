@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 19:30
+# PowerShell Script updated on 2024-05-28 at 21:00
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -172,8 +172,12 @@ function Process-Folder {
         return
     }
 
-    $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory
-    foreach ($subFolder in $subFolders) {
+    $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+        $_.FullName
+    }
+
+    foreach ($subFolderPath in $subFolders) {
+        $subFolder = Get-Item -Path $subFolderPath
         $matchesID2 = $false
         $remda = ""
 
@@ -186,7 +190,6 @@ function Process-Folder {
         }
 
         if ($matchesID2) {
-            $subFolderPath = $subFolder.FullName
             Log-Message "Processing subfolder: $subFolderPath"
 
             $latestFile = $null
