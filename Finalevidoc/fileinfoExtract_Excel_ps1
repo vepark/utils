@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 23:47
+# PowerShell Script updated on 2024-05-29 at 00:00
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -128,29 +128,30 @@ function Analyze-SummarySheet {
     try {
         $excel = Open-ExcelPackage -Path $filePath
         $worksheet = $excel.Workbook.Worksheets["Summary"]
-        $dmsFileNames = @()
 
         if ($worksheet -ne $null) {
-            $startRow = ($worksheet.Cells["B5:B20"] | Where-Object { $_.Text -match "DMS file name|DMS" }).Row
+            $startRow = ($worksheet.Cells["A5:A20"] | Where-Object { $_.Text -match "Artifacts" }).Row
             if ($startRow -ne $null) {
                 $lastRow = $worksheet.Dimension.End.Row
                 for ($row = $startRow + 1; $row -le $lastRow; $row++) {
-                    $dmsFileName = $worksheet.Cells[$row, 2].Text
-                    if ($dmsFileName -eq "") { break }
-                    $dmsFileNames += $dmsFileName
+                    $artifactRow = $worksheet.Cells[$row, "A"].Text
+                    if ($artifactRow -eq "") { break }
+
+                    $global:combinedSummary += [PSCustomObject][ordered]@{
+                        MainFolder   = $mainFolder
+                        SubFolder    = $subFolder
+                        REMDA        = $remda
+                        ColumnA      = $worksheet.Cells[$row, "A"].Text
+                        ColumnB      = $worksheet.Cells[$row, "B"].Text
+                        ColumnC      = $worksheet.Cells[$row, "C"].Text
+                        ColumnD      = $worksheet.Cells[$row, "D"].Text
+                        ColumnE      = $worksheet.Cells[$row, "E"].Text
+                        ColumnF      = $worksheet.Cells[$row, "F"].Text
+                    }
                 }
             }
         }
         $excel.Dispose()
-
-        foreach ($dmsFileName in $dmsFileNames) {
-            $global:combinedSummary += [PSCustomObject][ordered]@{
-                MainFolder   = $mainFolder
-                SubFolder    = $subFolder
-                REMDA        = $remda
-                DMSFileName  = $dmsFileName
-            }
-        }
     } catch {
         Log-Message "Error processing summary sheet from $($filePath): $($_)"
     }
@@ -197,6 +198,8 @@ function Process-Folder {
             }
 
             $allFileNames = (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
+            # Deduplicate file names within each cell
+            $allFileNames = ($allFileNames -split "; " | Sort-Object -Unique) -join "; "
 
             $record = [PSCustomObject][ordered]@{
                 MainFolder      = $mainFolder
@@ -253,7 +256,7 @@ function Process-Folder {
                 EvidenceWorkbook  = if ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bEvidence.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
                 PeerReviewWorkbook = if ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bPeer.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
                 PreScreenWorkbook = if ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bPreScreen.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
-                DAQCWorkbook      = if ($allFileNames -match "\bDAQ.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bDAQ.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
+                DAQCWorkbook      = if ($allFileNames -match "\bDAQC Workbook\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bDAQC Workbook\.xlsx\b" }) -join "; " } else { "No" }
             }
 
             Log-Message "Adding record: $($record | Out-String)"
