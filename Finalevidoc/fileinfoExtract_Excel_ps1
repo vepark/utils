@@ -1,0 +1,131 @@
+# PowerShell Script updated on 2024-05-28 at 14:45
+
+param (
+    [string]$BasePath = "C:\Your\Base Path With Spaces",
+    [string]$DestinationPath = "\\server.com\folder1\folder2",
+    [string]$ID1 = "12345,23456",
+    [string]$ID2 = "2345,3456"
+)
+
+# Convert comma-separated strings to arrays
+$ID1Array = $ID1 -split ","
+$ID2Array = $ID2 -split ","
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Define the global results array
+$global:results = @()
+
+function Log-Message {
+    param (
+        [string]$message
+    )
+    Write-Host $message
+}
+
+function Get-ExcelSheetNames {
+    param (
+        [string]$filePath
+    )
+    try {
+        Log-Message "Reading sheet names from $filePath"
+        $excel = Open-ExcelPackage -Path $filePath
+        $sheetNames = $excel.Workbook.Worksheets | Select-Object -ExpandProperty Name
+        $excel.Dispose()
+        Log-Message "Found sheets: $sheetNames"
+        return $sheetNames
+    } catch {
+        Log-Message "Error reading sheet names from $($filePath): $($_)"
+        return @()
+    }
+}
+
+function Process-Folder {
+    param (
+        [string]$mainFolder
+    )
+    $mainFolderPath = Join-Path -Path $BasePath -ChildPath $mainFolder
+    Log-Message "Processing main folder: $mainFolderPath"
+    
+    if (-not (Test-Path -Path $mainFolderPath)) {
+        Log-Message "Main folder path does not exist: $mainFolderPath"
+        return
+    }
+
+    Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+        $subFolder = $_
+        $matchesID2 = $false
+        foreach ($id2 in $ID2Array) {
+            if ($subFolder.Name -like "*$id2*") {
+                $matchesID2 = $true
+                break
+            }
+        }
+        if ($matchesID2) {
+            $subFolderPath = $subFolder.FullName
+            Log-Message "Processing subfolder: $subFolderPath"
+
+            $latestFile = $null
+            foreach ($id2 in $ID2Array) {
+                $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*$id2*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                if ($latestFile) {
+                    break
+                }
+            }
+
+            $record = [PSCustomObject][ordered]@{
+                MainFolder = $mainFolder
+                SubFolder  = $subFolder.Name
+                FileName   = if ($latestFile) { $latestFile.Name } else { "" }
+                SheetNames = ""
+            }
+
+            if ($latestFile) {
+                $sheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
+                Log-Message "Sheet names type: $($sheetNames.GetType().Name)"
+                Log-Message "Sheet names count: $($sheetNames.Count)"
+                if ($sheetNames.Count -gt 0) {
+                    $requiredSheets = $sheetNames | Where-Object { $_ -match "^(101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120|201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230|231|232|301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320|Summary)$" }
+                    Log-Message "Required sheets: $($requiredSheets -join ', ')"
+                    $record.SheetNames = ($requiredSheets -join ", ")
+                } else {
+                    $record.SheetNames = ""
+                }
+            }
+
+            Log-Message "Adding record: $($record | Out-String)"
+            $global:results += $record
+
+            # Verify each addition to the results array
+            Log-Message "Current results count: $($global:results.Count)"
+        }
+    }
+}
+
+foreach ($mainFolder in $ID1Array) {
+    Process-Folder -mainFolder $mainFolder
+}
+
+# Verify the results array before exporting
+Log-Message "Final results array contains $($global:results.Count) items"
+
+# Export results to Excel
+$excelPath = Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"
+
+Log-Message "Exporting results to Excel"
+if ($global:results.Count -gt 0) {
+    $global:results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -AutoSize -AutoFilter
+    Log-Message "Excel file has been created successfully at $excelPath."
+
+    # Wrap text in all columns
+    $sheet = Open-ExcelPackage -Path $excelPath
+    $workSheet = $sheet.Workbook.Worksheets["EDSummary"]
+    $workSheet.Cells.Style.WrapText = $true
+    $sheet.Save()
+    $sheet.Dispose()
+} else {
+    Log-Message "No data to export."
+}
