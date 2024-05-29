@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 05:30
+# PowerShell Script updated on 2024-05-29 at 05:45
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -121,7 +121,7 @@ function Process-Sheets {
 function Process-Folder {
     param (
         [string]$mainFolder,
-        [array]$ID2Array
+        [string[]]$ID2Array
     )
     $mainFolderPath = Join-Path -Path $BasePath -ChildPath $mainFolder
     Log-Message "Processing main folder: $mainFolderPath"
@@ -262,9 +262,9 @@ $jobs = @()
 foreach ($mainFolder in $ID1Array) {
     $jobs += Start-Job -ScriptBlock {
         param ($mainFolder, $ID2Array)
-        . $MyInvocation.MyCommand.Path
-        Process-MainFolder -mainFolder $mainFolder -ID2Array $ID2Array
+        Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
     } -ArgumentList $mainFolder, $ID2Array
+
     while ($jobs.Count -ge $MaxJobs) {
         # Wait for any job to complete before starting a new one
         $job = Wait-Job -Any
