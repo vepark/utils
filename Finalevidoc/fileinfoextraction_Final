@@ -24,7 +24,7 @@ function Log-Message {
     param (
         [string]$message
     )
-    Write-Output $message
+    Write-Host $message
 }
 
 function Get-ExcelSheetNames {
@@ -32,7 +32,9 @@ function Get-ExcelSheetNames {
         [string]$filePath
     )
     try {
+        Log-Message "Reading sheet names from $filePath"
         $sheetNames = (Import-Excel -Path $filePath -NoHeader | Get-Member -MemberType NoteProperty).Name
+        Log-Message "Found sheets: $sheetNames"
         return -join ($sheetNames -join ", ")
     } catch {
         Log-Message "Error reading sheet names from $($filePath): $($_)"
@@ -50,6 +52,7 @@ function Get-SheetContent {
     try {
         foreach ($sheetName in $sheetNames) {
             if ($sheetName -match "^(101|102|103|104|105|106|107|108|109|110|111|112|113|114|115|116|117|118|119|120|201|202|203|204|205|206|207|208|209|210|211|212|213|214|215|216|217|218|219|220|221|222|223|224|225|226|227|228|229|230|231|232|301|302|303|304|305|306|307|308|309|310|311|312|313|314|315|316|317|318|319|320)$") {
+                Log-Message "Reading content from sheet $sheetName in $filePath"
                 $sheetData = Import-Excel -Path $filePath -WorksheetName $sheetName
                 foreach ($row in $sheetData) {
                     $question = $row.'C'
@@ -83,6 +86,7 @@ function Copy-FileToDestination {
         [string]$destinationFolder
     )
     try {
+        Log-Message "Copying file $sourcePath to $destinationFolder"
         if (-not (Test-Path -Path $destinationFolder)) {
             New-Item -ItemType Directory -Path $destinationFolder | Out-Null
         }
@@ -96,6 +100,7 @@ function Find-AllFiles {
     param (
         [string]$path
     )
+    Log-Message "Finding all files in $path"
     return Get-ChildItem -Path $path -Recurse -File | Select-Object -ExpandProperty FullName
 }
 
@@ -120,6 +125,7 @@ function Process-Folder {
             $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
             if ($latestFile) {
+                Log-Message "Found latest file: $($latestFile.FullName)"
                 $record = [PSCustomObject]@{
                     MainFolder = $mainFolder
                     SubFolder  = $subFolder.Name
@@ -150,6 +156,7 @@ function Process-Folder {
                 }
 
                 try {
+                    Log-Message "Reading summary sheet from $($latestFile.FullName)"
                     $summaryData = Import-Excel -Path $latestFile.FullName -WorksheetName "Summary"
                     $dmsFiles = $summaryData | Where-Object { $_.'DMS file name' } | Select-Object -ExpandProperty 'DMS file name'
                     foreach ($dmsFile in $dmsFiles) {
@@ -168,6 +175,7 @@ function Process-Folder {
 
                 Copy-FileToDestination -sourcePath $latestFile.FullName -destinationFolder $DestinationPath
             } else {
+                Log-Message "No Evidence Document file found in $subFolderPath"
                 $results += [PSCustomObject]@{
                     MainFolder = $mainFolder
                     SubFolder  = $subFolder.Name
@@ -206,6 +214,7 @@ foreach ($mainFolder in $ID1Array) {
 # Export results to Excel
 $excelPath = Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"
 
+Log-Message "Exporting results to Excel"
 $results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -Show
 $combinedSheetData | Export-Excel -Path $excelPath -WorksheetName "CombinedSheets" -Append
 $missedEntries | Export-Excel -Path $excelPath -WorksheetName "MissedEntries" -Append
