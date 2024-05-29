@@ -1,11 +1,10 @@
-# PowerShell Script updated on 2024-05-29 at 05:45
+# PowerShell Script updated on 2024-05-29 at 05:55
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
     [string]$DestinationPath = "\\server.com\folder1\folder2\output",
     [string]$ID1 = "12345,23456",
-    [string]$ID2 = "2345,3456",
-    [int]$MaxJobs = 4  # Maximum number of parallel jobs to run
+    [string]$ID2 = "2345,3456"
 )
 
 # Convert comma-separated strings to arrays
@@ -121,7 +120,7 @@ function Process-Sheets {
 function Process-Folder {
     param (
         [string]$mainFolder,
-        [string[]]$ID2Array
+        [array]$ID2Array
     )
     $mainFolderPath = Join-Path -Path $BasePath -ChildPath $mainFolder
     Log-Message "Processing main folder: $mainFolderPath"
@@ -248,37 +247,9 @@ function Process-Folder {
     }
 }
 
-# Function to process each main folder in parallel
-function Process-MainFolder {
-    param (
-        [string]$mainFolder,
-        [string[]]$ID2Array
-    )
-    Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
-}
-
-# Create a job for each main folder
-$jobs = @()
+# Process each main folder sequentially
 foreach ($mainFolder in $ID1Array) {
-    $jobs += Start-Job -ScriptBlock {
-        param ($mainFolder, $ID2Array)
-        Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
-    } -ArgumentList $mainFolder, $ID2Array
-
-    while ($jobs.Count -ge $MaxJobs) {
-        # Wait for any job to complete before starting a new one
-        $job = Wait-Job -Any
-        Receive-Job -Job $job
-        Remove-Job -Job $job
-        $jobs = $jobs | Where-Object { $_.State -eq 'Running' }
-    }
-}
-
-# Wait for all jobs to complete
-Wait-Job -Job $jobs
-foreach ($job in $jobs) {
-    Receive-Job -Job $job
-    Remove-Job -Job $job
+    Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
 }
 
 # Verify the results array before exporting
