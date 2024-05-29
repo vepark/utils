@@ -1,10 +1,11 @@
-# PowerShell Script updated on 2024-05-29 at 01:45
+# PowerShell Script updated on 2024-05-29 at 04:00
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
     [string]$DestinationPath = "\\server.com\folder1\folder2\output",
     [string]$ID1 = "12345,23456",
-    [string]$ID2 = "2345,3456"
+    [string]$ID2 = "2345,3456",
+    [int]$MaxJobs = 4  # Maximum number of parallel jobs to run
 )
 
 # Convert comma-separated strings to arrays
@@ -27,18 +28,6 @@ function Log-Message {
         [string]$message
     )
     Write-Host $message
-}
-
-function Clean-Path {
-    param (
-        [string]$path
-    )
-    # Remove illegal characters from the path
-    $illegalChars = [System.IO.Path]::GetInvalidPathChars()
-    foreach ($char in $illegalChars) {
-        $path = $path -replace [regex]::Escape($char), ""
-    }
-    return $path
 }
 
 function Get-ExcelSheetNames {
@@ -131,7 +120,8 @@ function Process-Sheets {
 
 function Process-Folder {
     param (
-        [string]$mainFolder
+        [string]$mainFolder,
+        [array]$ID2Array
     )
     $mainFolderPath = Join-Path -Path $BasePath -ChildPath $mainFolder
     Log-Message "Processing main folder: $mainFolderPath"
@@ -141,13 +131,21 @@ function Process-Folder {
         return
     }
 
-    $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
-        $_.FullName
+    try {
+        $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+            $_.FullName
+        }
+    } catch {
+        Log-Message "Error getting subfolders in $mainFolderPath: $($_)"
+        return
     }
 
     foreach ($subFolderPath in $subFolders) {
-        $subFolderPath = Clean-Path -path $subFolderPath
-        $subFolder = Get-Item -Path $subFolderPath
+        $subFolder = Get-Item -Path $subFolderPath -ErrorAction SilentlyContinue
+        if (-not $subFolder) {
+            Log-Message "Skipping subfolder: $subFolderPath"
+            continue
+        }
         $matchesID2 = $false
         $remda = ""
 
@@ -164,13 +162,22 @@ function Process-Folder {
 
             $latestFile = $null
             foreach ($id2 in $ID2Array) {
-                $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*$id2*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                try {
+                    $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*$id2*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                } catch {
+                    Log-Message "Error getting files in $subFolderPath: $($_)"
+                }
                 if ($latestFile) {
                     break
                 }
             }
 
-            $allFileNames = (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
+            $allFileNames = try {
+                (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
+            } catch {
+                Log-Message "Error getting file names in $subFolderPath: $($_)"
+                ""
+            }
             # Deduplicate file names within each cell
             $allFileNames = ($allFileNames -split "; " | Sort-Object -Unique) -join "; "
 
@@ -241,8 +248,37 @@ function Process-Folder {
     }
 }
 
+# Function to process each main folder in parallel
+function Process-MainFolder {
+    param (
+        [string]$mainFolder,
+        [array]$ID2Array
+    )
+    Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
+}
+
+# Create a job for each main folder
+$jobs = @()
 foreach ($mainFolder in $ID1Array) {
-    Process-Folder -mainFolder $mainFolder
+    $jobs += Start-Job -ScriptBlock {
+        param ($mainFolder, $ID2Array)
+        . $MyInvocation.MyCommand.Path
+        Process-MainFolder -mainFolder $mainFolder -ID2Array $ID2Array
+    } -ArgumentList $mainFolder, $ID2Array
+    while ($jobs.Count -ge $MaxJobs) {
+        # Wait for any job to complete before starting a new one
+        $job = Wait-Job -Any
+        Receive-Job -Job $job
+        Remove-Job -Job $job
+        $jobs = $jobs | Where-Object { $_.State -eq 'Running' }
+    }
+}
+
+# Wait for all jobs to complete
+Wait-Job -Job $jobs
+foreach ($job in $jobs) {
+    Receive-Job -Job $job
+    Remove-Job -Job $job
 }
 
 # Verify the results array before exporting
