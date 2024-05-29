@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 00:00
+# PowerShell Script updated on 2024-05-29 at 00:10
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -20,7 +20,6 @@ if (-not (Test-Path -Path $DestinationPath)) {
 $global:results = @()
 $global:combinedSheets = @()
 $global:missedEntries = @()
-$global:combinedSummary = @()
 $global:fileInfo = @()
 
 function Log-Message {
@@ -118,45 +117,6 @@ function Process-Sheets {
     }
 }
 
-function Analyze-SummarySheet {
-    param (
-        [string]$filePath,
-        [string]$mainFolder,
-        [string]$subFolder,
-        [string]$remda
-    )
-    try {
-        $excel = Open-ExcelPackage -Path $filePath
-        $worksheet = $excel.Workbook.Worksheets["Summary"]
-
-        if ($worksheet -ne $null) {
-            $startRow = ($worksheet.Cells["A5:A20"] | Where-Object { $_.Text -match "Artifacts" }).Row
-            if ($startRow -ne $null) {
-                $lastRow = $worksheet.Dimension.End.Row
-                for ($row = $startRow + 1; $row -le $lastRow; $row++) {
-                    $artifactRow = $worksheet.Cells[$row, "A"].Text
-                    if ($artifactRow -eq "") { break }
-
-                    $global:combinedSummary += [PSCustomObject][ordered]@{
-                        MainFolder   = $mainFolder
-                        SubFolder    = $subFolder
-                        REMDA        = $remda
-                        ColumnA      = $worksheet.Cells[$row, "A"].Text
-                        ColumnB      = $worksheet.Cells[$row, "B"].Text
-                        ColumnC      = $worksheet.Cells[$row, "C"].Text
-                        ColumnD      = $worksheet.Cells[$row, "D"].Text
-                        ColumnE      = $worksheet.Cells[$row, "E"].Text
-                        ColumnF      = $worksheet.Cells[$row, "F"].Text
-                    }
-                }
-            }
-        }
-        $excel.Dispose()
-    } catch {
-        Log-Message "Error processing summary sheet from $($filePath): $($_)"
-    }
-}
-
 function Process-Folder {
     param (
         [string]$mainFolder
@@ -237,8 +197,6 @@ function Process-Folder {
                     $record.TotalCounts = $sheetData.TotalCounts
                     $record.MissedEntries = $sheetData.MissedEntries
                     $record.PercentCompletion = $sheetData.PercentCompletion
-
-                    Analyze-SummarySheet -filePath $latestFile.FullName -mainFolder $mainFolder -subFolder $subFolder.Name -remda $remda
                 } else {
                     $record.SheetNames = ""
                     $record.NumOfSheets = 0
@@ -283,7 +241,6 @@ if ($global:results.Count -gt 0) {
     $global:results | Export-Excel -Path $excelPath -WorksheetName "EDSummary" -AutoSize -AutoFilter
     $global:combinedSheets | Export-Excel -Path $excelPath -WorksheetName "CombinedSheets" -AutoSize -AutoFilter -Append
     $global:missedEntries | Export-Excel -Path $excelPath -WorksheetName "MissedEntries" -AutoSize -AutoFilter -Append
-    $global:combinedSummary | Export-Excel -Path $excelPath -WorksheetName "CombinedSummary" -AutoSize -AutoFilter -Append
     $global:fileInfo | Export-Excel -Path $excelPath -WorksheetName "FileInfo" -AutoSize -AutoFilter -Append
     Log-Message "Excel file has been created successfully at $excelPath."
 
