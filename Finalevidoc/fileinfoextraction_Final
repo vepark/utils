@@ -1,4 +1,4 @@
-#update920pm
+#updated 928pm
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
     [string]$DestinationPath = "\\server.com\folder1\folder2",
@@ -96,6 +96,9 @@ function Process-Folder {
 
             Log-Message "Adding record: $($record | Out-String)"
             $results += $record
+
+            # Verify each addition to the results array
+            Log-Message "Current results count: $($results.Count)"
         }
     }
 }
@@ -105,7 +108,7 @@ foreach ($mainFolder in $ID1Array) {
 }
 
 # Verify the results array before exporting
-Log-Message "Results array contains $($results.Count) items"
+Log-Message "Final results array contains $($results.Count) items"
 
 # Export results to CSV
 $csvPath = Join-Path -Path $DestinationPath -ChildPath "EDSummary.csv"
