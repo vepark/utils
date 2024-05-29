@@ -1,10 +1,12 @@
-# PowerShell Script updated on 2024-05-29 at 05:55
+# PowerShell Script updated on 2024-05-29 at 06:05
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
     [string]$DestinationPath = "\\server.com\folder1\folder2\output",
     [string]$ID1 = "12345,23456",
-    [string]$ID2 = "2345,3456"
+    [string]$ID2 = "2345,3456",
+    [int]$MaxJobs = 4,  # Maximum number of parallel jobs to run
+    [int]$MaxDepth = 3  # Maximum depth for recursive searches
 )
 
 # Convert comma-separated strings to arrays
@@ -131,7 +133,7 @@ function Process-Folder {
     }
 
     try {
-        $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
+        $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory -Depth $MaxDepth | ForEach-Object {
             $_.FullName
         }
     } catch {
@@ -247,9 +249,37 @@ function Process-Folder {
     }
 }
 
-# Process each main folder sequentially
-foreach ($mainFolder in $ID1Array) {
+# Function to process each main folder in parallel
+function Process-MainFolder {
+    param (
+        [string]$mainFolder,
+        [string[]]$ID2Array
+    )
     Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
+}
+
+# Create a job for each main folder
+$jobs = @()
+foreach ($mainFolder in $ID1Array) {
+    $jobs += Start-Job -ScriptBlock {
+        param ($mainFolder, $ID2Array)
+        Process-Folder -mainFolder $mainFolder -ID2Array $ID2Array
+    } -ArgumentList $mainFolder, $ID2Array
+
+    while ($jobs.Count -ge $MaxJobs) {
+        # Wait for any job to complete before starting a new one
+        $job = Wait-Job -Any
+        Receive-Job -Job $job
+        Remove-Job -Job $job
+        $jobs = $jobs | Where-Object { $_.State -eq 'Running' }
+    }
+}
+
+# Wait for all jobs to complete
+Wait-Job -Job $jobs
+foreach ($job in $jobs) {
+    Receive-Job -Job $job
+    Remove-Job -Job $job
 }
 
 # Verify the results array before exporting
