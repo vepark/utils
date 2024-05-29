@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 04:00
+# PowerShell Script updated on 2024-05-29 at 05:00
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -136,7 +136,7 @@ function Process-Folder {
             $_.FullName
         }
     } catch {
-        Log-Message "Error getting subfolders in $mainFolderPath: $($_)"
+        Log-Message "Error getting subfolders in $($mainFolderPath): $($_)"
         return
     }
 
@@ -165,7 +165,7 @@ function Process-Folder {
                 try {
                     $latestFile = Get-ChildItem -Path $subFolderPath -Recurse -File -Filter "*Evidence*Document*$id2*.xlsx" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
                 } catch {
-                    Log-Message "Error getting files in $subFolderPath: $($_)"
+                    Log-Message "Error getting files in $($subFolderPath): $($_)"
                 }
                 if ($latestFile) {
                     break
@@ -175,7 +175,7 @@ function Process-Folder {
             $allFileNames = try {
                 (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
             } catch {
-                Log-Message "Error getting file names in $subFolderPath: $($_)"
+                Log-Message "Error getting file names in $($subFolderPath): $($_)"
                 ""
             }
             # Deduplicate file names within each cell
