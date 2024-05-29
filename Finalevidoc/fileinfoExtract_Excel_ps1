@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-28 at 18:00
+# PowerShell Script updated on 2024-05-28 at 19:00
 
 param (
     [string]$BasePath = "C:\Your\Base Path With Spaces",
@@ -55,43 +55,33 @@ function Process-Sheets {
         [string]$subFolder,
         [string]$remda
     )
-    $excel = Open-ExcelPackage -Path $filePath
     $entryCount = 0
     $totalCount = 0
     $missedCount = 0
 
-    foreach ($sheet in $requiredSheets) {
-        $worksheet = $excel.Workbook.Worksheets[$sheet]
-        $lastRow = $worksheet.Dimension.End.Row
+    try {
+        $excel = Open-ExcelPackage -Path $filePath
+        foreach ($sheet in $requiredSheets) {
+            $worksheet = $excel.Workbook.Worksheets[$sheet]
+            $lastRow = $worksheet.Dimension.End.Row
 
-        for ($row = 1; $row -le $lastRow; $row++) {
-            $question = $worksheet.Cells[$row, 3].Text
-            $answer = $worksheet.Cells[$row, 4].Text
-            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 5].Text }
-            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 6].Text }
-            if ($answer -eq "") { $answer = $worksheet.Cells[$row, 7].Text }
+            for ($row = 1; $row -le $lastRow; $row++) {
+                $question = $worksheet.Cells[$row, 3].Text
+                $answer = $worksheet.Cells[$row, 4].Text
+                if ($answer -eq "") { $answer = $worksheet.Cells[$row, 5].Text }
+                if ($answer -eq "") { $answer = $worksheet.Cells[$row, 6].Text }
+                if ($answer -eq "") { $answer = $worksheet.Cells[$row, 7].Text }
 
-            if ($question -match ":$" -and -not $question.StartsWith("Note:")) {
-                $totalCount++
-                if ($answer -notmatch "^(YES|NO|PASS|NA)/(YES|NO|PASS|NA)$") {
-                    if ($answer -match "^(YES|NO|PASS|NA)$") {
-                        $entryCount++
-                    } else {
-                        $answer = ""
-                    }
+                if ($question -match ":$" -and -not $question.StartsWith("Note:")) {
+                    $totalCount++
+                    if ($answer -notmatch "^(YES|NO|PASS|NA)/(YES|NO|PASS|NA)$") {
+                        if ($answer -match "^(YES|NO|PASS|NA)$") {
+                            $entryCount++
+                        } else {
+                            $answer = ""
+                        }
 
-                    $global:combinedSheets += [PSCustomObject][ordered]@{
-                        MainFolder = $mainFolder
-                        SubFolder  = $subFolder
-                        REMDA      = $remda
-                        SheetName  = $sheet
-                        Question   = $question
-                        Answer     = $answer
-                    }
-
-                    if ($answer -eq "") {
-                        $missedCount++
-                        $global:missedEntries += [PSCustomObject][ordered]@{
+                        $global:combinedSheets += [PSCustomObject][ordered]@{
                             MainFolder = $mainFolder
                             SubFolder  = $subFolder
                             REMDA      = $remda
@@ -99,13 +89,26 @@ function Process-Sheets {
                             Question   = $question
                             Answer     = $answer
                         }
+
+                        if ($answer -eq "") {
+                            $missedCount++
+                            $global:missedEntries += [PSCustomObject][ordered]@{
+                                MainFolder = $mainFolder
+                                SubFolder  = $subFolder
+                                REMDA      = $remda
+                                SheetName  = $sheet
+                                Question   = $question
+                                Answer     = $answer
+                            }
+                        }
                     }
                 }
             }
         }
+        $excel.Dispose()
+    } catch {
+        Log-Message "Error processing sheets from $($filePath): $($_)"
     }
-
-    $excel.Dispose()
 
     return @{
         TotalEntries = $entryCount
@@ -123,34 +126,37 @@ function Process-SummarySheet {
         [string]$remda,
         [string]$allFileNames
     )
-    $excel = Open-ExcelPackage -Path $filePath
-    $worksheet = $excel.Workbook.Worksheets["Summary"]
-    $dmsFileNames = @()
+    try {
+        $excel = Open-ExcelPackage -Path $filePath
+        $worksheet = $excel.Workbook.Worksheets["Summary"]
+        $dmsFileNames = @()
 
-    if ($worksheet -ne $null) {
-        $startRow = ($worksheet.Cells["B5:B20"] | Where-Object { $_.Text -eq "DMS file name" }).Row
-        if ($startRow -ne $null) {
-            $lastRow = $worksheet.Dimension.End.Row
-            for ($row = $startRow + 1; $row -le $lastRow; $row++) {
-                $dmsFileName = $worksheet.Cells[$row, 2].Text
-                if ($dmsFileName -eq "") { break }
-                $dmsFileNames += $dmsFileName
+        if ($worksheet -ne $null) {
+            $startRow = ($worksheet.Cells["B5:B20"] | Where-Object { $_.Text -eq "DMS file name" }).Row
+            if ($startRow -ne $null) {
+                $lastRow = $worksheet.Dimension.End.Row
+                for ($row = $startRow + 1; $row -le $lastRow; $row++) {
+                    $dmsFileName = $worksheet.Cells[$row, 2].Text
+                    if ($dmsFileName -eq "") { break }
+                    $dmsFileNames += $dmsFileName
+                }
             }
         }
-    }
+        $excel.Dispose()
 
-    $excel.Dispose()
-
-    foreach ($dmsFileName in $dmsFileNames) {
-        $dmsPresence = if ($allFileNames -match "\b$dmsFileName(\.\w+)?\b") { "Yes" } else { "No" }
-        $global:combinedSummary += [PSCustomObject][ordered]@{
-            MainFolder   = $mainFolder
-            SubFolder    = $subFolder
-            REMDA        = $remda
-            DMSFileName  = $dmsFileName
-            AllFileNames = $allFileNames
-            DMSPresence  = $dmsPresence
+        foreach ($dmsFileName in $dmsFileNames) {
+            $dmsPresence = if ($allFileNames -match "\b$dmsFileName(\.\w+)?\b") { "Yes" } else { "No" }
+            $global:combinedSummary += [PSCustomObject][ordered]@{
+                MainFolder   = $mainFolder
+                SubFolder    = $subFolder
+                REMDA        = $remda
+                DMSFileName  = $dmsFileName
+                AllFileNames = $allFileNames
+                DMSPresence  = $dmsPresence
+            }
         }
+    } catch {
+        Log-Message "Error processing summary sheet from $($filePath): $($_)"
     }
 }
 
@@ -166,8 +172,8 @@ function Process-Folder {
         return
     }
 
-    Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
-        $subFolder = $_
+    $subFolders = Get-ChildItem -Path $mainFolderPath -Recurse -Directory
+    foreach ($subFolder in $subFolders) {
         $matchesID2 = $false
         $remda = ""
 
