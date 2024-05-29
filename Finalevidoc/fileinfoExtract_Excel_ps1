@@ -1,4 +1,4 @@
-# PowerShell Script updated on 2024-05-29 at 00:10
+# PowerShell Script updated on 2024-05-29 at 01:00
 
 param (
     [string]$BasePath = "\\server.com\folder1\folder2",
@@ -167,6 +167,7 @@ function Process-Folder {
                 REMDA           = $remda
                 FileName        = if ($latestFile) { $latestFile.Name } else { "" }
                 EDPresent       = if ($latestFile) { "Yes" } else { "No" }
+                SizeKB          = if ($latestFile) { [math]::Round($latestFile.Length / 1KB, 2) } else { 0 }
                 SheetNames      = ""
                 NumOfSheets     = 0
                 TemplateUsed    = "NO"
@@ -174,6 +175,7 @@ function Process-Folder {
                 MissedEntries   = 0
                 TotalCounts     = 0
                 PercentCompletion = 0
+                ModifiedDate    = if ($latestFile) { $latestFile.LastWriteTime } else { "" }
             }
 
             if ($latestFile) {
@@ -208,13 +210,13 @@ function Process-Folder {
                 MainFolder        = $mainFolder
                 SubFolder         = $subFolder.Name
                 REMDA             = $remda
-                AllFileNames      = $allFileNames
                 EDPresent         = if ($allFileNames -match "\bEvidence.*Document.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bEvidence.*Document.*\.xlsx\b" }) -join "; " } else { "No" }
                 ClearanceEmail    = if ($allFileNames -match "\bclear.*\.msg\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bclear.*\.msg\b" }) -join "; " } else { "No" }
                 EvidenceWorkbook  = if ($allFileNames -match "\bEvidence.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bEvidence.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
                 PeerReviewWorkbook = if ($allFileNames -match "\bPeer.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bPeer.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
                 PreScreenWorkbook = if ($allFileNames -match "\bPreScreen.*Workbook.*\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bPreScreen.*Workbook.*\.xlsx\b" }) -join "; " } else { "No" }
                 DAQCWorkbook      = if ($allFileNames -match "\bDAQC Workbook\.xlsx\b") { ($allFileNames -split "; " | Where-Object { $_ -match "\bDAQC Workbook\.xlsx\b" }) -join "; " } else { "No" }
+                AllFileNames      = $allFileNames
             }
 
             Log-Message "Adding record: $($record | Out-String)"
@@ -256,7 +258,7 @@ if ($global:results.Count -gt 0) {
 
     # Adjust column width for AllFileNames in FileInfo
     $fileInfoSheet = $sheet.Workbook.Worksheets["FileInfo"]
-    $fileInfoSheet.Column(4).Width = 100
+    $fileInfoSheet.Column(7).Width = 100
 
     $sheet.Save()
     $sheet.Dispose()
