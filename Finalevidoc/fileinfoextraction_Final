@@ -118,6 +118,7 @@ function Process-Folder {
 
     Get-ChildItem -Path $mainFolderPath -Recurse -Directory | ForEach-Object {
         $subFolder = $_
+        Log-Message "Checking subfolder: $($subFolder.Name)"
         if ($ID2Array -contains $subFolder.Name) {
             $subFolderPath = $subFolder.FullName
             Log-Message "Processing subfolder: $subFolderPath"
@@ -135,6 +136,7 @@ function Process-Folder {
                     SheetNames = Get-ExcelSheetNames -filePath $latestFile.FullName
                 }
 
+                Log-Message "Processing sheets in file: $($latestFile.FullName)"
                 $sheetNames = $record.SheetNames -split ", "
                 $sheetContent = Get-SheetContent -filePath $latestFile.FullName -sheetNames $sheetNames
                 $sheetData = $sheetContent[0]
@@ -142,6 +144,7 @@ function Process-Folder {
                 $combinedSheetData += $sheetData
                 $missedEntries += $missedData
 
+                Log-Message "Total entries: $($sheetData.Count), Total missed entries: $($missedData.Count)"
                 $totalEntries = $sheetData.Count
                 $totalMissedEntries = $missedData.Count
                 $percentCompletion = if ($totalEntries -ne 0) { [math]::Round((($totalEntries - $totalMissedEntries) / $totalEntries) * 100, 2) } else { 0 }
@@ -203,6 +206,8 @@ function Process-Folder {
                 DAQworkbook = if ($daqWorkbook) { "Yes ($($daqWorkbook.Name))" } else { "No" }
                 AllFileNames = (Get-ChildItem -Path $subFolderPath -Recurse -File | Select-Object -ExpandProperty Name) -join "; "
             }
+        } else {
+            Log-Message "Subfolder $($subFolder.Name) does not match any ID2 values"
         }
     }
 }
