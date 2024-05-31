@@ -1,0 +1,106 @@
+# Define parameters
+param (
+    [string]$BasePath = "C:\path\to\source\folders",
+    [string]$DestinationPath = "C:\path\to\destination\folders",
+    [string]$IDList = "main1_sub1,main2_sub2"  # Comma-separated list of mainfolder_subfolder
+)
+
+# Convert comma-separated list to an array
+$IDArray = $IDList -split ','
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Function to download the latest Evidence Document
+function Download-LatestEvidenceDocument {
+    param (
+        [string]$mainFolder,
+        [string]$subFolder
+    )
+
+    $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
+    $sourceSubFolder = Join-Path -Path $sourceFolder -ChildPath $subFolder
+
+    if (-not (Test-Path -Path $sourceSubFolder)) {
+        Write-Host "Subfolder path does not exist: $sourceSubFolder"
+        return
+    }
+
+    $destinationSubFolder = Join-Path -Path $DestinationPath -ChildPath "$mainFolder\$subFolder"
+    if (-not (Test-Path -Path $destinationSubFolder)) {
+        New-Item -ItemType Directory -Path $destinationSubFolder | Out-Null
+    }
+
+    $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*$subFolder*.xlsx" -Recurse |
+                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+    if (-not $latestFile) {
+        $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*.xlsx" -Recurse |
+                      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    if ($latestFile) {
+        Copy-Item -Path $latestFile.FullName -Destination $destinationSubFolder
+        Write-Host "Copied $($latestFile.Name) to $destinationSubFolder"
+        return $latestFile.FullName
+    } else {
+        Write-Host "No Evidence Document found in $sourceSubFolder"
+        return $null
+    }
+}
+
+# Function to extract CombinedSummary data from the Summary sheet
+function Extract-CombinedSummary {
+    param (
+        [string]$filePath,
+        [string]$mainFolder,
+        [string]$subFolder
+    )
+
+    # Load the Excel file and read the Summary sheet
+    $excel = Open-ExcelPackage -Path $filePath
+    $sheet = $excel.Workbook.Worksheets["Summary"]
+    $startRow = ($sheet.Cells | Where-Object { $_.Text -eq "DMS file name" }).Start.Row
+    $endRow = $sheet.Dimension.End.Row
+
+    $summaryData = @()
+    for ($row = $startRow + 1; $row -le $endRow; $row++) {
+        $dmsFileName = $sheet.Cells[$row, 2].Text
+        if ($dmsFileName) {
+            $summaryData += [PSCustomObject]@{
+                MainFolder = $mainFolder
+                SubFolder = $subFolder
+                DMSFileName = $dmsFileName
+            }
+        }
+    }
+
+    $excel.Dispose()
+    return $summaryData
+}
+
+# Prepare an array to collect summary data
+$global:combinedSummary = @()
+
+# Loop through each ID and process
+foreach ($ID in $IDArray) {
+    $splitID = $ID -split '_'
+    $mainFolder = $splitID[0]
+    $subFolder = $splitID[1]
+
+    $latestFilePath = Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder
+    if ($latestFilePath) {
+        $summaryData = Extract-CombinedSummary -filePath $latestFilePath -mainFolder $mainFolder -subFolder $subFolder
+        $global:combinedSummary += $summaryData
+    }
+}
+
+# Convert the collected summary data to a DataFrame and save to Excel
+if ($global:combinedSummary.Count -gt 0) {
+    $global:combinedSummary | Export-Excel -Path "$DestinationPath\CombinedSummary.xlsx" -WorksheetName "CombinedSummary" -AutoSize -AutoFilter
+    Write-Host "CombinedSummary.xlsx has been created successfully at $DestinationPath."
+} else {
+    Write-Host "No data found for CombinedSummary."
+}
