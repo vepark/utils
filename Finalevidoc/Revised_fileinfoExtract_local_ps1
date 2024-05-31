@@ -1,0 +1,139 @@
+# Define parameters
+param (
+    [string]$SourcePath = "C:\path\to\local\artifacts",
+    [string]$DestinationPath = "C:\path\to\destination\folders"
+)
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Define global result arrays
+$global:edSummary = @()
+$global:combinedSheets = @()
+$global:missedEntries = @()
+
+# Function to log messages
+function Log-Message {
+    param (
+        [string]$message
+    )
+    Write-Host "$(Get-Date -Format "yyyy-MM-dd HH:mm:ss") - $message"
+}
+
+# Function to process sheets
+function Process-Sheets {
+    param (
+        [string]$filePath,
+        [string]$fileName,
+        [string]$fourDigitNumber
+    )
+
+    $excel = Open-ExcelPackage -Path $filePath
+
+    # CombinedSheets
+    $sheetRanges = @("101-120", "201-232", "301-320")
+    $combinedSheetsData = @()
+    foreach ($range in $sheetRanges) {
+        $startRange = $range.Split('-')[0]
+        $endRange = $range.Split('-')[1]
+
+        for ($i = [int]$startRange; $i -le [int]$endRange; $i++) {
+            $sheetName = $i.ToString()
+            $sheet = $excel.Workbook.Worksheets[$sheetName]
+
+            if ($sheet) {
+                $startRow = 2
+                $endRow = $sheet.Dimension.End.Row
+
+                for ($row = $startRow; $row -le $endRow; $row++) {
+                    $question = $sheet.Cells[$row, 3].Text
+                    $answer = ""
+
+                    if ($sheet.Cells[$row, 4].Text -ne "") {
+                        $answer = $sheet.Cells[$row, 4].Text
+                    } elseif ($sheet.Cells[$row, 5].Text -ne "") {
+                        $answer = $sheet.Cells[$row, 5].Text
+                    } elseif ($sheet.Cells[$row, 6].Text -ne "") {
+                        $answer = $sheet.Cells[$row, 6].Text
+                    } elseif ($sheet.Cells[$row, 7].Text -ne "") {
+                        $answer = $sheet.Cells[$row, 7].Text
+                    }
+
+                    if ($question -ne "" -and $question -notmatch "^Note:" -and $question -match ":$" -and $answer -notmatch "PASS/NA" -and $answer -notmatch "YES/NO") {
+                        $combinedSheetsData += [PSCustomObject]@{
+                            FileName = $fileName
+                            FourDigitNumber = $fourDigitNumber
+                            SheetName = $sheetName
+                            Question = $question
+                            Answer = $answer
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    # MissedEntries
+    $missedEntriesData = $combinedSheetsData | Where-Object { $_.Answer -eq "" }
+
+    $excel.Dispose()
+    return @{
+        CombinedSheets = $combinedSheetsData
+        MissedEntries = $missedEntriesData
+    }
+}
+
+# Loop through each file in the source path
+$files = Get-ChildItem -Path $SourcePath -Filter "*Evidence*Document*.xlsx"
+foreach ($file in $files) {
+    $fileName = $file.Name
+    $fourDigitNumber = ($fileName -match "\d{4}") ? $matches[0] : ""
+
+    $result = Process-Sheets -filePath $file.FullName -fileName $fileName -fourDigitNumber $fourDigitNumber
+    $global:combinedSheets += $result.CombinedSheets
+    $global:missedEntries += $result.MissedEntries
+}
+
+# Calculate metrics for EDSummary
+$edSummaryData = $global:combinedSheets | Group-Object FileName | ForEach-Object {
+    $group = $_.Group
+    $totalEntries = $group.Count
+    $missedEntries = ($group | Where-Object { $_.Answer -eq "" }).Count
+    $totalCounts = $totalEntries + $missedEntries
+    $percentCompletion = if ($totalCounts -gt 0) { [math]::Round(($totalEntries / $totalCounts) * 100, 2) } else { 0 }
+
+    [PSCustomObject]@{
+        FileName = $_.Name
+        FourDigitNumber = ($_.Name -match "\d{4}") ? $matches[0] : ""
+        TotalEntries = $totalEntries
+        MissedEntries = $missedEntries
+        TotalCounts = $totalCounts
+        PercentCompletion = "$percentCompletion%"
+    }
+}
+
+$global:edSummary = $edSummaryData
+
+# Export data to Excel
+if ($global:edSummary.Count -gt 0) {
+    $global:edSummary | Export-Excel -Path "$DestinationPath\EDSummary.xlsx" -WorksheetName "EDSummary" -AutoSize -AutoFilter
+    Log-Message "EDSummary.xlsx has been created successfully at $DestinationPath."
+} else {
+    Log-Message "No data found for EDSummary."
+}
+
+if ($global:combinedSheets.Count -gt 0) {
+    $global:combinedSheets | Export-Excel -Path "$DestinationPath\CombinedSheets.xlsx" -WorksheetName "CombinedSheets" -AutoSize -AutoFilter
+    Log-Message "CombinedSheets.xlsx has been created successfully at $DestinationPath."
+} else {
+    Log-Message "No data found for CombinedSheets."
+}
+
+if ($global:missedEntries.Count -gt 0) {
+    $global:missedEntries | Export-Excel -Path "$DestinationPath\MissedEntries.xlsx" -WorksheetName "MissedEntries" -AutoSize -AutoFilter
+    Log-Message "MissedEntries.xlsx has been created successfully at $DestinationPath."
+} else {
+    Log-Message "No data found for MissedEntries."
+}
