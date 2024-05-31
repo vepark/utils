@@ -1,0 +1,19 @@
+### Mid-Year Self Assessment
+
+**1. Development of QA Automation Framework:**
+I architected and implemented a QA automation framework within the SAS Grid environment, enabling seamless execution of QA macros for report generation. This framework can handle varying inputs, from a single RED to thousands, by efficiently looping through assignments, error checks, and notifications. The system logs errors separately and organizes files and folders for optimal functionality. The program is scheduled to run intra-day, ensuring up-to-date reports as onshore and offshore teams add artifacts. Additionally, I explored the potential of SAS Viya and leveraged advanced Linux utilities like wget for direct artifact downloads from the DMS. I also developed Python and PowerShell solutions for extracting and processing text from PDF artifacts, integrating these processes into the SAS workflow for end-to-end automation.
+
+**2. Quality Management Deck:**
+I expanded the Quality Management deck by incorporating additional slides based on text mining of QA review findings data. I performed thematic analysis on a month-over-month basis, representing the insights through charts and illustrations in a PowerPoint deck. This deck is now a key resource for senior-level executives, aiding high-level decision-making.
+
+**3. Monitoring Team Support:**
+I supported the monitoring team by automating the analysis of 20,000 Excel worksheets, producing detailed reports on monitoring completion and artifact presence in the DMS. By integrating Jira and HR data, I provided insights into reviewer performance and completion rates. This automation, achieved using SAS and PowerShell, significantly reduced the workload, accomplishing in days what previously took two months for five full-time employees. The recurring nature of this report will continue to provide systematic monitoring and valuable insights for QA leadership and audit support.
+
+**4. Consultation and Problem-Solving:**
+I consulted with several QA team members, assisting them with data analysis and program-related issues, enhancing their productivity and problem-solving capabilities.
+
+**5. Establishment of GitHub Repository:**
+I established a GitHub repository and organized groups for the entire QA team, facilitating better version control, collaboration, and code management.
+
+**6. Code Provision and Support:**
+I created and provided SAS, Python, and PowerShell codes to multiple team members within QA. These codes were adapted and utilized to produce reports for leadership, demonstrating the practical application and effectiveness of these tools in meeting organizational goals.
