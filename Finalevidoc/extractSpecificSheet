@@ -17,7 +17,9 @@ if (-not (Test-Path -Path $DestinationPath)) {
 function Download-LatestEvidenceDocument {
     param (
         [string]$mainFolder,
-        [string]$subFolder
+        [string]$subFolder,
+        [string]$BasePath,
+        [string]$DestinationPath
     )
 
     $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
@@ -25,7 +27,7 @@ function Download-LatestEvidenceDocument {
 
     if (-not (Test-Path -Path $sourceSubFolder)) {
         Write-Host "Subfolder path does not exist: $sourceSubFolder"
-        return
+        return $null
     }
 
     $destinationSubFolder = Join-Path -Path $DestinationPath -ChildPath "$mainFolder\$subFolder"
@@ -44,7 +46,7 @@ function Download-LatestEvidenceDocument {
     if ($latestFile) {
         Copy-Item -Path $latestFile.FullName -Destination $destinationSubFolder
         Write-Host "Copied $($latestFile.Name) to $destinationSubFolder"
-        return $latestFile.FullName
+        return (Join-Path -Path $destinationSubFolder -ChildPath $latestFile.Name)
     } else {
         Write-Host "No Evidence Document found in $sourceSubFolder"
         return $null
@@ -90,7 +92,7 @@ foreach ($ID in $IDArray) {
     $mainFolder = $splitID[0]
     $subFolder = $splitID[1]
 
-    $latestFilePath = Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder
+    $latestFilePath = Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder -BasePath $BasePath -DestinationPath $DestinationPath
     if ($latestFilePath) {
         $summaryData = Extract-CombinedSummary -filePath $latestFilePath -mainFolder $mainFolder -subFolder $subFolder
         $global:combinedSummary += $summaryData
