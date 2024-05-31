@@ -1,0 +1,61 @@
+# Define parameters
+param (
+    [string]$BasePath = "C:\path\to\source\folders",
+    [string]$DestinationPath = "C:\path\to\destination\folders",
+    [string]$IDList = "main1_sub1,main2_sub2"  # Comma-separated list of mainfolder_subfolder
+)
+
+# Convert comma-separated list to an array
+$IDArray = $IDList -split ','
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Function to download the latest Evidence Document
+function Download-LatestEvidenceDocument {
+    param (
+        [string]$mainFolder,
+        [string]$subFolder
+    )
+
+    $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
+    $sourceSubFolder = Join-Path -Path $sourceFolder -ChildPath $subFolder
+
+    if (-not (Test-Path -Path $sourceSubFolder)) {
+        Write-Host "Subfolder path does not exist: $sourceSubFolder"
+        return
+    }
+
+    $destinationSubFolder = Join-Path -Path $DestinationPath -ChildPath "$mainFolder\$subFolder"
+    if (-not (Test-Path -Path $destinationSubFolder)) {
+        New-Item -ItemType Directory -Path $destinationSubFolder | Out-Null
+    }
+
+    $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*$subFolder*.xlsx" -Recurse |
+                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+    if (-not $latestFile) {
+        $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*.xlsx" -Recurse |
+                      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    if ($latestFile) {
+        Copy-Item -Path $latestFile.FullName -Destination $destinationSubFolder
+        Write-Host "Copied $($latestFile.Name) to $destinationSubFolder"
+    } else {
+        Write-Host "No Evidence Document found in $sourceSubFolder"
+    }
+}
+
+# Loop through each ID and process
+foreach ($ID in $IDArray) {
+    $splitID = $ID -split '_'
+    $mainFolder = $splitID[0]
+    $subFolder = $splitID[1]
+
+    Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder
+}
+
+Write-Host "Download completed. Files are located in $DestinationPath."
