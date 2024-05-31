@@ -17,7 +17,9 @@ if (-not (Test-Path -Path $DestinationPath)) {
 function Download-LatestEvidenceDocument {
     param (
         [string]$mainFolder,
-        [string]$subFolder
+        [string]$subFolder,
+        [string]$BasePath,
+        [string]$DestinationPath
     )
 
     $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
@@ -25,12 +27,7 @@ function Download-LatestEvidenceDocument {
 
     if (-not (Test-Path -Path $sourceSubFolder)) {
         Write-Host "Subfolder path does not exist: $sourceSubFolder"
-        return
-    }
-
-    $destinationSubFolder = Join-Path -Path $DestinationPath -ChildPath "$mainFolder\$subFolder"
-    if (-not (Test-Path -Path $destinationSubFolder)) {
-        New-Item -ItemType Directory -Path $destinationSubFolder | Out-Null
+        return $null
     }
 
     $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*$subFolder*.xlsx" -Recurse |
@@ -42,10 +39,13 @@ function Download-LatestEvidenceDocument {
     }
 
     if ($latestFile) {
-        Copy-Item -Path $latestFile.FullName -Destination $destinationSubFolder
-        Write-Host "Copied $($latestFile.Name) to $destinationSubFolder"
+        $destinationFilePath = Join-Path -Path $DestinationPath -ChildPath $latestFile.Name
+        Copy-Item -Path $latestFile.FullName -Destination $destinationFilePath -Force
+        Write-Host "Copied $($latestFile.Name) to $destinationPath"
+        return $destinationFilePath
     } else {
         Write-Host "No Evidence Document found in $sourceSubFolder"
+        return $null
     }
 }
 
@@ -55,7 +55,7 @@ foreach ($ID in $IDArray) {
     $mainFolder = $splitID[0]
     $subFolder = $splitID[1]
 
-    Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder
+    Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder -BasePath $BasePath -DestinationPath $DestinationPath
 }
 
 Write-Host "Download completed. Files are located in $DestinationPath."
