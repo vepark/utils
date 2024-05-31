@@ -89,7 +89,7 @@ function Process-Sheets {
 $files = Get-ChildItem -Path $SourcePath -Filter "*Evidence*Document*.xlsx"
 foreach ($file in $files) {
     $fileName = $file.Name
-    $fourDigitNumber = ($fileName -match "\d{4}") ? $matches[0] : ""
+    $fourDigitNumber = if ($fileName -match "\d{4}") { $matches[0] } else { "" }
 
     $result = Process-Sheets -filePath $file.FullName -fileName $fileName -fourDigitNumber $fourDigitNumber
     $global:combinedSheets += $result.CombinedSheets
@@ -106,7 +106,7 @@ $edSummaryData = $global:combinedSheets | Group-Object FileName | ForEach-Object
 
     [PSCustomObject]@{
         FileName = $_.Name
-        FourDigitNumber = ($_.Name -match "\d{4}") ? $matches[0] : ""
+        FourDigitNumber = if ($_.Name -match "\d{4}") { $matches[0] } else { "" }
         TotalEntries = $totalEntries
         MissedEntries = $missedEntries
         TotalCounts = $totalCounts
