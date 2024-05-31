@@ -13,7 +13,7 @@ if (-not (Test-Path -Path $DestinationPath)) {
     New-Item -ItemType Directory -Path $DestinationPath | Out-Null
 }
 
-# Function to download the latest Evidence Document
+# Function to find and copy the latest Evidence Document
 function Download-LatestEvidenceDocument {
     param (
         [string]$mainFolder,
@@ -23,28 +23,30 @@ function Download-LatestEvidenceDocument {
     )
 
     $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
-    $sourceSubFolder = Join-Path -Path $sourceFolder -ChildPath $subFolder
 
-    if (-not (Test-Path -Path $sourceSubFolder)) {
-        Write-Host "Subfolder path does not exist: $sourceSubFolder"
+    if (-not (Test-Path -Path $sourceFolder)) {
+        Write-Host "Main folder path does not exist: $sourceFolder"
         return $null
     }
 
-    $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*$subFolder*.xlsx" -Recurse |
-                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    # Find the subfolder within the main folder
+    $subFolderPath = Get-ChildItem -Path $sourceFolder -Directory -Recurse | Where-Object { $_.Name -like "*$subFolder*" }
 
-    if (-not $latestFile) {
-        $latestFile = Get-ChildItem -Path $sourceSubFolder -Filter "*Evidence*Document*.xlsx" -Recurse |
-                      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $subFolderPath) {
+        Write-Host "Subfolder matching $subFolder not found within $sourceFolder"
+        return $null
     }
+
+    $latestFile = Get-ChildItem -Path $subFolderPath.FullName -Filter "*Evidence*Document*$subFolder*.xlsx" -Recurse |
+                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     if ($latestFile) {
         $destinationFilePath = Join-Path -Path $DestinationPath -ChildPath $latestFile.Name
         Copy-Item -Path $latestFile.FullName -Destination $destinationFilePath -Force
-        Write-Host "Copied $($latestFile.Name) to $destinationPath"
+        Write-Host "Copied $($latestFile.Name) to $DestinationPath"
         return $destinationFilePath
     } else {
-        Write-Host "No Evidence Document found in $sourceSubFolder"
+        Write-Host "No Evidence Document found in $subFolderPath.FullName"
         return $null
     }
 }
