@@ -1,8 +1,7 @@
 # Define parameters
 param (
     [string]$SourcePath = "C:\path\to\local\artifacts",
-    [string]$DestinationPath = "C:\path\to\destination\folders",
-    [string]$ExcelFilePath = "C:\path\to\destination\FullReport.xlsx"
+    [string]$DestinationPath = "C:\path\to\destination\folders"
 )
 
 # Ensure the destination path exists
@@ -123,25 +122,6 @@ function Process-Sheets {
     }
 }
 
-# Function to append new data and dedupe
-function Append-And-Dedupe {
-    param (
-        [string]$sheetName,
-        [array]$newData,
-        [string]$excelFilePath
-    )
-
-    $existingData = @()
-    if (Test-Path -Path $excelFilePath) {
-        $existingData = Import-Excel -Path $excelFilePath -WorksheetName $sheetName
-    }
-
-    $combinedData = $existingData + $newData
-    $dedupedData = $combinedData | Sort-Object -Unique
-
-    return $dedupedData
-}
-
 # Loop through each file in the source path
 $files = Get-ChildItem -Path $SourcePath -Filter "*Evidence*Document*.xlsx"
 foreach ($file in $files) {
@@ -154,14 +134,10 @@ foreach ($file in $files) {
     $global:missedEntries += $result.MissedEntries
 }
 
-# Append new data and dedupe for EDSummary
-$dedupedEDSummary = Append-And-Dedupe -sheetName "EDSummary" -newData $global:edSummary -excelFilePath $ExcelFilePath
-$dedupedCombinedSheets = Append-And-Dedupe -sheetName "CombinedSheets" -newData $global:combinedSheets -excelFilePath $ExcelFilePath
-$dedupedMissedEntries = Append-And-Dedupe -sheetName "MissedEntries" -newData $global:missedEntries -excelFilePath $ExcelFilePath
-
 # Create a new Excel package or open existing one
-if (Test-Path -Path $ExcelFilePath) {
-    $excelPackage = Open-ExcelPackage -Path $ExcelFilePath
+$excelFilePath = Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"
+if (Test-Path -Path $excelFilePath) {
+    $excelPackage = Open-ExcelPackage -Path $excelFilePath
 } else {
     $excelPackage = New-ExcelPackage
 }
@@ -172,7 +148,7 @@ if ($worksheet) {
     $excelPackage.Workbook.Worksheets.Delete($worksheet)
 }
 $worksheet = $excelPackage.Workbook.Worksheets.Add("EDSummary")
-$dedupedEDSummary | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
+$global:edSummary | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
 Log-Message "EDSummary sheet has been updated."
 
 # Add or update CombinedSheets sheet
@@ -181,7 +157,7 @@ if ($worksheet) {
     $excelPackage.Workbook.Worksheets.Delete($worksheet)
 }
 $worksheet = $excelPackage.Workbook.Worksheets.Add("CombinedSheets")
-$dedupedCombinedSheets | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
+$global:combinedSheets | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
 Log-Message "CombinedSheets sheet has been updated."
 
 # Add or update MissedEntries sheet
@@ -190,9 +166,9 @@ if ($worksheet) {
     $excelPackage.Workbook.Worksheets.Delete($worksheet)
 }
 $worksheet = $excelPackage.Workbook.Worksheets.Add("MissedEntries")
-$dedupedMissedEntries | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
+$global:missedEntries | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
 Log-Message "MissedEntries sheet has been updated."
 
 # Save the Excel package
-$excelPackage.SaveAs((Join-Path -Path $DestinationPath -ChildPath "FullReport.xlsx"))
+$excelPackage.SaveAs($excelFilePath)
 Log-Message "FullReport.xlsx has been created successfully at $DestinationPath."
