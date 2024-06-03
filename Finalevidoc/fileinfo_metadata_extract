@@ -58,13 +58,21 @@ function Get-LatestEvidenceDocument {
         return $result
     }
 
+    # Ensure only one subfolder path is considered
+    if ($subFolderPath.Count -gt 1) {
+        $subFolderPath = $subFolderPath[0]
+    }
+
     # Define a function to get the latest file based on a pattern
     function Get-LatestFile {
         param (
             [string]$folderPath,
             [string]$pattern
         )
-        return Get-ChildItem -Path $folderPath -Filter $pattern -Recurse |
+        if (-not (Test-Path -Path $folderPath)) {
+            return $null
+        }
+        return Get-ChildItem -Path $folderPath -Filter $pattern -Recurse -ErrorAction SilentlyContinue |
                Sort-Object LastWriteTime -Descending | Select-Object -First 1
     }
 
@@ -116,7 +124,7 @@ function Get-LatestEvidenceDocument {
     }
 
     # Get all file names
-    $allFiles = Get-ChildItem -Path $subFolderPath.FullName -File -Recurse | Select-Object -ExpandProperty Name
+    $allFiles = Get-ChildItem -Path $subFolderPath.FullName -File -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
     $result.AllFileNames = $allFiles -join "; "
 
     return $result
