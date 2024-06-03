@@ -1,0 +1,49 @@
+/* Define the directory containing the log files */
+%let logdir = /path/to/log/files;
+
+/* Get the list of log files */
+filename loglist pipe "ls &logdir/*.log";
+
+data log_files;
+    infile loglist truncover;
+    input filename $100.;
+run;
+
+/* Macro to process each log file */
+%macro process_logs;
+    /* Create an empty dataset to store results */
+    data all_errors;
+        length filename $100 error_message $200;
+        stop;
+    run;
+
+    /* Loop through each log file */
+    data _null_;
+        set log_files;
+        call execute(cats('%nrstr(%process_log(', filename, '));'));
+    run;
+%mend process_logs;
+
+%macro process_log(logfile);
+    data log_errors;
+        infile "&logfile" truncover;
+        input line $200.;
+        if index(line, 'ERROR') > 0 then do;
+            filename = "&logfile";
+            error_message = line;
+            output;
+        end;
+        retain filename error_message;
+    run;
+
+    /* Append the errors to the combined dataset */
+    proc append base=all_errors data=log_errors;
+    run;
+%mend process_log;
+
+/* Run the macro to process logs */
+%process_logs;
+
+/* Display the combined dataset */
+proc print data=all_errors;
+run;
