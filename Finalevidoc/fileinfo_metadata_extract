@@ -1,0 +1,168 @@
+# Define parameters
+param (
+    [string]$BasePath = "C:\path\to\source\folders",
+    [string]$DestinationPath = "C:\path\to\destination\folders",
+    [string]$IDList = "main1_sub1,main2_sub2"  # Comma-separated list of mainfolder_subfolder
+)
+
+# Convert comma-separated list to an array
+$IDArray = $IDList -split ','
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Define global result arrays
+$global:fileInfo = @()
+
+# Function to log messages
+function Log-Message {
+    param (
+        [string]$message
+    )
+    Write-Host "$(Get-Date -Format "yyyy-MM-dd HH:mm:ss") - $message"
+}
+
+# Function to get the latest Evidence Document
+function Get-LatestEvidenceDocument {
+    param (
+        [string]$mainFolder,
+        [string]$subFolder,
+        [string]$BasePath
+    )
+
+    $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
+    $result = [PSCustomObject]@{
+        MainFolder = $mainFolder
+        SubFolder = $subFolder
+        EDPresence = "No"
+        ClearanceEmail = "No"
+        EvidenceWorkbook = "No"
+        PeerReviewWorkbook = "No"
+        PreScreenWorkbook = "No"
+        DAQCWorkbook = "No"
+        AllFileNames = ""
+    }
+
+    if (-not (Test-Path -Path $sourceFolder)) {
+        Write-Host "Main folder path does not exist: $sourceFolder"
+        return $result
+    }
+
+    # Find the subfolder within the main folder
+    $subFolderPath = Get-ChildItem -Path $sourceFolder -Directory -Recurse | Where-Object { $_.Name -like "*$subFolder*" }
+
+    if (-not $subFolderPath) {
+        Write-Host "Subfolder matching $subFolder not found within $sourceFolder"
+        return $result
+    }
+
+    # Define a function to get the latest file based on a pattern
+    function Get-LatestFile {
+        param (
+            [string]$folderPath,
+            [string]$pattern
+        )
+        return Get-ChildItem -Path $folderPath -Filter $pattern -Recurse |
+               Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    # Search within the "DAQC Validation" sub-subfolder first
+    $daqcValidationPath = Join-Path -Path $subFolderPath.FullName -ChildPath "DAQC Validation"
+    $latestFile = $null
+
+    if (Test-Path -Path $daqcValidationPath) {
+        $latestFile = Get-LatestFile -folderPath $daqcValidationPath -pattern "*Evidence*Document*$subFolder*.xlsx"
+    }
+
+    # If not found, search outside of "DAQC Validation" and fallback to general search
+    if (-not $latestFile) {
+        $latestFile = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Evidence*Document*$subFolder*.xlsx"
+    }
+
+    if (-not $latestFile) {
+        $latestFile = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Evidence*Document*.xlsx"
+    }
+
+    if ($latestFile) {
+        $result.EDPresence = "Yes (" + $latestFile.Name + ")"
+    }
+
+    # Search for other file types in the entire subfolder
+    $clearanceEmail = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*clear*.msg"
+    if ($clearanceEmail) {
+        $result.ClearanceEmail = "Yes (" + $clearanceEmail.Name + ")"
+    }
+
+    $evidenceWorkbook = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Evidence*Workbook*.xlsx"
+    if ($evidenceWorkbook) {
+        $result.EvidenceWorkbook = "Yes (" + $evidenceWorkbook.Name + ")"
+    }
+
+    $peerReviewWorkbook = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Peer*Workbook*.xlsx"
+    if ($peerReviewWorkbook) {
+        $result.PeerReviewWorkbook = "Yes (" + $peerReviewWorkbook.Name + ")"
+    }
+
+    $preScreenWorkbook = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*PreScreen*Workbook*.xlsx"
+    if ($preScreenWorkbook) {
+        $result.PreScreenWorkbook = "Yes (" + $preScreenWorkbook.Name + ")"
+    }
+
+    $daqcWorkbook = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*DAQC Workbook*.xlsx"
+    if ($daqcWorkbook) {
+        $result.DAQCWorkbook = "Yes (" + $daqcWorkbook.Name + ")"
+    }
+
+    # Get all file names
+    $allFiles = Get-ChildItem -Path $subFolderPath.FullName -File -Recurse | Select-Object -ExpandProperty Name
+    $result.AllFileNames = $allFiles -join "; "
+
+    return $result
+}
+
+# Loop through each ID and process
+foreach ($ID in $IDArray) {
+    $splitID = $ID -split '_'
+    $mainFolder = $splitID[0]
+    $subFolder = $splitID[1]
+
+    $result = Get-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder -BasePath $BasePath
+    $global:fileInfo += $result
+}
+
+# Create a new Excel package or open existing one
+$excelFilePath = Join-Path -Path $DestinationPath -ChildPath "FullReport_FileInfo.xlsx"
+if (Test-Path -Path $excelFilePath) {
+    $excelPackage = Open-ExcelPackage -Path $excelFilePath
+} else {
+    $excelPackage = New-ExcelPackage
+}
+
+# Add or update FileInfo sheet
+$worksheet = $excelPackage.Workbook.Worksheets["FileInfo"]
+if ($worksheet) {
+    $excelPackage.Workbook.Worksheets.Delete($worksheet)
+}
+$worksheet = $excelPackage.Workbook.Worksheets.Add("FileInfo")
+$global:fileInfo | Export-Excel -Worksheet $worksheet -AutoSize -AutoFilter
+Log-Message "FileInfo sheet has been updated."
+
+# Apply formatting to highlight blank cells and specific values
+$range = $worksheet.Dimension.Address
+$worksheet.Cells[$range].Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
+$worksheet.Cells[$range].Style.Fill.BackgroundColor.SetColor([System.Drawing.Color]::White)
+
+# Highlight blanks
+$blankCells = $worksheet.Cells[$range] | Where-Object { $_.Value -eq $null }
+$blankCells.Style.Fill.BackgroundColor.SetColor([System.Drawing.Color]::Yellow)
+
+# Highlight specific values
+$worksheet.Cells[$range] | Where-Object { $_.Value -match "No" } | ForEach-Object {
+    $_.Style.Fill.BackgroundColor.SetColor([System.Drawing.Color]::Red)
+}
+
+# Save the Excel package
+$excelPackage.SaveAs($excelFilePath)
+Log-Message "FullReport_FileInfo.xlsx has been created successfully at $DestinationPath."
