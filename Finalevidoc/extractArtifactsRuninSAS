@@ -1,0 +1,117 @@
+param (
+    [string]$BasePath,
+    [string]$DestinationPath,
+    [string]$IDList
+)
+
+# Convert comma-separated list to an array
+$IDArray = $IDList -split ','
+
+# Ensure the destination path exists
+if (-not (Test-Path -Path $DestinationPath)) {
+    New-Item -ItemType Directory -Path $DestinationPath | Out-Null
+}
+
+# Function to download the latest Evidence Document
+function Download-LatestEvidenceDocument {
+    param (
+        [string]$mainFolder,
+        [string]$subFolder,
+        [string]$BasePath,
+        [string]$DestinationPath
+    )
+
+    $sourceFolder = Join-Path -Path $BasePath -ChildPath $mainFolder
+
+    if (-not (Test-Path -Path $sourceFolder)) {
+        Write-Host "Main folder path does not exist: $sourceFolder"
+        return $null
+    }
+
+    # Find the subfolder within the main folder
+    $subFolderPath = Get-ChildItem -Path $sourceFolder -Directory -Recurse | Where-Object { $_.Name -like "*$subFolder*" }
+
+    if (-not $subFolderPath) {
+        Write-Host "Subfolder matching $subFolder not found within $sourceFolder"
+        return $null
+    }
+
+    # Define a function to get the latest file based on a pattern
+    function Get-LatestFile {
+        param (
+            [string]$folderPath,
+            [string]$pattern
+        )
+        return Get-ChildItem -Path $folderPath -Filter $pattern -Recurse |
+               Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    # Search within the "DAQC Validation" sub-subfolder first
+    $daqcValidationPath = Join-Path -Path $subFolderPath.FullName -ChildPath "DAQC Validation"
+    $latestFile = $null
+
+    if (Test-Path -Path $daqcValidationPath) {
+        $latestFile = Get-LatestFile -folderPath $daqcValidationPath -pattern "*Evidence*Document*$subFolder*.xlsx"
+    }
+
+    # If not found, search outside of "DAQC Validation" and fallback to general search
+    if (-not $latestFile) {
+        $latestFile = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Evidence*Document*$subFolder*.xlsx"
+    }
+
+    if (-not $latestFile) {
+        $latestFile = Get-LatestFile -folderPath $subFolderPath.FullName -pattern "*Evidence*Document*.xlsx"
+    }
+
+    if ($latestFile) {
+        # Check if filename already contains the 4-digit number
+        $fourDigitNumber = if ($subFolder -match "\d{4}") { $matches[0] } else { "" }
+        $destinationFileName = $latestFile.Name
+
+        if ($fourDigitNumber -ne "" -and $latestFile.Name -notmatch "\d{4}") {
+            $destinationFileName = [System.IO.Path]::GetFileNameWithoutExtension($latestFile.Name) + "_$mainFolder_$subFolder" + [System.IO.Path]::GetExtension($latestFile.Name)
+        }
+
+        $destinationFilePath = Join-Path -Path $DestinationPath -ChildPath $destinationFileName
+        Copy-Item -Path $latestFile.FullName -Destination $destinationFilePath -Force
+        Write-Host "Copied $($latestFile.Name) to $destinationFilePath"
+        return $destinationFilePath
+    } else {
+        Write-Host "No Evidence Document found in $subFolderPath.FullName"
+        return $null
+    }
+}
+
+# Loop through each ID and process
+foreach ($ID in $IDArray) {
+    $splitID = $ID -split '_'
+    $mainFolder = $splitID[0]
+    $subFolder = $splitID[1]
+
+    Download-LatestEvidenceDocument -mainFolder $mainFolder -subFolder $subFolder -BasePath $BasePath -DestinationPath $DestinationPath
+}
+
+Write-Host "Download completed. Files are located in $DestinationPath."
+
+
+
+
+
+
+
+
+%let BasePath = C:\path\to\source\folders;
+%let DestinationPath = C:\path\to\destination\folders;
+%let IDList = main1_sub1,main2_sub2;
+
+filename pscript temp;
+
+data _null_;
+    file pscript;
+    put 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\path\to\download_evidence_with_regex.ps1"';
+    put "-BasePath &BasePath";
+    put "-DestinationPath &DestinationPath";
+    put "-IDList &IDList";
+run;
+
+x '"C:\Windows\System32\cmd.exe" /c pscript';
