@@ -1,10 +1,11 @@
-/* Step 1: Identify Columns with Matching Criteria */
+/* Get the column information from both datasets */
 proc contents data=dataset1 out=contents1(keep=name type length) noprint;
 run;
 
 proc contents data=dataset2 out=contents2(keep=name type length) noprint;
 run;
 
+/* Find the matching columns by length and name pattern */
 proc sql;
     create table matching_columns as
     select a.name as col1, b.name as col2, a.type as type1, b.type as type2
@@ -14,69 +15,92 @@ proc sql;
       and (index(upcase(b.name), '_ID') > 0 or index(upcase(b.name), '_NO') > 0 or index(upcase(b.name), '_NUMBER') > 0);
 quit;
 
-/* Step 2: Extract the First Matching Key Columns */
-data _null_;
-    set matching_columns;
-    if _n_ = 1 then do;
-        call symputx('key1', col1);
-        call symputx('key2', col2);
-        call symputx('type1', type1);
-        call symputx('type2', type2);
-    end;
-run;
 
-/* Step 3: Convert Key Columns to Character for Comparison */
-data dataset1_mod;
-    set dataset1;
-    if &type1 = 1 then key1_mod = put(&key1, $20.);
-    else key1_mod = &key1;
-run;
+%macro compare_columns;
+    %local dsid nrows rc i col1 col2 type1 type2 key1 key2;
+    
+    /* Open the matching_columns dataset */
+    %let dsid = %sysfunc(open(matching_columns));
 
-data dataset2_mod;
-    set dataset2;
-    if &type2 = 1 then key2_mod = put(&key2, $20.);
-    else key2_mod = &key2;
-run;
+    /* Get the number of rows in matching_columns */
+    %let nrows = %sysfunc(attrn(&dsid, nlobs));
 
-/* Step 4: Perform the Comparison */
-proc sql;
-    create table comparison as
-    select a.key1_mod as key1_value, b.key2_mod as key2_value,
-           case when a.key1_mod = b.key2_mod then 1 else 0 end as match_flag
-    from dataset1_mod as a
-    full join dataset2_mod as b
-    on a.key1_mod = b.key2_mod;
-quit;
+    /* Loop through each row in matching_columns */
+    %do i = 1 %to &nrows;
+        %let rc = %sysfunc(fetchobs(&dsid, &i));
+        %let col1 = %sysfunc(getvarc(&dsid, %sysfunc(varnum(&dsid, col1))));
+        %let col2 = %sysfunc(getvarc(&dsid, %sysfunc(varnum(&dsid, col2))));
+        %let type1 = %sysfunc(getvarn(&dsid, %sysfunc(varnum(&dsid, type1))));
+        %let type2 = %sysfunc(getvarn(&dsid, %sysfunc(varnum(&dsid, type2))));
 
-/* Calculate the total matches and match percentage */
-proc sql;
-    select sum(match_flag) as match_count, 
-           count(*) as total_count,
-           calculated match_count / calculated total_count as match_percentage format=percent8.2
-    into :match_count, :total_count, :match_percentage
-    from comparison;
-quit;
-
-%put Match Count: &match_count;
-%put Total Count: &total_count;
-%put Match Percentage: &match_percentage;
-
-/* Step 5: Filter for 90% or More Matches */
-data final_matches;
-    set comparison;
-    if match_flag = 1 then output;
-run;
-
-/* Check if match percentage is 90% or more */
-%macro check_match_percentage;
-    %if &match_percentage >= 0.90 %then %do;
-        proc print data=final_matches;
-            title "Rows with Matching Key Columns (&key1 and &key2)";
+        /* Convert numeric columns to character for comparison */
+        data dataset1_mod;
+            set dataset1;
+            %if &type1 = 1 %then %do;
+                key1_mod = put(&col1, $20.);
+            %end;
+            %else %do;
+                key1_mod = &col1;
+            %end;
         run;
+
+        data dataset2_mod;
+            set dataset2;
+            %if &type2 = 1 %then %do;
+                key2_mod = put(&col2, $20.);
+            %end;
+            %else %do;
+                key2_mod = &col2;
+            %end;
+        run;
+
+        /* Perform the comparison */
+        proc sql;
+            create table comparison_&i as
+            select a.key1_mod as key1_value, b.key2_mod as key2_value,
+                   case when a.key1_mod = b.key2_mod then 1 else 0 end as match_flag
+            from dataset1_mod as a
+            full join dataset2_mod as b
+            on a.key1_mod = b.key2_mod;
+        quit;
+
+        /* Calculate the total matches and match percentage */
+        proc sql;
+            select sum(match_flag) as match_count, 
+                   count(*) as total_count,
+                   calculated match_count / calculated total_count as match_percentage format=percent8.2
+            into :match_count_&i, :total_count_&i, :match_percentage_&i
+            from comparison_&i;
+        quit;
+
+        %put Match Count: &&match_count_&i;
+        %put Total Count: &&total_count_&i;
+        %put Match Percentage: &&match_percentage_&i;
+
+        /* Filter for 90% or more matches */
+        data final_matches_&i;
+            set comparison_&i;
+            if match_flag = 1 then output;
+        run;
+
+        /* Check if match percentage is 90% or more */
+        %macro check_match_percentage(i);
+            %if &&match_percentage_&i >= 0.90 %then %do;
+                proc print data=final_matches_&i;
+                    title "Rows with Matching Key Columns (&&col1 and &&col2)";
+                run;
+            %end;
+            %else %do;
+                %put The match percentage for column pair &&col1 and &&col2 is less than 90%;
+            %end;
+        %mend;
+
+        %check_match_percentage(&i);
+
     %end;
-    %else %do;
-        %put The match percentage is less than 90%;
-    %end;
+
+    /* Close the matching_columns dataset */
+    %let rc = %sysfunc(close(&dsid));
 %mend;
 
-%check_match_percentage;
+%compare_columns;
