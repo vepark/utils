@@ -1,4 +1,4 @@
-/* Step 1: Identify Columns with the Same Length and Type */
+/* Step 1: Identify Columns with Matching Criteria */
 proc contents data=dataset1 out=contents1(keep=name type length) noprint;
 run;
 
@@ -7,9 +7,11 @@ run;
 
 proc sql;
     create table matching_columns as
-    select a.name as col1, b.name as col2
+    select a.name as col1, b.name as col2, a.type as type1, b.type as type2
     from contents1 as a, contents2 as b
-    where a.type = b.type and a.length = b.length;
+    where (a.length between 8 and 17) and (b.length between 8 and 17)
+      and (index(upcase(a.name), '_ID') > 0 or index(upcase(a.name), '_NO') > 0 or index(upcase(a.name), '_NUMBER') > 0)
+      and (index(upcase(b.name), '_ID') > 0 or index(upcase(b.name), '_NO') > 0 or index(upcase(b.name), '_NUMBER') > 0);
 quit;
 
 /* Step 2: Extract the First Matching Key Columns */
@@ -18,18 +20,22 @@ data _null_;
     if _n_ = 1 then do;
         call symputx('key1', col1);
         call symputx('key2', col2);
+        call symputx('type1', type1);
+        call symputx('type2', type2);
     end;
 run;
 
-/* Step 3: Ensure Data Types Match */
+/* Step 3: Convert Key Columns to Character for Comparison */
 data dataset1_mod;
     set dataset1;
-    key1_mod = put(&key1, $20.);
+    if &type1 = 1 then key1_mod = put(&key1, $20.);
+    else key1_mod = &key1;
 run;
 
 data dataset2_mod;
     set dataset2;
-    key2_mod = put(&key2, $20.);
+    if &type2 = 1 then key2_mod = put(&key2, $20.);
+    else key2_mod = &key2;
 run;
 
 /* Step 4: Perform the Comparison */
