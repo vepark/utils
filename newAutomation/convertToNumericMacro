@@ -1,0 +1,31 @@
+%macro convert_to_numeric(dataset, var);
+
+    /* Get variable type */
+    proc sql noprint;
+        select type into :var_type
+        from dictionary.columns
+        where libname='WORK' and memname=upcase("&dataset") and name=upcase("&var");
+    quit;
+
+    /* If character, convert to numeric */
+    %if &var_type = char %then %do;
+        data &dataset;
+            set &dataset;
+            num_var = input(&var, best32.);
+            drop &var;
+            rename num_var = &var;
+        run;
+    %end;
+
+    /* Format the variable to two decimal places */
+    data &dataset;
+        set &dataset;
+        &var = round(&var, 0.01); /* Ensure two decimal precision */
+        format &var 8.2;
+    run;
+
+%mend convert_to_numeric;
+
+/* Apply the macro to both datasets */
+%convert_to_numeric(dataset1, var);
+%convert_to_numeric(dataset2, var);
