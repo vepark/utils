@@ -1,4 +1,4 @@
-/* Step 1: Identify Columns with the Same Length */
+/* Step 1: Identify Columns with the Same Length and Type */
 proc contents data=dataset1 out=contents1(keep=name type length) noprint;
 run;
 
@@ -21,14 +21,25 @@ data _null_;
     end;
 run;
 
-/* Step 3: Perform the Comparison */
+/* Step 3: Ensure Data Types Match */
+data dataset1_mod;
+    set dataset1;
+    key1_mod = put(&key1, $20.);
+run;
+
+data dataset2_mod;
+    set dataset2;
+    key2_mod = put(&key2, $20.);
+run;
+
+/* Step 4: Perform the Comparison */
 proc sql;
     create table comparison as
-    select a.&key1 as key1_value, b.&key2 as key2_value,
-           case when a.&key1 = b.&key2 then 1 else 0 end as match_flag
-    from dataset1 as a
-    full join dataset2 as b
-    on a.&key1 = b.&key2;
+    select a.key1_mod as key1_value, b.key2_mod as key2_value,
+           case when a.key1_mod = b.key2_mod then 1 else 0 end as match_flag
+    from dataset1_mod as a
+    full join dataset2_mod as b
+    on a.key1_mod = b.key2_mod;
 quit;
 
 /* Calculate the total matches and match percentage */
@@ -44,7 +55,7 @@ quit;
 %put Total Count: &total_count;
 %put Match Percentage: &match_percentage;
 
-/* Step 4: Filter for 90% or More Matches */
+/* Step 5: Filter for 90% or More Matches */
 data final_matches;
     set comparison;
     if match_flag = 1 then output;
