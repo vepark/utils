@@ -1,0 +1,50 @@
+/* Step 1: Identify Columns with the Same Length */
+proc contents data=dataset1 out=contents1(keep=name type length) noprint;
+run;
+
+proc contents data=dataset2 out=contents2(keep=name type length) noprint;
+run;
+
+proc sql;
+    create table matching_columns as
+    select a.name as col1, b.name as col2
+    from contents1 as a, contents2 as b
+    where a.type = b.type and a.length = b.length;
+quit;
+
+/* Step 2: Extract the First Matching Key Columns */
+data _null_;
+    set matching_columns;
+    if _n_ = 1 then do;
+        call symputx('key1', col1);
+        call symputx('key2', col2);
+    end;
+run;
+
+/* Step 3: Perform the Comparison */
+proc sql;
+    create table comparison as
+    select a.&key1 as key1_value, b.&key2 as key2_value
+    from dataset1 as a
+    full join dataset2 as b
+    on a.&key1 = b.&key2;
+quit;
+
+/* Step 4: Generate the Report */
+proc sql;
+    select 
+        sum(case when key1_value = key2_value then 1 else 0 end) as match_count,
+        count(*) as total_count,
+        calculated match_count / calculated total_count as match_percentage format=percent8.2
+    into :match_count, :total_count, :match_percentage
+    from comparison;
+quit;
+
+%put Match Count: &match_count;
+%put Total Count: &total_count;
+%put Match Percentage: &match_percentage;
+
+/* Display the comparison results */
+proc print data=comparison;
+    title "Comparison of Key Columns (&key1 and &key2)";
+run;
