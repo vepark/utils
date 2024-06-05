@@ -1,11 +1,10 @@
-/* Get the column information from both datasets */
+/* Step 1: Identify Columns with Matching Criteria */
 proc contents data=dataset1 out=contents1(keep=name type length) noprint;
 run;
 
 proc contents data=dataset2 out=contents2(keep=name type length) noprint;
 run;
 
-/* Find the matching columns by length and name pattern */
 proc sql;
     create table matching_columns as
     select a.name as col1, b.name as col2, a.type as type1, b.type as type2
@@ -15,15 +14,19 @@ proc sql;
       and (index(upcase(b.name), '_ID') > 0 or index(upcase(b.name), '_NO') > 0 or index(upcase(b.name), '_NUMBER') > 0);
 quit;
 
-
+/* Step 2: Create a Macro to Compare Columns */
 %macro compare_columns;
-    %local dsid nrows rc i col1 col2 type1 type2 key1 key2;
-    
+    %local dsid nrows rc i col1 col2 type1 type2 key1 key2 exact_matches exact_match_count;
+
     /* Open the matching_columns dataset */
     %let dsid = %sysfunc(open(matching_columns));
 
     /* Get the number of rows in matching_columns */
     %let nrows = %sysfunc(attrn(&dsid, nlobs));
+
+    /* Initialize the exact matches macro variable */
+    %let exact_matches =;
+    %let exact_match_count = 0;
 
     /* Loop through each row in matching_columns */
     %do i = 1 %to &nrows;
@@ -73,34 +76,41 @@ quit;
             from comparison_&i;
         quit;
 
-        %put Match Count: &&match_count_&i;
-        %put Total Count: &&total_count_&i;
-        %put Match Percentage: &&match_percentage_&i;
-
-        /* Filter for 90% or more matches */
-        data final_matches_&i;
-            set comparison_&i;
-            if match_flag = 1 then output;
-        run;
-
-        /* Check if match percentage is 90% or more */
-        %macro check_match_percentage(i);
-            %if &&match_percentage_&i >= 0.90 %then %do;
-                proc print data=final_matches_&i;
-                    title "Rows with Matching Key Columns (&&col1 and &&col2)";
-                run;
-            %end;
-            %else %do;
-                %put The match percentage for column pair &&col1 and &&col2 is less than 90%;
-            %end;
-        %mend;
-
-        %check_match_percentage(&i);
+        /* Check if the match percentage is 100% */
+        %if &&match_percentage_&i = 1.00 %then %do;
+            %let exact_match_count = %eval(&exact_match_count + 1);
+            %let exact_matches = &exact_matches &col1=&col2;
+        %end;
 
     %end;
 
     /* Close the matching_columns dataset */
     %let rc = %sysfunc(close(&dsid));
+
+    /* Print only the exact matches */
+    %if &exact_match_count > 0 %then %do;
+        %put Exact Matches: &exact_matches;
+
+        /* Create a dataset with exact matches */
+        data final_exact_matches;
+            length key1_value key2_value $ 20;
+            set 
+            %do i = 1 %to &nrows;
+                %if &&match_percentage_&i = 1.00 %then %do;
+                    comparison_&i
+                %end;
+            %end;
+            ;
+            keep key1_value key2_value;
+        run;
+
+        proc print data=final_exact_matches;
+            title "Rows with Exact Matching Key Columns";
+        run;
+    %end;
+    %else %do;
+        %put No exact matches found;
+    %end;
 %mend;
 
 %compare_columns;
