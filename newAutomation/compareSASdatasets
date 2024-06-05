@@ -24,18 +24,18 @@ run;
 /* Step 3: Perform the Comparison */
 proc sql;
     create table comparison as
-    select a.&key1 as key1_value, b.&key2 as key2_value
+    select a.&key1 as key1_value, b.&key2 as key2_value,
+           case when a.&key1 = b.&key2 then 1 else 0 end as match_flag
     from dataset1 as a
     full join dataset2 as b
     on a.&key1 = b.&key2;
 quit;
 
-/* Step 4: Generate the Report */
+/* Calculate the total matches and match percentage */
 proc sql;
-    select 
-        sum(case when key1_value = key2_value then 1 else 0 end) as match_count,
-        count(*) as total_count,
-        calculated match_count / calculated total_count as match_percentage format=percent8.2
+    select sum(match_flag) as match_count, 
+           count(*) as total_count,
+           calculated match_count / calculated total_count as match_percentage format=percent8.2
     into :match_count, :total_count, :match_percentage
     from comparison;
 quit;
@@ -44,7 +44,22 @@ quit;
 %put Total Count: &total_count;
 %put Match Percentage: &match_percentage;
 
-/* Display the comparison results */
-proc print data=comparison;
-    title "Comparison of Key Columns (&key1 and &key2)";
+/* Step 4: Filter for 90% or More Matches */
+data final_matches;
+    set comparison;
+    if match_flag = 1 then output;
 run;
+
+/* Check if match percentage is 90% or more */
+%macro check_match_percentage;
+    %if &match_percentage >= 0.90 %then %do;
+        proc print data=final_matches;
+            title "Rows with Matching Key Columns (&key1 and &key2)";
+        run;
+    %end;
+    %else %do;
+        %put The match percentage is less than 90%;
+    %end;
+%mend;
+
+%check_match_percentage;
