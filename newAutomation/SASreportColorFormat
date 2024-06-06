@@ -1,0 +1,40 @@
+/* Sample data */
+data test;
+    input match_flag $ value;
+    datalines;
+PASS 10
+FAIL 20
+PASS 30
+FAIL 40
+PASS 50
+;
+run;
+
+/* Create a format for coloring the match_flag column */
+proc format;
+    value $flagcolor
+    'PASS' = 'lightgreen'
+    'FAIL' = 'lightyellow';
+run;
+
+/* Generate the report with color coding */
+ods listing close;
+ods html path='.' file='report.html' style=sasweb;
+
+proc report data=test nowd;
+    columns match_flag value;
+    define match_flag / display 'Match Flag';
+    define value / display 'Value';
+
+    compute match_flag;
+        if match_flag = 'PASS' then do;
+            call define(_row_, 'style', 'style=[background=lightgreen]');
+        end;
+        else if match_flag = 'FAIL' then do;
+            call define(_row_, 'style', 'style=[background=lightyellow]');
+        end;
+    endcomp;
+run;
+
+ods html close;
+ods listing;
