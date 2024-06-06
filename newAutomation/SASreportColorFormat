@@ -24,8 +24,17 @@ quit;
 %let pass_count = %eval(&total_count - &fail_count);
 
 /* Determine summary message */
-%let summary_message = %if &fail_count = 0 %then 100% matches;
-%else &fail_count fails out of &total_count;
+%macro generate_summary_message;
+    %global summary_message;
+    %if &fail_count = 0 %then %do;
+        %let summary_message = 100% matches;
+    %end;
+    %else %do;
+        %let summary_message = &fail_count fails out of &total_count;
+    %end;
+%mend generate_summary_message;
+
+%generate_summary_message;
 
 /* Macro to generate the report */
 %macro generate_report;
