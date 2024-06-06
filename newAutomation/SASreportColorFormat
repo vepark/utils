@@ -27,51 +27,55 @@ quit;
 %let summary_message = %if &fail_count = 0 %then 100% matches;
 %else &fail_count fails out of &total_count;
 
-/* Output to PDF with proper indexing */
-ods pdf file="report.pdf" style=journal bookmarkgen=yes;
+/* Macro to generate the report */
+%macro generate_report;
+    ods pdf file="report.pdf" style=journal bookmarkgen=yes;
 
-/* Print the summary message */
-ods proclabel "Summary";
-title "Summary of Match Results";
-footnote;
-proc report data=test(obs=1) nowd;
-    columns match_flag value;
-    define match_flag / noprint;
-    define value / noprint;
-    compute before;
-        line "&summary_message";
-    endcomp;
-run;
+    /* Print the summary message */
+    ods proclabel "Summary";
+    title "Summary of Match Results";
+    footnote;
+    proc report data=test(obs=1) nowd;
+        columns match_flag value;
+        define match_flag / noprint;
+        define value / noprint;
+        compute before;
+            line "&summary_message";
+        endcomp;
+    run;
 
-/* Print the detailed report */
-ods proclabel "Detailed Report";
-title "Detailed Report";
-proc report data=test nowd;
-    columns match_flag value;
-    define match_flag / display 'Match Flag';
-    define value / display 'Value';
-
-    compute match_flag;
-        if index(upcase(match_flag), 'PASS') then do;
-            call define(_col_, 'style', 'style=[background=lightgreen]');
-        end;
-        else if index(upcase(match_flag), 'FAIL') then do;
-            call define(_col_, 'style', 'style=[background=lightyellow]');
-        end;
-    endcomp;
-run;
-
-/* Print failed entries if any */
-%if &fail_count > 0 %then %do;
-    ods proclabel "Failed Entries";
-    title "Failed Entries";
-    proc report data=test(where=(index(upcase(match_flag), 'FAIL'))) nowd;
+    /* Print the detailed report */
+    ods proclabel "Detailed Report";
+    title "Detailed Report";
+    proc report data=test nowd;
         columns match_flag value;
         define match_flag / display 'Match Flag';
         define value / display 'Value';
+
+        compute match_flag;
+            if index(upcase(match_flag), 'PASS') then do;
+                call define(_col_, 'style', 'style=[background=lightgreen]');
+            end;
+            else if index(upcase(match_flag), 'FAIL') then do;
+                call define(_col_, 'style', 'style=[background=lightyellow]');
+            end;
+        endcomp;
     run;
-%end;
 
-ods pdf close;
+    /* Print failed entries if any */
+    %if &fail_count > 0 %then %do;
+        ods proclabel "Failed Entries";
+        title "Failed Entries";
+        proc report data=test(where=(index(upcase(match_flag), 'FAIL'))) nowd;
+            columns match_flag value;
+            define match_flag / display 'Match Flag';
+            define value / display 'Value';
+        run;
+    %end;
 
-ods listing;
+    ods pdf close;
+    ods listing;
+%mend generate_report;
+
+/* Generate the report */
+%generate_report;
