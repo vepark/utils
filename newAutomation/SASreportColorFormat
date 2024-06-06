@@ -38,3 +38,73 @@ run;
 
 ods html close;
 ods listing;
+
+
+
+
+
+
+
+
+/* Sample data */
+data test;
+    input match_flag $ value;
+    datalines;
+PASS 10
+FAIL 20
+PARTIALLY PASS 30
+TOTAL FAIL 40
+PASS WITH CONDITIONS 50
+;
+run;
+
+/* Calculate summary statistics using PROC SQL */
+proc sql;
+    select 
+        count(*) as total_count,
+        sum(case when index(upcase(match_flag), 'FAIL') then 1 else 0 end) as fail_count
+    into 
+        :total_count,
+        :fail_count
+    from test;
+quit;
+
+%let pass_count = %eval(&total_count - &fail_count);
+
+/* Determine summary message */
+%let summary_message = %if &fail_count = 0 %then 100% matches;
+%else &fail_count fails out of &total_count;
+
+/* Print the summary message and detailed report */
+ods listing close;
+ods html path='.' file='report.html' style=sasweb;
+
+proc report data=test nowd;
+    title "&summary_message";
+    columns match_flag value;
+    define match_flag / display 'Match Flag';
+    define value / display 'Value';
+
+    compute match_flag;
+        if index(upcase(match_flag), 'PASS') then do;
+            call define(_col_, 'style', 'style=[background=lightgreen]');
+        end;
+        else if index(upcase(match_flag), 'FAIL') then do;
+            call define(_col_, 'style', 'style=[background=lightyellow]');
+        end;
+    endcomp;
+run;
+
+ods html close;
+ods listing;
+
+/* Print failed entries if any */
+%if &fail_count > 0 %then %do;
+    ods html path='.' file='failed_report.html' style=sasweb;
+    proc report data=test(where=(index(upcase(match_flag), 'FAIL'))) nowd;
+        columns match_flag value;
+        define match_flag / display 'Match Flag';
+        define value / display 'Value';
+    run;
+    ods html close;
+%end;
