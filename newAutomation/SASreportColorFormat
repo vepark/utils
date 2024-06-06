@@ -39,27 +39,25 @@ quit;
 /* Macro to generate the report */
 %macro generate_report;
     ods pdf file="report.pdf" style=journal bookmarkgen=yes;
+    ods escapechar='^';
+    
+    /* Adjust font size and margins to fit everything on one page */
+    ods pdf startpage=never;
+    ods layout gridded width=8.5in height=11in;
 
     /* Print the summary message */
     ods proclabel "Summary";
-    title "Summary of Match Results";
-    footnote;
-    proc report data=test(obs=1) nowd;
-        columns match_flag value;
-        define match_flag / noprint;
-        define value / noprint;
-        compute before;
-            line "&summary_message";
-        endcomp;
-    run;
+    title height=8pt "Summary of Match Results";
+    ods text="^S={font_size=10pt} &summary_message";
+    ods text="^S={just=center font_size=10pt} ^{newline 4}"; /* Add 4-5 line breaks */
 
     /* Print the detailed report */
     ods proclabel "Detailed Report";
-    title "Detailed Report";
+    title height=8pt "Detailed Report";
     proc report data=test nowd;
         columns match_flag value;
-        define match_flag / display 'Match Flag';
-        define value / display 'Value';
+        define match_flag / display 'Match Flag' style(column)=[font_size=8pt];
+        define value / display 'Value' style(column)=[font_size=8pt];
 
         compute match_flag;
             if index(upcase(match_flag), 'PASS') then do;
@@ -71,17 +69,20 @@ quit;
         endcomp;
     run;
 
+    ods text="^S={just=center font_size=10pt} ^{newline 4}"; /* Add 4-5 line breaks */
+
     /* Print failed entries if any */
     %if &fail_count > 0 %then %do;
         ods proclabel "Failed Entries";
-        title "Failed Entries";
+        title height=8pt "Failed Entries";
         proc report data=test(where=(index(upcase(match_flag), 'FAIL'))) nowd;
             columns match_flag value;
-            define match_flag / display 'Match Flag';
-            define value / display 'Value';
+            define match_flag / display 'Match Flag' style(column)=[font_size=8pt];
+            define value / display 'Value' style(column)=[font_size=8pt];
         run;
     %end;
 
+    ods layout end;
     ods pdf close;
     ods listing;
 %mend generate_report;
