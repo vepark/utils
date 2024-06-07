@@ -1,0 +1,43 @@
+import os
+import pandas as pd
+import re
+
+# Define the root folder containing the subfolders with Excel files
+root_folder_path = r'C:\Path\To\RootFolder'
+output_file_path = r'C:\Path\To\Output\CombinedFile.xlsx'
+sheet_name = 'Monitoring Criteria'
+
+# Function to extract the 4-digit number from the filename
+def extract_4digit_number(filename):
+    match = re.search(r'\d{4}', filename)
+    return match.group(0) if match else 'NoMatch'
+
+# List to hold dataframes
+combined_data = []
+
+# Loop through each file in the root folder
+for foldername, subfolders, filenames in os.walk(root_folder_path):
+    for filename in filenames:
+        if filename.endswith('.xlsx'):
+            file_path = os.path.join(foldername, filename)
+            try:
+                # Read the specified sheet
+                df = pd.read_excel(file_path, sheet_name=sheet_name)
+                # Remove entirely empty rows
+                df.dropna(how='all', inplace=True)
+                # Add the filename with 4-digit number in the first column
+                df.insert(0, 'FileName', extract_4digit_number(filename))
+                # Append to the list
+                combined_data.append(df)
+            except Exception as e:
+                print(f"Skipping file {filename}: {e}")
+
+# Concatenate all dataframes
+if combined_data:
+    combined_df = pd.concat(combined_data, ignore_index=True)
+    # Save to an Excel file
+    combined_df.to_excel(output_file_path, index=False, engine='openpyxl')
+else:
+    print("No data combined. Please check the files and sheet names.")
+
+print(f"Combined file saved to {output_file_path}")
