@@ -1,0 +1,59 @@
+%let rootFolderPath = /path/to/root/folder;
+%let outputFilePath = /path/to/output/CombinedFile.xlsx;
+%let sheetName = Monitoring Criteria;
+
+libname outlib xlsx "&outputFilePath";
+
+/* Create an empty dataset to combine data */
+data combined;
+    length FileName $100;
+    stop;
+run;
+
+%macro combine_sheets;
+    /* Get the list of files in the root folder */
+    filename files pipe "ls &rootFolderPath/*.xlsx";
+
+    data files_list;
+        infile files truncover;
+        input file_name $100.;
+    run;
+
+    /* Loop through each file */
+    data _null_;
+        set files_list;
+        call execute(cat('
+            libname inlib xlsx "', "&rootFolderPath", '/', trim(file_name), '";
+            
+            data _null_;
+                if exists("inlib.", "&sheetName.", "n") then do;
+                    call execute("
+                        data temp;
+                            set inlib.', "&sheetName.", ';
+                            FileName = "', scan(file_name, -2, '/'), '";
+                        run;
+                        
+                        proc append base=combined data=temp force;
+                        run;
+                    ");
+                end;
+            run;
+
+            libname inlib clear;
+        '));
+    run;
+%mend combine_sheets;
+
+%combine_sheets;
+
+/* Remove duplicates and save final dataset */
+proc sort data=combined nodupkey;
+    by _all_;
+run;
+
+/* Write the final combined dataset to Excel */
+data outlib.&sheetName.;
+    set combined;
+run;
+
+libname outlib clear;
