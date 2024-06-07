@@ -1,0 +1,88 @@
+# Define the root folder containing the subfolders with Excel files
+$rootFolderPath = "C:\Path\To\RootFolder"
+$outputFile = "C:\Path\To\Output\CombinedFile.xlsx"
+$sheetName = "Monitoring Criteria"
+
+# Load the Excel COM object
+$excel = New-Object -ComObject Excel.Application
+$excel.Visible = $false
+$excel.DisplayAlerts = $false
+
+# Create a new workbook for the combined data
+$combinedWorkbook = $excel.Workbooks.Add()
+$combinedSheet = $combinedWorkbook.Sheets.Item(1)
+$combinedRow = 1
+
+# Track files with different structures
+$differentFiles = @()
+
+# Loop through each subfolder
+Get-ChildItem -Path $rootFolderPath -Directory | ForEach-Object {
+    $folderPath = $_.FullName
+
+    # Loop through each Excel file in the subfolder
+    Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
+        $filePath = $_.FullName
+        $fileName = $_.Name
+
+        # Open the workbook
+        $workbook = $excel.Workbooks.Open($filePath)
+        $sheet = $null
+
+        # Check if the sheet exists
+        try {
+            $sheet = $workbook.Sheets.Item($sheetName)
+        } catch {
+            # Sheet not found, add to differentFiles and skip
+            $differentFiles += $fileName
+            $workbook.Close($false)
+            return
+        }
+
+        # Check if structure matches
+        $header = $sheet.Rows.Item(1).Value2
+        if ($combinedRow -eq 1) {
+            # Copy the header row
+            $sheet.Rows.Item(1).Copy()
+            $combinedSheet.Rows.Item($combinedRow).PasteSpecial(-4163)
+            $combinedRow++
+        } else {
+            $combinedHeader = $combinedSheet.Rows.Item(1).Value2
+            if (-not ($header -eq $combinedHeader)) {
+                # Structure does not match, add to differentFiles and skip
+                $differentFiles += $fileName
+                $workbook.Close($false)
+                return
+            }
+        }
+
+        # Copy the data to the combined sheet
+        $lastRow = $sheet.UsedRange.Rows.Count
+        $sheet.Range("A2:$($sheet.UsedRange.Columns.Count)$lastRow").Copy()
+        $combinedSheet.Cells.Item($combinedRow, 2).PasteSpecial(-4163)
+        
+        # Add the filename in the first column
+        for ($row = 2; $row -le $lastRow; $row++) {
+            $combinedSheet.Cells.Item($combinedRow, 1).Value2 = $fileName
+            $combinedRow++
+        }
+        
+        # Close the workbook
+        $workbook.Close($false)
+    }
+}
+
+# Save the combined workbook
+$combinedWorkbook.SaveAs($outputFile)
+$combinedWorkbook.Close()
+$excel.Quit()
+
+# Output files with different structures
+if ($differentFiles.Count -gt 0) {
+    Write-Host "Files with different structures:"
+    $differentFiles | ForEach-Object { Write-Host $_ }
+}
+
+# Release the COM object
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+Remove-Variable excel
