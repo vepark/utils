@@ -13,9 +13,6 @@ $combinedWorkbook = $excel.Workbooks.Add()
 $combinedSheet = $combinedWorkbook.Sheets.Item(1)
 $combinedRow = 1
 
-# Track files with different structures
-$differentFiles = @()
-
 # Function to extract the 4-digit number from filename
 function Get-4DigitNumberFromFileName {
     param ($fileName)
@@ -41,8 +38,10 @@ Get-ChildItem -Path $rootFolderPath -Directory | ForEach-Object {
         # Check if the sheet exists
         try {
             $sheet = $workbook.Sheets.Item($sheetName)
+            Write-Host "Processing file: $fileName"
         } catch {
             # Sheet not found, ignore this file
+            Write-Host "Skipping file (sheet not found): $fileName"
             $workbook.Close($false)
             return
         }
