@@ -16,6 +16,15 @@ $combinedRow = 1
 # Track files with different structures
 $differentFiles = @()
 
+# Function to extract the 4-digit number from filename
+function Get-4DigitNumberFromFileName {
+    param ($fileName)
+    if ($fileName -match "\d{4}") {
+        return $matches[0]
+    }
+    return "NoMatch"
+}
+
 # Loop through each subfolder
 Get-ChildItem -Path $rootFolderPath -Directory | ForEach-Object {
     $folderPath = $_.FullName
@@ -33,38 +42,31 @@ Get-ChildItem -Path $rootFolderPath -Directory | ForEach-Object {
         try {
             $sheet = $workbook.Sheets.Item($sheetName)
         } catch {
-            # Sheet not found, add to differentFiles and skip
-            $differentFiles += $fileName
+            # Sheet not found, ignore this file
             $workbook.Close($false)
             return
         }
 
-        # Check if structure matches
-        $header = $sheet.Rows.Item(1).Value2
+        # Copy the header row only once
         if ($combinedRow -eq 1) {
-            # Copy the header row
-            $sheet.Rows.Item(1).Copy()
-            $combinedSheet.Rows.Item($combinedRow).PasteSpecial(-4163)
+            $sheet.Range("A1:H1").Copy()
+            $combinedSheet.Cells.Item($combinedRow, 2).PasteSpecial(-4163)
+            $combinedSheet.Cells.Item($combinedRow, 1).Value2 = "FileName"
             $combinedRow++
-        } else {
-            $combinedHeader = $combinedSheet.Rows.Item(1).Value2
-            if (-not ($header -eq $combinedHeader)) {
-                # Structure does not match, add to differentFiles and skip
-                $differentFiles += $fileName
-                $workbook.Close($false)
-                return
-            }
         }
 
-        # Copy the data to the combined sheet
+        # Copy the data to the combined sheet, excluding the header row
         $lastRow = $sheet.UsedRange.Rows.Count
-        $sheet.Range("A2:$($sheet.UsedRange.Columns.Count)$lastRow").Copy()
-        $combinedSheet.Cells.Item($combinedRow, 2).PasteSpecial(-4163)
-        
-        # Add the filename in the first column
-        for ($row = 2; $row -le $lastRow; $row++) {
-            $combinedSheet.Cells.Item($combinedRow, 1).Value2 = $fileName
-            $combinedRow++
+        if ($lastRow -gt 1) {
+            $sheet.Range("A2:H$lastRow").Copy()
+            $combinedSheet.Cells.Item($combinedRow, 2).PasteSpecial(-4163)
+
+            # Add the filename with 4-digit number in the first column
+            $fileIdentifier = Get-4DigitNumberFromFileName -fileName $fileName
+            for ($row = 2; $row -le $lastRow; $row++) {
+                $combinedSheet.Cells.Item($combinedRow, 1).Value2 = $fileIdentifier
+                $combinedRow++
+            }
         }
         
         # Close the workbook
@@ -76,12 +78,6 @@ Get-ChildItem -Path $rootFolderPath -Directory | ForEach-Object {
 $combinedWorkbook.SaveAs($outputFile)
 $combinedWorkbook.Close()
 $excel.Quit()
-
-# Output files with different structures
-if ($differentFiles.Count -gt 0) {
-    Write-Host "Files with different structures:"
-    $differentFiles | ForEach-Object { Write-Host $_ }
-}
 
 # Release the COM object
 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
