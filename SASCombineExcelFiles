@@ -1,64 +1,36 @@
 
-%let rootFolderPath = C:\Path\To\RootFolder;
-%let outputFilePath = C:\Path\To\Output\CombinedFile.xlsx;
-%let sheetName = Monitoring Criteria;
-
-/* Create an empty dataset to combine data */
-data combined;
-    length FileName $100;
-    stop;
-run;
-
-/* Macro to process each file */
-%macro combineExcel(filename=);
-    libname inlib xlsx "&rootFolderPath\&filename.";
+/* Macro to import each file and prefix the output dataset */
+%macro importall(dir =, physname =);
+    options nodate nonumber validvarname=V7;
+    libname tmp xlsx "&dir.&physname.";
     
-    proc sql noprint;
-        select count(*) into: sheet_exists from dictionary.tables 
-        where libname="INLIB" and memname=upcase("&sheetName");
+    /* Create a unique dataset name based on the file name */
+    %let dsname = %sysfunc(tranwrd(&physname., ., _));
+    %let dsname = %sysfunc(tranwrd(&dsname., -, _));
+    
+    proc datasets library=tmp;
+        copy out=work prefix=&dsname._;
     quit;
+    
+    libname tmp clear;
+%mend importall;
 
-    %if &sheet_exists %then %do;
-        data temp;
-            set inlib.&sheetName;
-            FileName = "&filename";
-        run;
-
-        proc append base=combined data=temp force;
-        run;
-    %end;
-
-    libname inlib clear;
-%mend combineExcel;
-
-/* Get the list of files in the root folder */
-filename files pipe "dir /b &rootFolderPath\*.xlsx";
-
-data files_list;
-    infile files truncover;
-    input filename $100.;
+data test (keep=dir physname);
+    filename thisdir "&rootFolderPath.";
+    dir = "&rootFolderPath.";
+    did = dopen('thisdir');
+    numfiles = dnum(did);
+    do i = 1 to numfiles;
+        physname = dread(did, i);
+        if scan(physname, 2, ".") = "xlsx" then output;
+    end;
+    rc = dclose(did);
 run;
 
-/* Loop through each file */
 data _null_;
-    set files_list;
-    call execute('%combineExcel(filename=' || strip(filename) || ');');
+    set test;
+    call execute('%importall(dir=' || strip(dir) || ', physname=' || strip(physname) || ');');
 run;
-
-/* Remove entirely empty rows */
-data combined_clean;
-    set combined;
-    if cmiss(of _all_) < dim(_all_);
-run;
-
-/* Export the final combined dataset to Excel */
-libname outlib xlsx "&outputFilePath";
-data outlib.&sheetName;
-    set combined_clean;
-run;
-libname outlib clear;
-
-
 
 
 
