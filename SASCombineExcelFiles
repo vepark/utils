@@ -1,3 +1,68 @@
+
+%let rootFolderPath = C:\Path\To\RootFolder;
+%let outputFilePath = C:\Path\To\Output\CombinedFile.xlsx;
+%let sheetName = Monitoring Criteria;
+
+/* Create an empty dataset to combine data */
+data combined;
+    length FileName $100;
+    stop;
+run;
+
+/* Macro to process each file */
+%macro combineExcel(filename=);
+    libname inlib xlsx "&rootFolderPath\&filename.";
+    
+    proc sql noprint;
+        select count(*) into: sheet_exists from dictionary.tables 
+        where libname="INLIB" and memname=upcase("&sheetName");
+    quit;
+
+    %if &sheet_exists %then %do;
+        data temp;
+            set inlib.&sheetName;
+            FileName = "&filename";
+        run;
+
+        proc append base=combined data=temp force;
+        run;
+    %end;
+
+    libname inlib clear;
+%mend combineExcel;
+
+/* Get the list of files in the root folder */
+filename files pipe "dir /b &rootFolderPath\*.xlsx";
+
+data files_list;
+    infile files truncover;
+    input filename $100.;
+run;
+
+/* Loop through each file */
+data _null_;
+    set files_list;
+    call execute('%combineExcel(filename=' || strip(filename) || ');');
+run;
+
+/* Remove entirely empty rows */
+data combined_clean;
+    set combined;
+    if cmiss(of _all_) < dim(_all_);
+run;
+
+/* Export the final combined dataset to Excel */
+libname outlib xlsx "&outputFilePath";
+data outlib.&sheetName;
+    set combined_clean;
+run;
+libname outlib clear;
+
+
+
+
+
+
 %let rootFolderPath = C:\Path\To\RootFolder;
 %let outputFilePath = C:\Path\To\Output\CombinedFile.xlsx;
 %let sheetName = Monitoring Criteria;
