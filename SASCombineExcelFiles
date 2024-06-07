@@ -1,5 +1,5 @@
-%let rootFolderPath = /path/to/root/folder;
-%let outputFilePath = /path/to/output/CombinedFile.xlsx;
+%let rootFolderPath = C:\Path\To\RootFolder;
+%let outputFilePath = C:\Path\To\Output\CombinedFile.xlsx;
 %let sheetName = Monitoring Criteria;
 
 libname outlib xlsx "&outputFilePath";
@@ -12,7 +12,7 @@ run;
 
 %macro combine_sheets;
     /* Get the list of files in the root folder */
-    filename files pipe "ls &rootFolderPath/*.xlsx";
+    filename files pipe "dir /b &rootFolderPath\*.xlsx";
 
     data files_list;
         infile files truncover;
@@ -23,21 +23,25 @@ run;
     data _null_;
         set files_list;
         call execute(cat('
-            libname inlib xlsx "', "&rootFolderPath", '/', trim(file_name), '";
+            libname inlib xlsx "', "&rootFolderPath\", trim(file_name), '";
             
-            data _null_;
-                if exists("inlib.", "&sheetName.", "n") then do;
-                    call execute("
-                        data temp;
-                            set inlib.', "&sheetName.", ';
-                            FileName = "', scan(file_name, -2, '/'), '";
-                        run;
-                        
-                        proc append base=combined data=temp force;
-                        run;
-                    ");
-                end;
+            proc datasets library=inlib nolist;
+                contents data=&sheetName. out=check_sheet(keep=memname) noprint;
             run;
+
+            proc sql noprint;
+                select count(*) into: sheet_exists from check_sheet where memname="&sheetName.";
+            quit;
+
+            %if &sheet_exists %then %do;
+                data temp;
+                    set inlib.', "&sheetName.", ';
+                    FileName = "', scan(file_name, -2, '\'), '";
+                run;
+
+                proc append base=combined data=temp force;
+                run;
+            %end;
 
             libname inlib clear;
         '));
@@ -46,14 +50,15 @@ run;
 
 %combine_sheets;
 
-/* Remove duplicates and save final dataset */
-proc sort data=combined nodupkey;
-    by _all_;
+/* Remove entirely empty rows */
+data combined_clean;
+    set combined;
+    if cmiss(of _all_) < dim(_all_);
 run;
 
-/* Write the final combined dataset to Excel */
+/* Export the final combined dataset to Excel */
 data outlib.&sheetName.;
-    set combined;
+    set combined_clean;
 run;
 
 libname outlib clear;
