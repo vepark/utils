@@ -1,0 +1,45 @@
+/* Define global macro variables for the file inputs */
+%global file1 file2 file3;
+
+/* Assign macro variables for prompts (ensure these are set in the stored process definition) */
+%let file1 = &_FILE1;
+%let file2 = &_FILE2;
+%let file3 = &_FILE3;
+
+/* Conditional logic to determine which code blocks to execute */
+%macro run_code;
+    %if "&file1" ne "" and "&file2" ne "" and "&file3" eq "" %then %do;
+        %put Executing Code Block 1 and 2;
+        %code1;
+        %code2;
+    %end;
+    %else %if "&file1" ne "" and "&file3" ne "" and "&file2" eq "" %then %do;
+        %put Executing Code Block 3;
+        %code3;
+    %end;
+    %else %do;
+        %put No valid combination of files provided;
+    %end;
+%mend run_code;
+
+/* Define code blocks */
+%macro code1;
+    /* Code for file1 and file2 */
+    %put Running Code Block 1;
+    /* Your code here */
+%mend code1;
+
+%macro code2;
+    /* Code for file1 and file2 */
+    %put Running Code Block 2;
+    /* Your code here */
+%mend code2;
+
+%macro code3;
+    /* Code for file1 and file3 */
+    %put Running Code Block 3;
+    /* Your code here */
+%mend code3;
+
+/* Execute the conditional logic */
+%run_code;
