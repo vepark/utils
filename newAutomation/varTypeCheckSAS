@@ -1,0 +1,64 @@
+%macro check_var_type(ds, var);
+    %local dsid vnum vtype;
+    %let dsid = %sysfunc(open(&ds, i));
+    %let vnum = %sysfunc(varnum(&dsid, &var));
+    %let vtype = %sysfunc(vartype(&dsid, &vnum));
+    %let rc = %sysfunc(close(&dsid));
+    &vtype
+%mend check_var_type;
+
+
+
+%let dataset = table_a;
+%let var = id;
+%let user_input = 1234; /* Example input */
+
+%let var_type = %check_var_type(&dataset, &var);
+
+proc sql;
+    create table result as
+    select a.*, b.*,
+           case 
+               when &var_type = C then input(a.&var, best12.)
+               else a.&var
+           end as numeric_id
+    from table_a a
+    left join table_b b
+    on (case 
+            when &var_type = C then input(a.&var, best12.)
+            else a.&var
+        end) = (case 
+                   when %sysfunc(notdigit(&user_input)) > 0 then input("&user_input", best12.)
+                   else &user_input
+               end)
+    where (case 
+               when &var_type = C then input(b.&var, best12.)
+               else b.&var
+           end) = (case 
+                     when %sysfunc(notdigit(&user_input)) > 0 then input("&user_input", best12.)
+                     else &user_input
+                   end);
+quit;
+
+
+*simplified inline approach without macros, directly handling the character to numeric conversion:
+
+%let dataset = table_a;
+%let var = id;
+%let user_input = 1234; /* Example input */
+
+proc sql noprint;
+    select distinct case when type='char' then 'C' else 'N' end
+    into :var_type
+    from dictionary.columns
+    where libname = 'WORK' and memname = %upcase(%scan(&dataset, 2, .)) and name = %upcase(&var);
+
+    create table result as
+    select a.*, b.*
+    from table_a a
+    left join table_b b
+    on (case when "&var_type" = 'C' then input(a.&var, best12.) else a.&var end) = 
+       (case when %sysfunc(notdigit(&user_input)) > 0 then input("&user_input", best12.) else &user_input end)
+    where (case when "&var_type" = 'C' then input(b.&var, best12.) else b.&var end) = 
+          (case when %sysfunc(notdigit(&user_input)) > 0 then input("&user_input", best12.) else &user_input end);
+quit;
