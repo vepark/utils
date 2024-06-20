@@ -1,0 +1,42 @@
+# Define the folder path, sheet name, and output file name
+$folderPath = "path\to\your\folder"  # Replace with the path to your folder
+$sheetName = "Monitoring Criteria"
+$outputFile = "combined.xlsx"
+
+# Import the ImportExcel module
+Import-Module ImportExcel
+
+# Initialize an empty array to hold data
+$data = @()
+$headerSaved = $false
+
+# Loop through each file in the folder
+Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
+    $file = $_.FullName
+    try {
+        # Read the specified sheet
+        $sheetData = Import-Excel -Path $file -WorksheetName $sheetName
+        if ($sheetData -ne $null) {
+            # Add filename as the first column
+            $sheetData | ForEach-Object {
+                $_ | Add-Member -MemberType NoteProperty -Name "Filename" -Value $file -Force
+            }
+            if (-not $headerSaved) {
+                # If it's the first file, save the header
+                $data += $sheetData
+                $headerSaved = $true
+            } else {
+                # If it's not the first file, skip the header
+                $data += $sheetData | Select-Object -Skip 1
+            }
+        }
+    } catch {
+        # Print an error message if the sheet is not found
+        Write-Host "Skipping file $file: $($_.Exception.Message)"
+    }
+}
+
+# Export the combined data to a new Excel file
+$data | Export-Excel -Path $outputFile -WorksheetName "CombinedData" -AutoSize
+
+Write-Host "Combined file saved as $outputFile"
