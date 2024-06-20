@@ -39,8 +39,8 @@ Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
     }
 }
 
-# Remove empty rows
-$data = $data | Where-Object { $_.PSObject.Properties['ColumnA'].Value -ne $null }
+# Remove empty rows based on the Filename column
+$data = $data | Where-Object { $_.Filename -ne $null }
 
 # Export the combined data to a new Excel file
 $data | Export-Excel -Path $outputFile -WorksheetName "CombinedData" -AutoSize
