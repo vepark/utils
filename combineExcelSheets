@@ -54,3 +54,79 @@ if ($missingFiles.Count -gt 0) {
 }
 
 Write-Host "Combined file saved as $outputFile"
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sub CombineExcelFiles()
+    Dim folderPath As String
+    Dim fileName As String
+    Dim ws As Worksheet
+    Dim newWs As Worksheet
+    Dim wsData As Worksheet
+    Dim lastRow As Long
+    Dim newRow As Long
+    Dim colCount As Integer
+    Dim header As Boolean
+
+    ' Set the folder path and initialize variables
+    folderPath = "C:\path\to\your\folder\" ' Change this to your folder path
+    fileName = Dir(folderPath & "*.xlsx")
+    header = False
+    newRow = 1
+
+    ' Add a new worksheet for the combined data
+    Set newWs = ThisWorkbook.Sheets.Add
+    newWs.Name = "CombinedData"
+
+    ' Loop through each file in the folder
+    Do While fileName <> ""
+        ' Open the workbook
+        Workbooks.Open folderPath & fileName
+        Set ws = ActiveWorkbook.Sheets("Monitoring Criteria")
+
+        ' Check if the sheet exists
+        On Error Resume Next
+        Set wsData = ActiveWorkbook.Sheets("Monitoring Criteria")
+        On Error GoTo 0
+
+        If Not wsData Is Nothing Then
+            ' Copy the data
+            With wsData
+                colCount = .Cells(1, .Columns.Count).End(xlToLeft).Column
+                lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
+
+                ' Add the header from the first file
+                If Not header Then
+                    newWs.Range(newWs.Cells(1, 2), newWs.Cells(1, colCount + 1)).Value = .Range(.Cells(1, 1), .Cells(1, colCount)).Value
+                    newWs.Cells(1, 1).Value = "Filename"
+                    header = True
+                    newRow = 2
+                End If
+
+                ' Add the data to the combined sheet
+                newWs.Range(newWs.Cells(newRow, 2), newWs.Cells(newRow + lastRow - 2, colCount + 1)).Value = .Range(.Cells(2, 1), .Cells(lastRow, colCount)).Value
+                newWs.Range(newWs.Cells(newRow, 1), newWs.Cells(newRow + lastRow - 2, 1)).Value = fileName
+                newRow = newRow + lastRow - 1
+            End With
+        End If
+
+        ' Close the workbook without saving
+        ActiveWorkbook.Close SaveChanges:=False
+
+        ' Move to the next file
+        fileName = Dir
+        Set wsData = Nothing
+    Loop
+
+    MsgBox "Data combined successfully!", vbInformation
+End Sub
