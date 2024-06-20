@@ -20,17 +20,9 @@
             %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
 
             %if %upcase(&ext) = XLSX %then %do;
-                %let cnt = %eval(&cnt + 1);
-
                 libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
 
-                proc sql noprint;
-                    select count(*) into :exists
-                    from dictionary.tables
-                    where libname='TMP' and memname="%upcase(&sheetname)";
-                quit;
-
-                %if &exists %then %do;
+                %if %sysfunc(exist(tmp."&sheetname"n)) %then %do;
                     data tmpdata;
                         set tmp."&sheetname"n;
                         length filename $200;
@@ -49,9 +41,7 @@
         /* Remove empty rows */
         data final_combined_dsn;
             set combined_dsn;
-            array _char_ _character_;
-            array _num_ _numeric_;
-            if nmiss(of _num_(*)) + cmiss(of _char_(*)) < dim(_char_) + dim(_num_);
+            if cmiss(of _all_) < dim(_all_); /* Keep rows with at least one non-missing value */
         run;
 
         %let rc = %sysfunc(dclose(&did));
@@ -60,6 +50,7 @@
 %mend drive;
 
 %drive(W:\Satya\04_2024, xlsx, Monitoring Criteria);
+
 
 
 
