@@ -1,59 +1,51 @@
-%macro drive(dir, sheetname);
-    %local cnt filrf rc did memcnt name dsname;
+%macro drive(dir, ext);
+    %local cnt filrf rc did memcnt name dsname combined_dsn;
     %let cnt = 0;
     %let filrf = mydir;
-
+    
     %let rc = %sysfunc(filename(filrf, &dir));
     %let did = %sysfunc(dopen(&filrf));
-
+    
     %if &did ne 0 %then %do;
         %let memcnt = %sysfunc(dnum(&did));
-
+        
         data combined_dsn;
             length filename $200;
             stop;
         run;
-
+        
         %do i = 1 %to &memcnt;
             %let name = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
             %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
-
+            
             %if %upcase(&ext) = XLSX %then %do;
                 %let cnt = %eval(&cnt + 1);
                 %let dsname = dsn&cnt;
+                
+                proc import 
+                    datafile="&dir\%qsysfunc(dread(&did, &i))" 
+                    out=&dsname 
+                    dbms=xlsx 
+                    replace;
+                    sheet="Monitoring Criteria";
+                    getnames=yes;
+                    range="Monitoring Criteria$2:10000"; /* Skip the first row */
+                run;
 
-                libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
-
-                %if %sysfunc(exist(tmp."&sheetname"n)) %then %do;
-                    proc import 
-                        datafile="&dir\%qsysfunc(dread(&did, &i))" 
-                        out=tmpdata 
-                        dbms=xlsx 
-                        replace;
-                        sheet="&sheetname";
-                        getnames=yes;
-                        range="&sheetname$2:10000"; /* Skip the first row */
-                    run;
+                /* Standardize column names */
+                data &dsname;
+                    set &dsname;
+                    length filename $200;
+                    filename = "%qsysfunc(dread(&did, &i))";
 
                     /* Standardize column names */
-                    data tmpdata;
-                        set tmpdata;
-                        length filename $200;
-                        filename = "%qsysfunc(dread(&did, &i))";
+                    if missing(NewCode) then NewCode = coalesce(Code, Codes);
+                    drop Code Codes;
+                run;
 
-                        /* Standardize column names */
-                        if 'code'n ^= . then NewCode = 'code'n;
-                        if 'codes'n ^= . then NewCode = 'codes'n;
-
-                        drop 'code'n 'codes'n; /* Drop the old columns */
-                    run;
-
-                    /* Append to the combined dataset */
-                    proc append base=combined_dsn data=tmpdata force;
-                    run;
-                %end;
-
-                libname tmp clear;
+                data combined_dsn;
+                    set combined_dsn &dsname;
+                run;
             %end;
         %end;
 
@@ -68,4 +60,4 @@
     %else %put &dir cannot be opened.;
 %mend drive;
 
-%drive(W:\Satya\04_2024, Monitoring Criteria);
+%drive(W:\abb\04_2024, xlsx);
