@@ -1,70 +1,48 @@
-%macro drive(dir, ext);
-    %local cnt filrf rc did memcnt name dsname combined_dsn;
-    %let cnt = 0;
-    %let filrf = mydir;
+%macro imp_excel(filename);
+    proc import 
+        datafile="&filename"
+        out=temp
+        dbms=xlsx 
+        replace;
+        sheet="Monitoring Criteria";
+        getnames=yes;
+        range="Monitoring Criteria$2:10000"; /* Skip the first row */
+    run;
 
-    %let rc = %sysfunc(filename(filrf, &dir));
-    %let did = %sysfunc(dopen(&filrf));
+    data temp;
+        set temp;
+        length filename $200;
+        filename = "&filename";
+    run;
 
-    %if &did ne 0 %then %do;
-        %let memcnt = %sysfunc(dnum(&did));
+    proc append 
+        base=want 
+        data=temp 
+        force;
+    run;
 
-        data combined_dsn;
-            length filename $200;
-            stop;
-        run;
+    proc delete data=temp;
+    run;
+%mend imp_excel;
 
-        %do i = 1 %to &memcnt;
-            %let name = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
-            %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
+data _null_;
+    length fref $8 fname $200;
+    rc = filename(fref, "path_to_your_excel_files");
+    did = dopen(fref);
+    if did ne 0 then do;
+        do i = 1 to dnum(did);
+            fname = catx("/", "path_to_your_excel_files", dread(did, i));
+            if lowcase(scan(fname, -1, '.')) = 'xlsx' then call execute(cats('%imp_excel(', fname, ')'));
+        end;
+        rc = dclose(did);
+    end;
+    rc = filename(fref);
+run;
 
-            %if %upcase(&ext) = XLSX %then %do;
-                %let cnt = %eval(&cnt + 1);
-                %let dsname = dsn&cnt;
-
-                libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
-
-                %if %sysfunc(exist(tmp."Monitoring Criteria"n)) %then %do;
-                    proc import 
-                        datafile="&dir\%qsysfunc(dread(&did, &i))" 
-                        out=&dsname 
-                        dbms=xlsx 
-                        replace;
-                        sheet="Monitoring Criteria";
-                        getnames=yes;
-                        range="Monitoring Criteria$2:10000"; /* Skip the first row */
-                    run;
-
-                    /* Keep only the first six columns and add filename */
-                    data &dsname;
-                        set &dsname (keep=_all_);
-                        length filename $200;
-                        filename = "%qsysfunc(dread(&did, &i))";
-                        /* Standardize column names */
-                        rename var1=ColumnA var2=ColumnB var3=ColumnC
-                               var4=ColumnD var5=ColumnE var6=ColumnF;
-                    run;
-
-                    data combined_dsn;
-                        set combined_dsn &dsname;
-                    run;
-                %end;
-
-                libname tmp clear;
-            %end;
-        %end;
-
-        /* Remove empty rows */
-        data final_combined_dsn;
-            set combined_dsn;
-            array chars _character_;
-            array nums _numeric_;
-            if cmiss(of chars(*)) + nmiss(of nums(*)) < dim(chars) + dim(nums); /* Keep rows with at least one non-missing value */
-        run;
-
-        %let rc = %sysfunc(dclose(&did));
-    %end;
-    %else %put &dir cannot be opened.;
-%mend drive;
-
-%drive(W:\Satya\04_2024, xlsx);
+/* Remove empty rows from the final combined dataset */
+data final_combined_dsn;
+    set want;
+    array chars _character_;
+    array nums _numeric_;
+    if cmiss(of chars(*)) + nmiss(of nums(*)) < dim(chars) + dim(nums); /* Keep rows with at least one non-missing value */
+run;
