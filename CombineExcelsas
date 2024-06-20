@@ -36,17 +36,16 @@
                     run;
 
                     /* Standardize column names */
-                    proc datasets library=work nolist;
-                        modify tmpdata;
-                        rename OldName1=NewName1
-                               OldName2=NewName2
-                               OldName3=NewName3;
-                    quit;
-
                     data tmpdata;
                         set tmpdata;
                         length filename $200;
                         filename = "%qsysfunc(dread(&did, &i))";
+
+                        /* Standardize column names */
+                        if 'code'n ^= . then NewCode = 'code'n;
+                        if 'codes'n ^= . then NewCode = 'codes'n;
+
+                        drop 'code'n 'codes'n; /* Drop the old columns */
                     run;
 
                     /* Append to the combined dataset */
@@ -69,4 +68,4 @@
     %else %put &dir cannot be opened.;
 %mend drive;
 
-%drive(W:\abc\04_2024, Monitoring Criteria);
+%drive(W:\Satya\04_2024, Monitoring Criteria);
