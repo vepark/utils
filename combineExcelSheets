@@ -32,7 +32,7 @@ Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
         }
     } catch {
         # Print an error message if the sheet is not found
-        Write-Host "Skipping file $file: $($_.Exception.Message)"
+        Write-Host ("Skipping file {0}: {1}" -f $file, $_.Exception.Message)
     }
 }
 
