@@ -1,4 +1,74 @@
 %macro drive(dir, ext, sheetname);
+    %local cnt filrf rc did memcnt name dsname;
+    %let cnt = 0;
+    %let filrf = mydir;
+
+    %let rc = %sysfunc(filename(filrf, &dir));
+    %let did = %sysfunc(dopen(&filrf));
+
+    %if &did ne 0 %then %do;
+        %let memcnt = %sysfunc(dnum(&did));
+        
+        data combined_dsn;
+            length filename $200;
+            if _n_ = 0 then set _null_;
+            stop;
+        run;
+
+        %do i = 1 %to &memcnt;
+            %let name = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
+            %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
+
+            %if %upcase(&ext) = XLSX %then %do;
+                %let cnt = %eval(&cnt + 1);
+
+                libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
+
+                proc sql noprint;
+                    select count(*) into :exists
+                    from dictionary.tables
+                    where libname='TMP' and memname="%upcase(&sheetname)";
+                quit;
+
+                %if &exists %then %do;
+                    data tmpdata;
+                        set tmp."&sheetname"n;
+                        length filename $200;
+                        filename = "%qsysfunc(dread(&did, &i))";
+                    run;
+
+                    /* Append to the combined dataset */
+                    proc append base=combined_dsn data=tmpdata force;
+                    run;
+                %end;
+
+                libname tmp clear;
+            %end;
+        %end;
+
+        /* Remove empty rows */
+        data final_combined_dsn;
+            set combined_dsn;
+            array _char_ _character_;
+            array _num_ _numeric_;
+            if nmiss(of _num_(*)) + cmiss(of _char_(*)) < dim(_char_) + dim(_num_);
+        run;
+
+        %let rc = %sysfunc(dclose(&did));
+    %end;
+    %else %put &dir cannot be opened.;
+%mend drive;
+
+%drive(W:\Satya\04_2024, xlsx, Monitoring Criteria);
+
+
+
+
+
+
+
+
+%macro drive(dir, ext, sheetname);
     %local cnt filrf rc did memcnt name dsname combined_dsn;
     %let cnt = 0;
     %let filrf = mydir;
