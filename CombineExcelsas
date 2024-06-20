@@ -25,8 +25,26 @@
                 libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
 
                 %if %sysfunc(exist(tmp."&sheetname"n)) %then %do;
+                    proc import 
+                        datafile="&dir\%qsysfunc(dread(&did, &i))" 
+                        out=tmpdata 
+                        dbms=xlsx 
+                        replace;
+                        sheet="&sheetname";
+                        getnames=yes;
+                        range="&sheetname$2:10000"; /* Skip the first row */
+                    run;
+
+                    /* Standardize column names */
+                    proc datasets library=work nolist;
+                        modify tmpdata;
+                        rename OldName1=NewName1
+                               OldName2=NewName2
+                               OldName3=NewName3;
+                    quit;
+
                     data tmpdata;
-                        set tmp."&sheetname"n(firstobs=2);
+                        set tmpdata;
                         length filename $200;
                         filename = "%qsysfunc(dread(&did, &i))";
                     run;
