@@ -52,7 +52,9 @@
         /* Remove empty rows */
         data final_combined_dsn;
             set combined_dsn;
-            if cmiss(of _all_) < dim(_all_); /* Keep rows with at least one non-missing value */
+            array chars _character_;
+            array nums _numeric_;
+            if cmiss(of chars(*)) + nmiss(of nums(*)) < dim(chars) + dim(nums); /* Keep rows with at least one non-missing value */
         run;
 
         %let rc = %sysfunc(dclose(&did));
@@ -60,4 +62,4 @@
     %else %put &dir cannot be opened.;
 %mend drive;
 
-%drive(W:\abb\04_2024, xlsx);
+%drive(W:\Satya\04_2024, xlsx);
