@@ -1,4 +1,4 @@
-%macro drive(dir, ext, sheetname);
+%macro drive(dir, sheetname);
     %local cnt filrf rc did memcnt name dsname;
     %let cnt = 0;
     %let filrf = mydir;
@@ -8,10 +8,9 @@
 
     %if &did ne 0 %then %do;
         %let memcnt = %sysfunc(dnum(&did));
-        
+
         data combined_dsn;
             length filename $200;
-            if _n_ = 0 then set _null_;
             stop;
         run;
 
@@ -20,11 +19,14 @@
             %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
 
             %if %upcase(&ext) = XLSX %then %do;
+                %let cnt = %eval(&cnt + 1);
+                %let dsname = dsn&cnt;
+
                 libname tmp xlsx "&dir\%qsysfunc(dread(&did, &i))";
 
                 %if %sysfunc(exist(tmp."&sheetname"n)) %then %do;
                     data tmpdata;
-                        set tmp."&sheetname"n;
+                        set tmp."&sheetname"n(firstobs=2);
                         length filename $200;
                         filename = "%qsysfunc(dread(&did, &i))";
                     run;
@@ -49,73 +51,4 @@
     %else %put &dir cannot be opened.;
 %mend drive;
 
-%drive(W:\Satya\04_2024, xlsx, Monitoring Criteria);
-
-
-
-
-
-
-
-
-
-%macro drive(dir, ext, sheetname);
-    %local cnt filrf rc did memcnt name dsname combined_dsn;
-    %let cnt = 0;
-    %let filrf = mydir;
-
-    %let rc = %sysfunc(filename(filrf, &dir));
-    %let did = %sysfunc(dopen(&filrf));
-
-    %if &did ne 0 %then %do;
-        %let memcnt = %sysfunc(dnum(&did));
-        data combined_dsn;
-        run;
-
-        %do i = 1 %to &memcnt;
-            %let name = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
-            %let ext = %qscan(%qsysfunc(dread(&did, &i)), -1, .);
-
-            %if %upcase(&ext) = XLSX %then %do;
-                %let cnt = %eval(&cnt + 1);
-                %let dsname = dsn&cnt;
-
-                /* Try importing the specific sheet */
-                %let rc = 0;
-                proc sql noprint;
-                    connect to excel (path="&dir\%qsysfunc(dread(&did, &i))");
-                    select count(*) into :rc
-                    from connection to excel
-                    (select * from &sheetname);
-                    disconnect from excel;
-                quit;
-
-                %if &rc ne 0 %then %do;
-                    proc import 
-                        datafile="&dir\%qsysfunc(dread(&did, &i))" 
-                        out=&dsname 
-                        dbms=xlsx 
-                        replace;
-                        sheet="&sheetname";
-                        getnames=yes;
-                    run;
-
-                    /* Append to the combined dataset */
-                    proc append base=combined_dsn data=&dsname force;
-                    run;
-                %end;
-            %end;
-        %end;
-
-        /* Create a combined dataset and remove empty rows */
-        data combined_dsn_final;
-            set combined_dsn;
-            if cmiss(of _all_) < dim(_all_); /* This keeps only rows with at least one non-missing value */
-        run;
-
-        %let rc = %sysfunc(dclose(&did));
-    %end;
-    %else %put &dir cannot be opened.;
-%mend drive;
-
-%drive(W:\Satya\04_2024, xlsx, Monitoring Criteria);
+%drive(W:\abc\04_2024, Monitoring Criteria);
