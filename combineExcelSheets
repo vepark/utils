@@ -2,12 +2,14 @@
 $folderPath = "path\to\your\folder"  # Replace with the path to your folder
 $sheetName = "Monitoring Criteria"
 $outputFile = "combined.xlsx"
+$reportFile = "missing_sheets_report.txt"
 
 # Import the ImportExcel module
 Import-Module ImportExcel
 
 # Initialize an empty array to hold data
 $data = @()
+$missingFiles = @()
 $headerSaved = $false
 
 # Loop through each file in the folder
@@ -16,6 +18,7 @@ Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
     try {
         # Read the specified sheet
         $sheetData = Import-Excel -Path $file -WorksheetName $sheetName
+
         if ($sheetData -ne $null) {
             # Add filename as the first column
             $sheetData | ForEach-Object {
@@ -31,12 +34,23 @@ Get-ChildItem -Path $folderPath -Filter *.xlsx | ForEach-Object {
             }
         }
     } catch {
-        # Print an error message if the sheet is not found
-        Write-Host ("Skipping file {0}: {1}" -f $file, $_.Exception.Message)
+        # Add to missing files report if the sheet is not found
+        $missingFiles += $file
     }
 }
 
+# Remove empty rows
+$data = $data | Where-Object { $_.PSObject.Properties['ColumnA'].Value -ne $null }
+
 # Export the combined data to a new Excel file
 $data | Export-Excel -Path $outputFile -WorksheetName "CombinedData" -AutoSize
+
+# Generate a report of missing files
+if ($missingFiles.Count -gt 0) {
+    $missingFiles | Out-File -FilePath $reportFile
+    Write-Host "The following files did not contain the specified sheet and are listed in $reportFile"
+} else {
+    Write-Host "All files contained the specified sheet."
+}
 
 Write-Host "Combined file saved as $outputFile"
